@@ -1,0 +1,30 @@
+From 311dade6ccaa40cdef6f783ef87d7144ceac7b66 Mon Sep 17 00:00:00 2001
+From: Starwey <moonbite233@gmail.com>
+Date: Sat, 19 Sep 2026 12:29:55 +0800
+Subject: [PATCH] arm64: configs: add Aura teleop latency fragment
+
+---
+ arch/arm64/configs/rv1126b_teleop_low_latency.config | 11 +++++++++++
+ 1 file changed, 11 insertions(+)
+ create mode 100644 arch/arm64/configs/rv1126b_teleop_low_latency.config
+
+diff --git a/arch/arm64/configs/rv1126b_teleop_low_latency.config b/arch/arm64/configs/rv1126b_teleop_low_latency.config
+new file mode 100644
+index 000000000..177c734f1
+--- /dev/null
++++ b/arch/arm64/configs/rv1126b_teleop_low_latency.config
+@@ -0,0 +1,11 @@
++# Luckfox Aura teleoperation latency baseline.
++# This is deliberately a small fragment over rv1126b_luckfox_defconfig.
++
++# CONFIG_PREEMPT_NONE is not set
++CONFIG_PREEMPT=y
++
++# CONFIG_HZ_250 is not set
++CONFIG_HZ_1000=y
++
++# CONFIG_CC_OPTIMIZE_FOR_SIZE is not set
++CONFIG_CC_OPTIMIZE_FOR_PERFORMANCE=y
+-- 
+2.55.0
+

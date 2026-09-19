@@ -290,9 +290,15 @@ artifacts/<date>-<image-name>/
 
 ## 12. 近期实施顺序
 
-1. 创建 `sdk/manifest.lock.xml`、`baseline.toml` 和 `series.toml`。
-2. 实现只读的 `sdk-patch check/status`。
-3. 增加 teleop BoardConfig、kernel fragment 和 Buildroot defconfig。
-4. 增加 `overlay-luckfox-teleop`。
-5. 实现 `apply/export` 并验证从干净 SDK 可重复构建。
-6. 实物到达后按摄像头延迟调优文档逐阶段产生 patch 和镜像。
+第 0、1 轮已经完成前五项。`sdk-patch` 已在临时的精确基线 worktree 上通过 `check → apply → status` 验证。
+
+Teleop 的 BoardConfig 选择不通过交互式 `lunch` 完成，而使用项目脚本：
+
+```sh
+cd /home/ww/codings/luckfox-aura-teleop
+./tools/select-teleop-board /home/ww/codings/aura-sdk
+```
+
+当前 Teleop Buildroot 使用 GCC 12 而非厂商 defconfig 的 GCC 13。原因是该 SDK 附带的 Buildroot 2025.02.6 没有让 GCC 13 选择内部的 `GCC >= 12` Kconfig 能力，因而会静默移除 `v4l-utils`。GCC 12 可正常保留 `v4l2-ctl` 和 `media-ctl`；原厂 GCC 13 defconfig 没有修改。
+
+下一步是让首次 Buildroot 完整构建完成，确认 rootfs 内容；实物到达后按摄像头延迟调优文档逐阶段产生 patch 和镜像。

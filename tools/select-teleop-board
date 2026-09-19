@@ -1,0 +1,20 @@
+#!/bin/sh
+# Select the project-owned Teleop BoardConfig in an Aura SDK checkout.
+set -eu
+
+[ "$#" -eq 1 ] || {
+	printf '%s\n' "usage: $0 <aura-sdk-path>" >&2
+	exit 2
+}
+
+sdk=$1
+board="$sdk/project/cfg/BoardConfig_Aura/BoardConfig-EMMC-RK801-Luckfox_Aura-Teleop-Buildroot.mk"
+
+[ -f "$board" ] || {
+	printf '%s\n' "error: Teleop BoardConfig is missing: $board" >&2
+	printf '%s\n' "       apply the BoardConfig patch stack first" >&2
+	exit 1
+}
+
+ln -sfn "$board" "$sdk/.BoardConfig.mk"
+printf '%s\n' "selected: $(readlink -f "$sdk/.BoardConfig.mk")"

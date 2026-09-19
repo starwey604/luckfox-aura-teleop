@@ -1,0 +1,72 @@
+From 9d1691a6ed7aad32913a36f4ee71f1cc3def2323 Mon Sep 17 00:00:00 2001
+From: Starwey <moonbite233@gmail.com>
+Date: Sat, 19 Sep 2026 12:29:55 +0800
+Subject: [PATCH] board: add Aura teleop Buildroot configuration
+
+---
+ ...MMC-RK801-Luckfox_Aura-Teleop-Buildroot.mk | 16 ++++++++++
+ .../etc/init.d/S02teleop-performance          | 29 +++++++++++++++++++
+ 2 files changed, 45 insertions(+)
+ create mode 100644 BoardConfig-EMMC-RK801-Luckfox_Aura-Teleop-Buildroot.mk
+ create mode 100755 overlay/overlay-luckfox-teleop/etc/init.d/S02teleop-performance
+
+diff --git a/BoardConfig-EMMC-RK801-Luckfox_Aura-Teleop-Buildroot.mk b/BoardConfig-EMMC-RK801-Luckfox_Aura-Teleop-Buildroot.mk
+new file mode 100644
+index 0000000..8a3d449
+--- /dev/null
++++ b/BoardConfig-EMMC-RK801-Luckfox_Aura-Teleop-Buildroot.mk
+@@ -0,0 +1,16 @@
++#!/bin/bash
++# Development configuration for the Aura teleoperation image.
++# Keep the vendor configuration intact so it remains a recovery baseline.
++source "$(dirname "${BASH_SOURCE[0]}")/BoardConfig-EMMC-RK801-Luckfox_Aura-Buildroot.mk"
++
++# Low-latency settings are a fragment so their diff stays reviewable.
++export RK_KERNEL_DEFCONFIG_FRAGMENT=rv1126b_teleop_low_latency.config
++
++# Rockchip's rk_dma_heap_cma boot argument is generated from this value.
++export RK_BOOTARGS_CMA_SIZE="256M"
++
++# This development image has camera/network diagnostics and GStreamer.
++export RK_BUILDROOT_DEFCONFIG=luckfox_64bit_teleop_defconfig
++
++# The vendor overlay supplies SSH; this overlay only adds teleop defaults.
++export RK_POST_OVERLAY="overlay-luckfox-buildroot-64bit overlay-luckfox-teleop"
+diff --git a/overlay/overlay-luckfox-teleop/etc/init.d/S02teleop-performance b/overlay/overlay-luckfox-teleop/etc/init.d/S02teleop-performance
+new file mode 100755
+index 0000000..b8f8213
+--- /dev/null
++++ b/overlay/overlay-luckfox-teleop/etc/init.d/S02teleop-performance
+@@ -0,0 +1,29 @@
++#!/bin/sh
++# Apply the performance governor after cpufreq and devfreq sysfs are available.
++
++set_performance() {
++	for governor in /sys/devices/system/cpu/cpufreq/policy*/scaling_governor; do
++		[ -w "$governor" ] || continue
++		echo performance > "$governor" 2>/dev/null || true
++	done
++
++	# RV1126B exposes CPU/GPU/NPU clocks through devfreq where supported.
++	for governor in /sys/class/devfreq/*/governor; do
++		[ -w "$governor" ] || continue
++		echo performance > "$governor" 2>/dev/null || true
++	done
++}
++
++case "$1" in
++	start|restart|reload)
++		set_performance
++		;;
++	stop)
++		;;
++	*)
++		echo "Usage: $0 {start|stop|restart|reload}" >&2
++		exit 1
++		;;
++esac
++
++exit 0
+-- 
+2.55.0
+

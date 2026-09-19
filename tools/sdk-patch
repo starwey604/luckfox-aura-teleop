@@ -35,7 +35,7 @@ check_one() {
 	base=$2
 	path="$sdk/$project"
 	patch_dir="$root/sdk/patches/$project"
-	[ -d "$path/.git" ] || {
+	[ -e "$path/.git" ] || {
 		printf '%s\n' "error: missing git project: $path" >&2
 		return 1
 	}
