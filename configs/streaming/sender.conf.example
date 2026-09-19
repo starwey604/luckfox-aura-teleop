@@ -1,0 +1,9 @@
+# Phase-B sender defaults. The phase-A hello program does not read this yet.
+stream_id=0
+width=1280
+height=720
+fps=60
+codec=h264
+bitrate_kbps=16000
+destination_host=192.168.1.2
+destination_port=5000

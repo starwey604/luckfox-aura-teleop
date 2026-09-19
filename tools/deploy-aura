@@ -1,0 +1,17 @@
+#!/bin/sh
+# Copy a previously cross-compiled sender to Aura's persistent userdata volume.
+set -eu
+
+root=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
+sender=${1:-"$root/build/aura/bin/aura-sender"}
+target=${AURA_TARGET:-root@192.168.1.10}
+destination=/userdata/teleop-sender
+
+[ -x "$sender" ] || {
+	printf '%s\n' "error: sender is missing or not executable: $sender" >&2
+	exit 1
+}
+
+ssh "$target" 'mkdir -p /userdata'
+scp "$sender" "$target:$destination"
+ssh "$target" "chmod 755 $destination && $destination --help"

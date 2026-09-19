@@ -162,7 +162,10 @@ cd /home/ww/codings/aura-sdk
 ./build.sh media
 
 cd /home/ww/codings/luckfox-aura-teleop
-./tools/build-aura /home/ww/codings/aura-sdk
+./tools/build-aura
+
+# CI 或非相邻目录布局可以显式覆盖 SDK 路径。
+AURA_SDK_ROOT=/path/to/aura-sdk ./tools/build-aura
 ./tools/build-host
 ```
 

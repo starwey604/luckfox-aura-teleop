@@ -1,0 +1,17 @@
+#!/bin/sh
+# Configure and build aura-sender against the adjacent SDK by default.
+set -eu
+
+root=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
+sdk=${AURA_SDK_ROOT:-"$root/../aura-sdk"}
+build_dir=${1:-"$root/build/aura"}
+
+cmake -S "$root" -B "$build_dir" \
+    -DCMAKE_BUILD_TYPE=Release \
+    -DCMAKE_TOOLCHAIN_FILE="$root/cmake/aura-toolchain.cmake" \
+    -DAURA_SDK_ROOT="$sdk" \
+    -DTELEOP_BUILD_AURA_SENDER=ON \
+    -DTELEOP_BUILD_HOST_VIEWER=OFF
+cmake --build "$build_dir"
+
+printf '%s\n' "built: $build_dir/bin/aura-sender"
