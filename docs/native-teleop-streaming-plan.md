@@ -1,0 +1,296 @@
+# Aura 原生低延迟传输程序开发与集成方案
+
+## 1. 目标与结论
+
+本项目在 `luckfox-aura-teleop` 中维护一套原生的低延迟视频程序：
+
+- `aura-sender`：运行在 Luckfox Aura（RV1126B）上，采集 ISG1321/MIA1321，使用 Rockchip MPP/RK MPI 硬件编码并通过 UDP 发送；
+- `host-viewer`：运行在 CachyOS x86_64 主机上，接收 UDP 码流、解码并显示；
+- `common`：保存网络协议、统计结构、时间戳和公共测试代码。
+
+正式性能路径不依赖完整 GStreamer 管线。GStreamer 仍作为摄像头、码流和网络功能的参考实现，用于交叉验证和排障。
+
+原生程序的主要收益是完全控制缓冲数量、丢帧策略、slice 输出、UDP 分包和显示时机。优化良好的 GStreamer 封装本身通常只增加少量延迟，因此原生实现的价值主要是消除不透明的队列、用户态复制和时钟同步，而不是单纯更换框架。
+
+720p60 H.264 的阶段目标为：
+
+| 阶段 | P50 screen-to-screen | P95 screen-to-screen |
+|---|---:|---:|
+| 首个稳定原生闭环 | 40～65 ms | 55～85 ms |
+| wrap、slice 和显示调优后 | 30～50 ms | 40～65 ms |
+| 激进优化目标 | 25～40 ms | 35～50 ms |
+
+## 2. 总体数据通路
+
+```text
+Aura sender
+ISG1321/MIA1321
+  → VICAP/VI
+  → ISP/VPSS（只在格式转换、裁剪或缩放时使用）
+  → RK MPI VENC / MPP H.264
+  → slice packet
+  → UDP
+
+CachyOS viewer
+UDP
+  → 分包校验与帧重组
+  → FFmpeg libavcodec（软件或 VAAPI）
+  → Vulkan/DRM/SDL 显示
+```
+
+发送端优先复用 SDK 已有的 RK MPI sample、VENC 配置和内存管理代码。VI、VPSS 和 VENC 尽可能通过 `RK_MPI_SYS_Bind()` 连接，使图像留在 DMA buffer 中。应用只获取编码后的 packet，不把原始帧复制到用户态。
+
+## 3. 推荐仓库结构
+
+```text
+luckfox-aura-teleop/
+├── src/
+│   ├── common/
+│   │   ├── protocol.h
+│   │   ├── packetizer.c
+│   │   └── statistics.c
+│   ├── aura-sender/
+│   │   ├── CMakeLists.txt
+│   │   └── src/
+│   └── host-viewer/
+│       ├── CMakeLists.txt
+│       └── src/
+├── cmake/
+│   └── aura-toolchain.cmake
+├── configs/
+│   └── streaming/
+├── tools/
+│   ├── build-aura
+│   ├── build-host
+│   └── deploy-aura
+├── tests/
+│   ├── protocol/
+│   └── latency/
+└── docs/
+```
+
+程序名称使用 `sender/viewer`，比 `master/slave` 更准确地描述视频数据方向。后续双向控制可以另建独立的控制通道。
+
+## 4. Aura 发送端设计
+
+### 4.1 采集与编码
+
+首个版本使用单路 1280×720、60 fps、H.264：
+
+```text
+VI → VPSS crop/scale → VENC H.264 → UDP
+```
+
+编码器初始配置：
+
+- Normal-P，无 B 帧和重排序；
+- GOP 15～30；
+- CBR 12～20 Mbit/s；
+- `base:low_delay = 1`；
+- VI/VENC wrap；
+- `split:mode = BY_CTU`；
+- `split:out = MPP_ENC_SPLIT_OUT_LOWDELAY`；
+- 收到一个 slice packet 后立即交给网络线程。
+
+调优按整帧稳定基线、wrap、slice、减小 VI/VENC buffer 的顺序进行。每次只改变一组参数并记录 P50、P95、P99、丢帧和温度。
+
+### 4.2 线程模型
+
+建议保持很少的固定线程：
+
+1. MPP stream 线程阻塞等待 VENC packet；
+2. UDP 线程立即发送可用 packet；
+3. 低频控制/统计线程处理参数和状态输出。
+
+MPP 到网络线程之间使用有界环形队列。队列满时丢弃旧的未发送视频数据，让系统追赶最新画面，不允许延迟持续积累。
+
+网络线程优先考虑 `sendmmsg()` 和 `iovec`，减少系统调用和内存复制。第一版先保证正确性，再决定是否需要实时调度优先级、CPU affinity 或 busy polling。
+
+## 5. UDP 协议
+
+单个 UDP datagram 控制在约 1200～1400 字节，避免普通 1500 MTU 网络上的 IP 分片。每个包包含固定小头部：
+
+```text
+magic / version
+stream_id
+codec
+frame_id
+packet_id
+packet_count
+flags（IDR、frame start/end、slice）
+capture_timestamp
+payload_size
+可选 checksum
+```
+
+初期使用直接网线，不增加 FEC。接收端维护一到两个 frame slot：
+
+- 包齐后立即提交解码；
+- 新帧到达而旧帧仍不完整时丢弃旧帧；
+- 不为了补齐旧画面继续增加 jitter buffer；
+- 统计乱序、丢包、过期帧和 IDR 恢复时间。
+
+协议需要显式版本号，并为将来的双路视频、控制消息和时间同步保留 `stream_id` 与消息类型。
+
+## 6. CachyOS 接收端设计
+
+`host-viewer` 不使用 Rockchip MPP。解码层使用 FFmpeg `libavcodec`，实现可切换的两条路径：
+
+- H.264 软件解码；
+- AMD VAAPI 硬件解码。
+
+720p60 在当前主机上软件解码也可能足够快；VAAPI 可能减少 CPU 占用，但硬件 surface 和显示同步也可能引入队列。因此以 screen-to-screen 实测选择，不预设硬件解码一定更低延迟。
+
+显示后端建议按以下顺序实现：
+
+1. SDL/Vulkan 窗口，便于快速开发和分屏测试；
+2. Vulkan/DRM 零拷贝路径；
+3. 必要时使用 DRM/KMS 独占输出，绕过桌面合成器。
+
+接收端默认采用 newest-frame-wins：如果显示赶不上接收速度，丢弃旧的待显示帧，不排队追赶。
+
+界面显示帧号、码率、丢包、乱序、解码时间、显示帧率和当前队列深度，便于把视觉结果与程序统计对应起来。
+
+## 7. 开发期构建和部署
+
+Aura 程序必须使用 SDK 的 AArch64 工具链以及匹配的 MPP/RK MPI 头文件和库，不能直接在 CachyOS 上使用宿主编译器生成。
+
+典型顺序为：
+
+```sh
+cd /home/ww/codings/aura-sdk
+./build.sh media
+
+cd /home/ww/codings/luckfox-aura-teleop
+./tools/build-aura /home/ww/codings/aura-sdk
+./tools/build-host
+```
+
+开发期通过以太网和 SSH 部署到 `/userdata`：
+
+```sh
+scp out/aura/teleop-sender \
+  root@192.168.1.10:/userdata/teleop-sender
+
+ssh root@192.168.1.10 \
+  'chmod +x /userdata/teleop-sender && /userdata/teleop-sender --help'
+```
+
+这里使用的是 SCP/SFTP/rsync。UFS 是存储接口，不是以太网文件传输协议。`/userdata` 位于 eMMC 的持久化分区，适合频繁替换测试程序。NFS 可以作为可选调试手段，但不是首选部署路径。
+
+## 8. 集成进 SDK 镜像
+
+### 8.1 推荐方案：SDK app + OEM 分区
+
+发送程序依赖 SDK media/MPP 构建产物，因此优先接入 `project/app`，而不是第一步就做成纯 Buildroot package。
+
+集成 patch 包含：
+
+1. 在 `project/app` 构建规则中增加 `TELEOP_SENDER`；
+2. 从 `RK_TELEOP_SOURCE_DIR` 获取本仓库中的源码；
+3. 使用 SDK toolchain、media 头文件和链接库编译；
+4. 将程序安装到 OEM staging 目录；
+5. 最终镜像内安装为 `/oem/usr/bin/teleop-sender`；
+6. `overlay-luckfox-teleop` 添加可开关的启动脚本和配置文件。
+
+Teleop BoardConfig 增加类似配置：
+
+```sh
+export RK_TELEOP_SOURCE_DIR="${SDK_ROOT_DIR}/../luckfox-aura-teleop/src/aura-sender"
+export RK_APP_TYPE="${RK_APP_TYPE} TELEOP_SENDER"
+```
+
+当前工作区中两个仓库互为相邻目录，因此该默认路径可用；CI 或不同目录布局允许通过环境变量覆盖。源码的唯一正式副本仍保存在 `luckfox-aura-teleop`，SDK 只保存集成 patch。
+
+BoardConfig 已启用 `RK_BUILD_APP_TO_OEM_PARTITION=y`，使用 OEM 分区可以单独更新应用，同时避免把频繁变化的程序硬编码到基础 rootfs。
+
+### 8.2 可选方案：Buildroot `BR2_EXTERNAL`
+
+当程序依赖关系稳定、MPP/RK MPI 库能够作为明确的 sysroot 依赖提供时，可以增加 `BR2_EXTERNAL` package，使 Buildroot 完成编译和安装。这种方式适合最终可复现发行，但首个版本会受到 SDK media 与 Buildroot 构建顺序的限制，因此不是当前优先路线。
+
+不把编译生成的二进制直接提交进 Git，也不把唯一源码副本复制到 SDK sample 目录。
+
+## 9. GStreamer 的保留用途
+
+保留一套等价的 GStreamer 测试管线，用于：
+
+- 验证 V4L2 摄像头格式和帧率；
+- 验证 H.264 Annex-B 码流能否被标准工具解析；
+- 与原生 UDP 协议对照延迟和丢包恢复；
+- 在自研 viewer 未完成时快速查看画面。
+
+正式发送端可选地提供 MPP → `appsrc` → RTP/UDP 模式，作为标准 RTP 兼容性对照，但极限延迟测试以原生 UDP 模式为主。
+
+## 10. 实施轮次
+
+### A. 协议与假数据
+
+- 完成公共包头、packetizer 和接收重组；
+- 使用 PC 端生成的假 H.264 数据测试乱序、丢包和 frame slot；
+- 对协议解析和边界条件增加必要测试。
+
+验收：本机回环和直连网卡下可持续传输，队列不会无限增长。
+
+### B. Aura 单路整帧编码
+
+- 从 SDK sample 提取最小 VI→VENC 路径；
+- 先使用整帧 H.264 和直接 UDP；
+- 通过 SCP 部署到 `/userdata`。
+
+验收：720p60 连续运行，接收端无持续积压，并获得首份 screen-to-screen 基线。
+
+### C. 低延迟输出
+
+- 开启 wrap；
+- 开启 slice low-delay；
+- 降低 VI/VENC buffer；
+- 调整线程优先级和 CPU affinity；
+- 比较软件解码与 VAAPI。
+
+验收：P50、P95、P99 均有记录，改动可以独立回退。
+
+### D. SDK 镜像集成
+
+- 增加 `project/app` 集成 patch；
+- 程序安装到 OEM 分区；
+- 增加启动脚本，但开发镜像默认允许手动启停；
+- 完整执行 SDK 构建、刷写和重启验证。
+
+验收：全新 eMMC 镜像启动后可以通过配置启动 sender，不依赖手工复制文件。
+
+### E. 双路扩展
+
+- 协议启用两个 `stream_id`；
+- 建立双 VI/VENC channel；
+- 接收端并排显示；
+- 测量双路码率、同步误差、温度和长稳表现。
+
+## 11. 延迟验证
+
+软件内部记录以下时间点：
+
+```text
+VI frame/sequence
+VENC first packet
+VENC last packet
+UDP first/last packet sent
+receiver first/last packet received
+decoder submit/output
+display submit
+```
+
+软件时间戳用于定位延迟来源；最终 screen-to-screen 数字仍使用外部高速相机或双光电二极管测量。正式报告至少包含分辨率、帧率、codec、码率、GOP、链路速度、显示刷新率以及 P50/P95/P99。
+
+## 12. 首个可运行版本的边界
+
+第一版只完成：
+
+- 单路 720p60；
+- H.264；
+- 直连千兆以太网；
+- 自定义 UDP 分包；
+- 一个 sender 和一个 viewer；
+- SCP 部署；
+- 基本丢包、码率和延迟统计。
+
+H.265、双摄、FEC、远程控制、自动码率、自适应抖动缓冲和开机自动运行都在单路 H.264 基线稳定后增加。
