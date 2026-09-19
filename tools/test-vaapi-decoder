@@ -1,0 +1,15 @@
+#!/bin/sh
+# Build the CachyOS-only viewer and prove its FFmpeg VAAPI H.264 path on this machine.
+set -eu
+
+root=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
+build_dir=${1:-"$root/build/vaapi-decode-test"}
+stream="$build_dir/test-640x360-60.h264"
+
+"$root/tools/build-host" "$build_dir"
+ffmpeg -hide_banner -loglevel error -y \
+    -f lavfi -i testsrc2=size=640x360:rate=60 \
+    -frames:v 120 \
+    -c:v libx264 -preset ultrafast -tune zerolatency -g 30 -bf 0 \
+    -f h264 "$stream"
+"$build_dir/bin/host-viewer" --input "$stream" --vaapi-device /dev/dri/renderD128

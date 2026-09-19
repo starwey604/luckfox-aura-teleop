@@ -14,7 +14,8 @@ cmake -S "$root" -B "$build_dir" \
 cmake --build "$build_dir"
 ctest --test-dir "$build_dir" --output-on-failure
 
-"$build_dir/bin/host-viewer" --port 5001 --frames 90 --timeout-ms 3000 --same-clock > "$viewer_output" &
+"$build_dir/bin/host-viewer" --port 5001 --frames 90 --timeout-ms 3000 \
+    --same-clock --transport-only > "$viewer_output" &
 viewer_pid=$!
 sleep 1
 "$build_dir/bin/aura-sender" --destination 127.0.0.1 --port 5001 \

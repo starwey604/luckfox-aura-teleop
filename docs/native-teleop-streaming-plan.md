@@ -135,12 +135,11 @@ capture_timestamp（`CLOCK_MONOTONIC` 域）
 
 ## 6. CachyOS 接收端设计
 
-`host-viewer` 不使用 Rockchip MPP。解码层使用 FFmpeg `libavcodec`，实现可切换的两条路径：
+`host-viewer` 只在 CachyOS 宿主机编译和运行，不能在 Distrobox 内构建。CMake 会拒绝容器中的 viewer 配置，避免链接到 Ubuntu 的 FFmpeg、SDL 或 DRM 库。
 
-- H.264 软件解码；
-- AMD VAAPI 硬件解码。
+`host-viewer` 不使用 Rockchip MPP。当前实现使用 FFmpeg `libavcodec` 的 VAAPI H.264 硬件解码，并且拒绝软件回退；初始化失败或输出不是 `AV_PIX_FMT_VAAPI` 即退出。后续可保留软件解码作为诊断对照，但不进入默认低延迟路径。
 
-720p60 在当前主机上软件解码也可能足够快；VAAPI 可能减少 CPU 占用，但硬件 surface 和显示同步也可能引入队列。因此以 screen-to-screen 实测选择，不预设硬件解码一定更低延迟。
+当前 CachyOS 主机的 AMD Radeon 880M/890M 可通过 `/dev/dri/renderD128` 使用 VAAPI。后续接入 Vulkan 显示时，需继续检查硬件 surface 导出和 present 队列，最终仍以 screen-to-screen 实测判断总延迟。
 
 显示后端建议按以下顺序实现：
 
@@ -171,6 +170,9 @@ AURA_SDK_ROOT=/path/to/aura-sdk ./tools/build-aura
 
 # 主机回环：构建、协议单测、发送 90 帧假数据并由 viewer 重组。
 ./tools/test-transport-loopback
+
+# CachyOS 实机 VAAPI 验证：生成 H.264 Annex-B 测试流并以硬件路径解码。
+./tools/test-vaapi-decoder
 ```
 
 开发期通过以太网和 SSH 部署到 `/userdata`：
