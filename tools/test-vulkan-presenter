@@ -1,0 +1,10 @@
+#!/bin/sh
+# Validate the full CachyOS display path: VAAPI decode -> DRM PRIME -> Vulkan present.
+set -eu
+
+root=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
+build_dir=${1:-"$root/build/vulkan-present-test"}
+stream="$build_dir/test-640x360-60.h264"
+
+"$root/tools/test-vaapi-decoder" "$build_dir"
+"$build_dir/bin/host-viewer" --input "$stream" --vaapi-device /dev/dri/renderD128

@@ -12,4 +12,4 @@ ffmpeg -hide_banner -loglevel error -y \
     -frames:v 120 \
     -c:v libx264 -preset ultrafast -tune zerolatency -g 30 -bf 0 \
     -f h264 "$stream"
-"$build_dir/bin/host-viewer" --input "$stream" --vaapi-device /dev/dri/renderD128
+"$build_dir/bin/host-viewer" --headless --input "$stream" --vaapi-device /dev/dri/renderD128

@@ -14,3 +14,11 @@ decoder: frames=120 hardware_frames=120
 ```
 
 `hardware_frames` 必须等于 `frames`；否则该测试不能证明应用使用了 VAAPI 硬件 surface。脚本要求 CachyOS 已安装 `ffmpeg` 和 `ffmpeg` 的开发包，且当前用户可访问 `/dev/dri/renderD128`。
+
+完整显示路径额外执行：
+
+```sh
+./tools/test-vulkan-presenter
+```
+
+它还要求输出 `presenter: frames=120`，证明 VAAPI frame 已由 libplacebo 转为 DRM PRIME 并导入 Vulkan，在 SDL3 创建的窗口中呈现。

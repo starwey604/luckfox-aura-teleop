@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.20)
 
-project(luckfox_aura_teleop VERSION 0.1.0 LANGUAGES CXX)
+project(luckfox_aura_teleop VERSION 0.1.0 LANGUAGES C CXX)
 
 option(TELEOP_BUILD_AURA_SENDER "Build the Aura sender executable" ON)
 option(TELEOP_BUILD_HOST_VIEWER "Build the host viewer executable" OFF)

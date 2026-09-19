@@ -33,7 +33,8 @@ AVPixelFormat select_vaapi_format(AVCodecContext*, const AVPixelFormat* formats)
 
 } // namespace
 
-H264VaapiDecoder::H264VaapiDecoder(std::string_view vaapi_device)
+H264VaapiDecoder::H264VaapiDecoder(std::string_view vaapi_device, DecodedFrameSink* sink)
+    : sink_(sink)
 {
     try {
         const AVCodec* codec = avcodec_find_decoder(AV_CODEC_ID_H264);
@@ -101,6 +102,9 @@ void H264VaapiDecoder::drain()
         }
         ++statistics_.decoded_frames;
         ++statistics_.hardware_frames;
+        if (sink_ != nullptr) {
+            sink_->present(*frame);
+        }
         av_frame_unref(frame);
     }
     av_frame_free(&frame);

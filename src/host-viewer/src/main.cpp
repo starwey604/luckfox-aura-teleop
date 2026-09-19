@@ -1,4 +1,5 @@
 #include "h264_decoder.hpp"
+#include "vulkan_presenter.hpp"
 
 #include <teleop/reassembler.hpp>
 #include <teleop/statistics.hpp>
@@ -18,6 +19,7 @@
 #include <exception>
 #include <fstream>
 #include <limits>
+#include <memory>
 #include <optional>
 #include <span>
 #include <stdexcept>
@@ -37,6 +39,7 @@ struct Options {
     std::string_view input_path{};
     bool same_clock{false};
     bool transport_only{false};
+    bool headless{false};
 };
 
 void print_usage(const char* program)
@@ -52,6 +55,7 @@ void print_usage(const char* program)
         "  --timeout-ms TIMEOUT   Network inactivity timeout (default: 5000)\n"
         "  --vaapi-device PATH    DRM render node (default: /dev/dri/renderD128)\n"
         "  --input FILE           Decode a local Annex-B H.264 file, then exit\n"
+        "  --headless             Decode without creating the SDL3/Vulkan window\n"
         "  --transport-only       Validate UDP reassembly without opening FFmpeg\n"
         "  --same-clock           Report source-to-receive latency; only valid when\n"
         "                         sender and viewer share CLOCK_MONOTONIC\n",
@@ -96,6 +100,10 @@ bool parse_options(int argc, char* argv[], Options& options)
         }
         if (option == "--transport-only") {
             options.transport_only = true;
+            continue;
+        }
+        if (option == "--headless") {
+            options.headless = true;
             continue;
         }
         if (index + 1 >= argc) {
@@ -147,6 +155,20 @@ void print_decoder_statistics(const teleop::DecodeStatistics& statistics)
     std::printf("decoder: frames=%llu hardware_frames=%llu\n",
                 static_cast<unsigned long long>(statistics.decoded_frames),
                 static_cast<unsigned long long>(statistics.hardware_frames));
+}
+
+void print_presenter_statistics(const teleop::VulkanPresenter& presenter)
+{
+    std::printf("presenter: frames=%llu\n",
+                static_cast<unsigned long long>(presenter.presented_frames()));
+}
+
+std::unique_ptr<teleop::VulkanPresenter> make_presenter(const Options& options)
+{
+    if (options.headless || options.transport_only) {
+        return nullptr;
+    }
+    return std::make_unique<teleop::VulkanPresenter>(1280, 720);
 }
 
 std::string ffmpeg_error(int error_code)
@@ -235,10 +257,14 @@ int main(int argc, char* argv[])
     }
 
     try {
+        auto presenter = make_presenter(options);
         if (!options.input_path.empty()) {
-            teleop::H264VaapiDecoder decoder{options.vaapi_device};
+            teleop::H264VaapiDecoder decoder{options.vaapi_device, presenter.get()};
             decode_annex_b_file(options.input_path, decoder);
             print_decoder_statistics(decoder.statistics());
+            if (presenter != nullptr) {
+                print_presenter_statistics(*presenter);
+            }
             return decoder.statistics().decoded_frames == 0U ? EXIT_FAILURE : EXIT_SUCCESS;
         }
 
@@ -249,7 +275,7 @@ int main(int argc, char* argv[])
         std::array<std::byte, teleop::kMaxDatagramSize> datagram{};
         std::optional<teleop::H264VaapiDecoder> decoder;
         if (!options.transport_only) {
-            decoder.emplace(options.vaapi_device);
+            decoder.emplace(options.vaapi_device, presenter.get());
         }
 
         while (statistics.completed_frames < options.max_frames) {
@@ -278,6 +304,9 @@ int main(int argc, char* argv[])
             if (decoder.has_value()) {
                 decoder->submit_access_unit(frame->payload);
             }
+            if (presenter != nullptr && presenter->close_requested()) {
+                break;
+            }
             if (options.same_clock) {
                 const std::uint64_t now = monotonic_time_ns();
                 if (now >= frame->capture_time_ns) {
@@ -299,6 +328,9 @@ int main(int argc, char* argv[])
             static_cast<unsigned long long>(statistics.dropped_frames));
         if (decoder.has_value()) {
             print_decoder_statistics(decoder->statistics());
+        }
+        if (presenter != nullptr) {
+            print_presenter_statistics(*presenter);
         }
         if (options.same_clock) {
             print_latency(latency);

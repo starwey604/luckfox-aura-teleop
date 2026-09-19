@@ -139,7 +139,17 @@ capture_timestamp（`CLOCK_MONOTONIC` 域）
 
 `host-viewer` 不使用 Rockchip MPP。当前实现使用 FFmpeg `libavcodec` 的 VAAPI H.264 硬件解码，并且拒绝软件回退；初始化失败或输出不是 `AV_PIX_FMT_VAAPI` 即退出。后续可保留软件解码作为诊断对照，但不进入默认低延迟路径。
 
-当前 CachyOS 主机的 AMD Radeon 880M/890M 可通过 `/dev/dri/renderD128` 使用 VAAPI。后续接入 Vulkan 显示时，需继续检查硬件 surface 导出和 present 队列，最终仍以 screen-to-screen 实测判断总延迟。
+当前 CachyOS 主机的 AMD Radeon 880M/890M 可通过 `/dev/dri/renderD128` 使用 VAAPI。Vulkan 显示已使用以下链路：
+
+```text
+FFmpeg AV_PIX_FMT_VAAPI
+  → libplacebo 将 VAAPI surface 派生为 DRM PRIME
+  → Vulkan external-memory import
+  → libplacebo fast renderer
+  → Vulkan swapchain
+```
+
+该路径不把解码帧下载到 CPU。SDL3 仅创建 Wayland/X11 窗口和 `VkSurfaceKHR`，不使用 SDL renderer。libplacebo 使用单图形队列、关闭异步 compute/transfer，swapchain 首选 `MAILBOX`、深度为 1；若驱动不支持 MAILBOX，libplacebo 会退回 FIFO。每帧提交后调用 swapchain 同步，目的是避免展示端积压旧画面。
 
 显示后端建议按以下顺序实现：
 
@@ -173,6 +183,9 @@ AURA_SDK_ROOT=/path/to/aura-sdk ./tools/build-aura
 
 # CachyOS 实机 VAAPI 验证：生成 H.264 Annex-B 测试流并以硬件路径解码。
 ./tools/test-vaapi-decoder
+
+# CachyOS 实机显示验证：VAAPI → DRM PRIME → Vulkan/SDL3 窗口。
+./tools/test-vulkan-presenter
 ```
 
 开发期通过以太网和 SSH 部署到 `/userdata`：
