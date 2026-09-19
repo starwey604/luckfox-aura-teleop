@@ -1,0 +1,22 @@
+# SDK worktrees and all generated firmware/build products are external inputs.
+/sdk-worktree/
+/artifacts/
+/logs/
+/build/
+/out/
+/output/
+*.img
+*.itb
+*.iso
+*.tar
+*.tar.gz
+*.zip
+*.log
+
+# Host/editor state.
+.env
+.vscode/
+.idea/
+__pycache__/
+*.py[cod]
+*~

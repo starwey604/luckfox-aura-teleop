@@ -1,0 +1,77 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<manifest>
+  <remote fetch="." name="rk"/>
+  
+  <default remote="rk" sync-j="4"/>
+  
+  <project clone-depth="1" dest-branch="develop-next" name="android/rk/platform/system/rk_tee_user" path="sysdrv/tools/board/security/rk_tee_user" revision="1d14f86924771dd76426a6782d89f4b84ea59734" upstream="develop-next"/>
+  <project clone-depth="1" dest-branch="luckfox-linux-6.1-rv1126b" name="android/rk/u-boot" path="sysdrv/source/uboot/u-boot" revision="649e8bd3474cad8044d73a7d592d28ecd1ed0c76" upstream="next-dev"/>
+  <project clone-depth="1" dest-branch="master" name="linux/app/ao_record_demo" path="project/app/ao_record_demo" revision="1028c12a9cc40a95bfecb97e00f89a4c941187de" upstream="master"/>
+  <project clone-depth="1" dest-branch="master" name="linux/app/ao_record_service" path="project/app/component/ao_record_service" revision="a96baae83b6fb98a94c93274f262bd7dfd7cf3ff" upstream="master"/>
+  <project clone-depth="1" dest-branch="master" name="linux/app/aov_sample_ng" path="project/app/aov_sample" revision="6492e1f2d3ed718c08df3c56131ae7ed79d10c40" upstream="master"/>
+  <project clone-depth="1" dest-branch="luckfox-linux-6.1-rv1126b" name="linux/app/cvr" path="project/app/cvr/cvr" revision="906d87418327a3680d927b44542718b95cfa97de" upstream="dev"/>
+  <project clone-depth="1" dest-branch="master" name="linux/app/fastboot_client" path="project/app/fastboot_client" revision="e1a320c9b1ccc6f4394f1741183347912ad0d025" upstream="master"/>
+  <project clone-depth="1" dest-branch="luckfox-linux-6.1-rv1126b" name="linux/app/rkai" path="project/app/rkai/rkai" revision="1e2bc5e3a51949be1fb7ec4717b9fe03bac2d499" upstream="master"/>
+  <project clone-depth="1" dest-branch="luckfox-linux-6.1-rv1126b" name="linux/app/web-new/mini_ipcweb-backend" path="project/app/ipcweb/ipcweb-backend" revision="c63fb74d0d8a91b5f821ea9d31a42747456fdadf" upstream="master"/>
+  <project clone-depth="1" dest-branch="develop" name="linux/bsp/rkadk" path="project/app/component/rkadk/rkadk" revision="7488de3dc7258c049d233862fee294fbaa4068e2" upstream="develop"/>
+  <project clone-depth="1" dest-branch="rv1106" name="linux/external/camera_engine_rkaiq" path="media/isp/camera_engine_rkaiq" revision="ce2b68cc59544f6370bd09ffc19b31a770c50757" upstream="rv1106"/>
+  <project clone-depth="1" dest-branch="master" name="linux/external/common_algorithm" path="media/common_algorithm/common_algorithm" revision="671489aecb9033dde73041c5dad972c6fc7a8ccb" upstream="master"/>
+  <project clone-depth="1" dest-branch="luckfox-linux-6.1-rv1126b" name="linux/external/uvc_app" path="project/app/uvc_app_tiny" revision="a0dcbeaf89f6f789cbeecab534ec96bd2c891185" upstream="tiny"/>
+  <project clone-depth="1" dest-branch="master" name="linux/ipc/app/component/prerecord" path="media/prerecord" revision="eef8f9693ee66d236d614050611c3bbd9a391462" upstream="master"/>
+  <project clone-depth="1" dest-branch="master" name="linux/ipc/app/fastboot_server" path="project/app/component/fastboot_server" revision="7acb9dbe7eecac28ccb13d7caa754b3b02828fcc" upstream="master"/>
+  <project clone-depth="1" dest-branch="master" name="linux/ipc/app/mk_cvr" path="project/app/cvr" revision="9ef8ffd7fe945b2c343098a0a50e3bbd1103829f" upstream="master"/>
+  <project clone-depth="1" dest-branch="luckfox-linux-6.1-rv1126b" name="linux/ipc/app/rkipc" path="project/app/rkipc/rkipc" revision="433188fc73741842a3ee3e951a94076d763ec664" upstream="master"/>
+  <project clone-depth="1" dest-branch="master" name="linux/ipc/app/testdemo" path="project/app/testdemo" revision="504fdab67b1c1bbb23b40f30f50f27f21d410a79" upstream="master"/>
+  <project clone-depth="1" dest-branch="src" name="linux/ipc/app/thirdlibs" path="media/third_libs" revision="c1de96a755e0725e669a947ef0f33611874a2334" upstream="src"/>
+  <project clone-depth="1" dest-branch="master" name="linux/ipc/app/wifi_app" path="project/app/wifi_app" revision="ad00521c68e0fb865f516f8b376fe9b69fc44491" upstream="master"/>
+  <project clone-depth="1" dest-branch="master" name="linux/ipc/bsp/idb_bootconfig" path="sysdrv/tools/board/idb_bootconfig" revision="09e4131eb389cb54fee1c79f41acb99061712742" upstream="master"/>
+  <project clone-depth="1" dest-branch="rv1126b" name="linux/ipc/bsp/mcu_build" path="sysdrv/source/mcu/project" revision="76a68bea01bfacac5ffc2a1079aa39be7c5aac4c" upstream="rv1126b">
+    <linkfile dest="sysdrv/source/mcu/readme.txt" src="readme.txt"/>
+    <linkfile dest="sysdrv/source/mcu/build.sh" src="build.sh"/>
+  </project>
+  <project clone-depth="1" dest-branch="master" name="linux/ipc/bsp/meta_tags" path="project/make_meta" revision="9f9ab086d0847c0ab39fe953657319c64f4813ae" upstream="master"/>
+  <project clone-depth="1" dest-branch="luckfox-linux-6.1-rv1126b" name="linux/ipc/demo_cfg_rv1126b_aura" path="project/cfg/BoardConfig_Aura" revision="b5a3608941ca6f64ee670e8d2a2a652d26734724" upstream="luckfox-linux-6.1-rv1126b"/>
+  <project clone-depth="1" dest-branch="luckfox-linux-6.1-rv1126b" name="linux/ipc/media-c" path="media" revision="fb94466e2a3227eada0e9ce1b02db58ec4b3b33e" upstream="rv1126b"/>
+  <project clone-depth="1" dest-branch="rv1106" name="linux/ipc/media/avs" path="media/avs" revision="be1221a3b35818af46a4847c857c9e3839128f9a" upstream="rv1106"/>
+  <project clone-depth="1" dest-branch="master" name="linux/ipc/media/cfg-rv1126b" path="media/cfg" revision="31c550584a0d99b710ceee6af954ec074145c590" upstream="master"/>
+  <project clone-depth="1" dest-branch="rockiva_v2" name="linux/ipc/media/iva" path="media/iva/iva" revision="381df3d181f8d2ac1b7e7782bcc008ccad64abef" upstream="rockiva_v2"/>
+  <project clone-depth="1" dest-branch="master" name="linux/ipc/media/iva_mk" path="media/iva" revision="257e142a9dba75762391484a60b303451a4596a8" upstream="master"/>
+  <project clone-depth="1" dest-branch="master" name="linux/ipc/media/lvgl_mk" path="project/app/component/lvgl" revision="75f5c8bdebf8a82423f065ab2c5f73249cc211b0" upstream="master"/>
+  <project clone-depth="1" dest-branch="master" name="linux/ipc/media/mk_rkadk" path="project/app/component/rkadk" revision="4e1389d6ee0e2526184f020aa5719ea804f05992" upstream="master"/>
+  <project clone-depth="1" dest-branch="master" name="linux/ipc/media/mk_rkfsmk_release" path="project/app/component/rkfsmk" revision="a2cec43fabc0a4ccc84c898e8d0cbe1e0712e47d" upstream="master"/>
+  <project clone-depth="1" dest-branch="luckfox-linux-6.1-rv1126b" name="linux/ipc/media/nginx_mk" path="project/app/nginx_mk" revision="3e8601524863bdbd7e26e9923b71438735d57bc9" upstream="master"/>
+  <project clone-depth="1" dest-branch="master" name="linux/ipc/media/samples-ng" path="media/samples" revision="69eb68935635a912e96d8ce95f287c22ba223ba0" upstream="master"/>
+  <project clone-depth="1" dest-branch="master" name="linux/ipc/media/sysutils" path="media/sysutils" revision="293d718a36e9c20e69b39936b51f6867e2ed5e25" upstream="master"/>
+  <project clone-depth="1" dest-branch="luckfox-linux-6.1-rv1126b" name="linux/ipc/project" path="project" revision="5bbb44615deacd038f659baa8f9d06f3eeb6162e" upstream="master">
+    <linkfile dest="build.sh" src="build.sh"/>
+    <linkfile dest="readme_cn.txt" src="readme_cn.txt"/>
+    <linkfile dest="readme_en.txt" src="readme_en.txt"/>
+  </project>
+  <project clone-depth="1" dest-branch="master" name="linux/ipc/project/app/mk_ipcweb-backend" path="project/app/ipcweb" revision="adc1da83da66b6ff3ccf297c3d75816e6b5b30d3" upstream="master"/>
+  <project clone-depth="1" dest-branch="master" name="linux/ipc/project/app/mk_rkipc" path="project/app/rkipc" revision="368ee3d0b4dd668ac3b11ed196a7083dde3e9358" upstream="master"/>
+  <project clone-depth="1" dest-branch="luckfox-linux-6.1-rv1126b" name="linux/ipc/sysdrv" path="sysdrv" revision="409e2453c14560081f3e7299b6b13b364a8f086a" upstream="master"/>
+  <project clone-depth="1" dest-branch="master" name="linux/ipc/sysdrv/cfg-rv1126b" path="sysdrv/cfg" revision="a8fe782c065809e0229d94cf879a82ca31d2c496" upstream="master"/>
+  <project clone-depth="1" dest-branch="rv1126b" name="linux/ipc/sysdrv/drv_ko" path="sysdrv/drv_ko" revision="c2d275b83786ff9190149812c29801c9497698d1" upstream="rv1126b"/>
+  <project clone-depth="1" dest-branch="luckfox-linux-6.1-rv1126b" name="linux/ipc/sysdrv/drv_ko" path="sysdrv/drv_ko/wifi" revision="aabcae6999ab2c002185ab3b8df351c9290d8e1e" upstream="wifi"/>
+  <project clone-depth="1" dest-branch="master" name="linux/ipc/sysdrv/drv_ko/motor" path="sysdrv/drv_ko/motor" revision="f3f160dbb37bfd68e6386922bf83028801419460" upstream="master"/>
+  <project clone-depth="1" dest-branch="luckfox-linux-6.1-rv1126b" name="linux/ipc/tools" path="tools" revision="01bd8fccb8025260c90675c4c7cd8383b10ace17" upstream="master"/>
+  <project clone-depth="1" dest-branch="release_for_rv1106_rv1126" name="linux/ipc/tools/Rockchip_AVS_tool" path="tools/windows/Rockchip_AVS_tool" revision="8a90ff2228e0f9f28e0b4d0ef709a20da2785b70" upstream="release_for_rv1106_rv1126"/>
+  <project clone-depth="1" dest-branch="master" name="linux/ipc/tools/toolchain/aarch64-rockchip1240-linux-gnu" path="tools/linux/toolchain/aarch64-rockchip1240-linux-gnu" revision="63f1ba6d512f6dbfcbbe0d627176756184b50bb3" upstream="master"/>
+  <project clone-depth="1" dest-branch="master" name="linux/ipc/tools/toolchain/arm-rockchip1240-linux-gnueabihf" path="tools/linux/toolchain/arm-rockchip1240-linux-gnueabihf" revision="aeab606771dc03c821cc541473ca2a7c34f01d63" upstream="master"/>
+  <project clone-depth="1" dest-branch="multi_rga_im2d_api" name="linux/linux-rga" path="media/rga/rga" revision="e0647201f7e0e83254553edba55dec8f7689dbad" upstream="multi_rga_im2d_api"/>
+  <project clone-depth="1" dest-branch="master" name="linux/rkfsmk_release" path="project/app/component/rkfsmk/rkfsmk" revision="fd7923f2ee48c6968bb4d6dce6e6005b0ef9b6fb" upstream="master"/>
+  <project clone-depth="1" dest-branch="rockit-c" name="linux/rockit" path="media/rockit/rockit" revision="f4bc1bc583f16631b470a3a80135839a799208db" upstream="rockit-c"/>
+  <project clone-depth="1" dest-branch="master" name="linux/security/bin" path="sysdrv/tools/board/security/bin" revision="18204fce84cdf66adf240e530d5c330a8b5b8d8f" upstream="master"/>
+  <project clone-depth="1" dest-branch="luckfox-linux-6.1-rv1126b" name="rk/kernel" path="sysdrv/source/kernel" revision="b8187ea6c6dbd97deee68cfe121bedc66219262e" upstream="develop-6.1"/>
+  <project clone-depth="1" dest-branch="master" name="rk/librkcrypto" path="sysdrv/tools/board/security/librkcrypto" revision="eddf58139ad8c4a4f1296777ff30a3445fd3f7c6" upstream="master"/>
+  <project clone-depth="1" dest-branch="master" name="rk/mcu/hal" path="sysdrv/source/mcu/rt-thread/bsp/rockchip/common/hal" revision="2bdb82d6a9acdbdb9e2a93d3e9b33e19c3b988df" upstream="master"/>
+  <project dest-branch="develop" name="rk/mpp" path="media/mpp/mpp" revision="060aa30091d51a2bc6229bb0b418c95809be89a2" upstream="develop"/>
+  <project dest-branch="kmpp-develop" name="rk/mpp" path="sysdrv/drv_ko/kmpp/kmpp" revision="72ff932e755fee79672ec19d2714369ea8ffed84" upstream="kmpp-develop"/>
+  <project clone-depth="1" dest-branch="master" name="rk/prebuilts/xpack-riscv-none-embed-gcc-10.2.0-1.2-linux-x64" path="sysdrv/source/mcu/prebuilts/gcc/linux-x86/riscv/xpack-riscv-none-embed-gcc-10.2.0-1.2" revision="8a83b315a3c06c28431683f4a7c1ef9ff5de6670" upstream="master"/>
+  <project clone-depth="1" dest-branch="master" name="rk/rkbin" path="sysdrv/source/uboot/rkbin" revision="094fb0b6147a8f74a54705b23e27fd240ba3bce4" upstream="master"/>
+  <project clone-depth="1" dest-branch="main" name="rk/rknn-llm" path="media/rknn-llm-mk/rknn-llm" revision="6f52f52d011a021f148e24d586bf31be79396057" upstream="main"/>
+  <project clone-depth="1" dest-branch="master" name="rtos/apps/battery-ipc" path="sysdrv/source/mcu/rt-thread/applications/battery-ipc" revision="e1af9220e829e6dfc7db2a5d8f58d962e22309cb" upstream="master"/>
+  <project clone-depth="1" dest-branch="master" name="rtos/apps/pre-record" path="sysdrv/source/mcu/rt-thread/applications/pre-record" revision="ec59b7fada456b1f7eb3f75c008c19b8f8c725bc" upstream="master"/>
+  <project clone-depth="1" dest-branch="master" name="rtos/rt-thread/docs" path="sysdrv/source/mcu/docs" revision="bb36bf7c50cbe75b57b15affaa279855535f17b3" upstream="master"/>
+  <project clone-depth="1" dest-branch="develop-v4.1.x" name="rtos/rt-thread/rt-thread" path="sysdrv/source/mcu/rt-thread" revision="ed76b5776cef352bcbaf4c6e721e8a8b032be443" upstream="develop-v4.1.x"/>
+</manifest>

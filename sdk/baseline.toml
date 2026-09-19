@@ -1,0 +1,13 @@
+[sdk]
+release = "luckfox_aura_v1.0.1_20260518"
+manifest = "sdk/manifest.lock.xml"
+build_container = "ubuntu:22.04 (Distrobox: aura-sdk)"
+kernel_version = "6.1.141"
+buildroot_version = "2025.02.6"
+
+[projects]
+"sysdrv" = "409e2453c14560081f3e7299b6b13b364a8f086a"
+"sysdrv/source/kernel" = "b8187ea6c6dbd97deee68cfe121bedc66219262e"
+"project" = "5bbb44615deacd038f659baa8f9d06f3eeb6162e"
+"project/cfg/BoardConfig_Aura" = "b5a3608941ca6f64ee670e8d2a2a652d26734724"
+"media" = "fb94466e2a3227eada0e9ce1b02db58ec4b3b33e"

@@ -1,0 +1,122 @@
+#!/bin/sh
+# Apply the project-owned patch stack to a clean Aura SDK checkout.
+set -eu
+
+usage() {
+	printf '%s\n' "usage: $0 {check|status|apply|export} <aura-sdk-path>"
+	exit 2
+}
+
+[ "$#" -eq 2 ] || usage
+command=$1
+sdk=$2
+root=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
+series="$root/sdk/series.tsv"
+
+[ -d "$sdk/.repo" ] || {
+	printf '%s\n' "error: $sdk is not an Aura repo checkout (.repo is missing)" >&2
+	exit 1
+}
+[ -f "$series" ] || {
+	printf '%s\n' "error: series file is missing: $series" >&2
+	exit 1
+}
+
+has_patches() {
+	find "$1" -maxdepth 1 -type f -name '*.patch' -print -quit 2>/dev/null | grep -q .
+}
+
+project_clean() {
+	git -C "$1" diff --quiet && git -C "$1" diff --cached --quiet
+}
+
+check_one() {
+	project=$1
+	base=$2
+	path="$sdk/$project"
+	patch_dir="$root/sdk/patches/$project"
+	[ -d "$path/.git" ] || {
+		printf '%s\n' "error: missing git project: $path" >&2
+		return 1
+	}
+	project_clean "$path" || {
+		printf '%s\n' "error: dirty worktree: $project" >&2
+		return 1
+	}
+	git -C "$path" cat-file -e "$base^{commit}" 2>/dev/null || {
+		printf '%s\n' "error: baseline commit unavailable in $project: $base" >&2
+		return 1
+	}
+	if has_patches "$patch_dir"; then
+		[ "$(git -C "$path" rev-parse HEAD)" = "$base" ] || {
+			printf '%s\n' "error: $project is not at its baseline; refusing to apply patches" >&2
+			return 1
+		}
+		for patch in "$patch_dir"/*.patch; do
+			git -C "$path" apply --check "$patch" || return 1
+		done
+	fi
+}
+
+status_one() {
+	project=$1
+	base=$2
+	path="$sdk/$project"
+	head=$(git -C "$path" rev-parse --short=12 HEAD)
+	branch=$(git -C "$path" symbolic-ref --short -q HEAD || printf '%s' detached)
+	if git -C "$path" merge-base --is-ancestor "$base" HEAD 2>/dev/null; then
+		ahead=$(git -C "$path" rev-list --count "$base..HEAD")
+	else
+		ahead=unknown
+	fi
+	if project_clean "$path"; then dirty=clean; else dirty=dirty; fi
+	printf '%-36s head=%-12s branch=%-28s ahead=%-7s %s\n' \
+		"$project" "$head" "$branch" "$ahead" "$dirty"
+}
+
+export_one() {
+	project=$1
+	base=$2
+	branch=$3
+	path="$sdk/$project"
+	patch_dir="$root/sdk/patches/$project"
+	project_clean "$path" || {
+		printf '%s\n' "error: dirty worktree: $project" >&2
+		return 1
+	}
+	git -C "$path" rev-parse --verify --quiet "$branch^{commit}" >/dev/null || {
+		printf '%s\n' "error: branch not found for $project: $branch" >&2
+		return 1
+	}
+	if [ -d "$patch_dir" ] && has_patches "$patch_dir"; then
+		printf '%s\n' "error: patch directory is not empty: $patch_dir" >&2
+		printf '%s\n' "       inspect and empty it manually before exporting a replacement series" >&2
+		return 1
+	fi
+	mkdir -p "$patch_dir"
+	git -C "$path" format-patch --no-numbered --output-directory "$patch_dir" "$base..$branch"
+}
+
+case "$command" in
+	check|apply|status|export) ;;
+	*) usage ;;
+esac
+
+while IFS='|' read -r project base branch; do
+	case "$project" in ''|\#*) continue ;; esac
+	case "$command" in
+		check) check_one "$project" "$base" ;;
+		status) status_one "$project" "$base" ;;
+		apply)
+			check_one "$project" "$base"
+			patch_dir="$root/sdk/patches/$project"
+			if has_patches "$patch_dir"; then
+				git -C "$sdk/$project" am --3way "$patch_dir"/*.patch
+				printf '%s\n' "applied: $project"
+			else
+				printf '%s\n' "skipped (no patches): $project"
+			fi
+			;;
+		export) export_one "$project" "$base" "$branch" ;;
+	esac
+done < "$series"
