@@ -195,6 +195,9 @@ cd /home/ww/codings/aura-sdk
 cd /home/ww/codings/luckfox-aura-teleop
 ./tools/build-aura
 
+# Check the sender ELF, SDK staging rootfs/OEM libraries, and generated images.
+./tools/check-aura-runtime
+
 # CI 或非相邻目录布局可以显式覆盖 SDK 路径。
 AURA_SDK_ROOT=/path/to/aura-sdk ./tools/build-aura
 ./tools/build-host
@@ -217,6 +220,11 @@ AURA_SDK_ROOT=/path/to/aura-sdk ./tools/build-aura
 `librockchip_mpp.so.1`。目标端必须保留这两个媒体库及其动态依赖；虽然可以裁掉
 内核声卡驱动和音频应用，当前 SDK 的 `librockit.so` 仍依赖 `libasound.so.2`，所以
 在替换或重编该媒体库前不能从 rootfs 删除 ALSA 用户态运行库。
+
+sender 的 ELF `RPATH` 固定为 `/oem/usr/lib`，与 SDK 把 `librockit.so`、
+`librockchip_mpp.so.1` 和 `libdrm.so.2` 安装到 OEM 分区的方式一致；不会写入
+开发机上的 SDK 绝对路径。因此把 `build/aura*/bin/aura-sender` 复制到
+`/oem/usr/bin/` 或 `/userdata/` 后，都可以直接运行，不需要设置 `LD_LIBRARY_PATH`。
 
 开发期通过以太网和 SSH 部署到 `/userdata`：
 

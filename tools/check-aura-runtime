@@ -1,0 +1,51 @@
+#!/bin/sh
+# Verify that a cross-compiled sender can be deployed against the current SDK image.
+set -eu
+
+root=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
+sdk=${AURA_SDK_ROOT:-"$root/../aura-sdk"}
+sender=${1:-"$root/build/aura/bin/aura-sender"}
+toolchain=${AURA_TOOLCHAIN_ROOT:-"$sdk/tools/linux/toolchain/aarch64-rockchip1240-linux-gnu"}
+readelf="$toolchain/bin/aarch64-rockchip1240-linux-gnu-readelf"
+
+fail() {
+    printf '%s\n' "error: $*" >&2
+    exit 1
+}
+
+[ -x "$sender" ] || fail "sender is missing or not executable: $sender"
+[ -x "$readelf" ] || fail "SDK readelf is missing: $readelf"
+
+header=$($readelf -h "$sender")
+printf '%s\n' "$header" | grep -F 'Machine:                           AArch64' >/dev/null ||
+    fail "sender is not an AArch64 ELF"
+
+program_headers=$($readelf -l "$sender")
+printf '%s\n' "$program_headers" | grep -F '/lib/ld-linux-aarch64.so.1' >/dev/null ||
+    fail "sender does not use the Aura glibc dynamic loader"
+
+dynamic=$($readelf -d "$sender")
+printf '%s\n' "$dynamic" | grep -F 'Library rpath: [/oem/usr/lib]' >/dev/null ||
+    fail "sender must use /oem/usr/lib as its target runtime library path"
+
+for needed in librockit.so librockchip_mpp.so.1 libasound.so.2 libstdc++.so.6 libc.so.6; do
+    printf '%s\n' "$dynamic" | grep -F "Shared library: [$needed]" >/dev/null ||
+        fail "sender is missing expected dynamic dependency: $needed"
+done
+
+for runtime_file in \
+    "$sdk/output/out/oem/usr/lib/librockit.so" \
+    "$sdk/output/out/oem/usr/lib/librockchip_mpp.so.1" \
+    "$sdk/output/out/oem/usr/lib/libdrm.so.2" \
+    "$sdk/output/out/rootfs_glibc_rv1126b/usr/lib/libasound.so.2" \
+    "$sdk/output/out/rootfs_glibc_rv1126b/lib/ld-linux-aarch64.so.1" \
+    "$sdk/output/out/rootfs_glibc_rv1126b/lib/libc.so.6" \
+    "$sdk/output/out/rootfs_glibc_rv1126b/lib/libstdc++.so.6"; do
+    [ -e "$runtime_file" ] || fail "SDK image staging is missing: $runtime_file"
+done
+
+for image in oem.img rootfs.img update.img; do
+    [ -f "$sdk/output/image/$image" ] || fail "SDK image is missing: $sdk/output/image/$image"
+done
+
+printf '%s\n' "Aura sender runtime check passed: $sender"
