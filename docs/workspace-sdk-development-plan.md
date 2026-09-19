@@ -215,6 +215,11 @@ BoardConfig 已支持 `RK_POST_OVERLAY`。新增 `overlay-luckfox-teleop`，包�
 
 开发镜像保留 SSH 和诊断工具；最终压测镜像可以用另一份 overlay 删除这些服务。
 
+当前厂商 `build.sh` 的 `check_config` 不能正确检查含空格的 `RK_POST_OVERLAY` 值。
+Teleop BoardConfig 因此保留厂商的单一 overlay，并用 `RK_POST_BUILD_SCRIPT` 安装
+`overlay-luckfox-teleop`。该 overlay 令 RJ45 的 `eth0` 固定为 `192.168.1.10/24`，
+禁用 DHCP、IPv4LL 和默认路由；CachyOS 直连端使用 `192.168.1.2/24`。
+
 ## 8. Fork 策略
 
 应把 `luckfox-aura-teleop` 推送到自己的 GitHub、GitLab 或其他远端，并保护主分支。厂商整套 SDK 不需要 fork。
@@ -243,6 +248,11 @@ cd /home/ww/codings/aura-sdk
 ./build.sh rootfs
 ./build.sh firmware
 ```
+
+该板卡的 rootfs 分区在当前 BoardConfig 中使用剩余 eMMC 空间。SDK 因而会生成
+`output/image/rootfs.img`，但 `update.img` 的打包列表不包含 rootfs。使用 USB eMMC
+烧录工具时，应写入新的 `rootfs.img` 到 rootfs 分区；不能只刷 `update.img` 来更新
+rootfs 中的静态网络配置。
 
 推荐镜像序列：
 

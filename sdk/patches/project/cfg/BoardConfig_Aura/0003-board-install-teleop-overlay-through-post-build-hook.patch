@@ -1,0 +1,48 @@
+From e224916c8d6cfc3c72b121272e9c0b3f3a82be6f Mon Sep 17 00:00:00 2001
+From: Starwey <moonbite233@gmail.com>
+Date: Sat, 19 Sep 2026 20:40:44 +0800
+Subject: [PATCH] board: install teleop overlay through post-build hook
+
+---
+ ...onfig-EMMC-RK801-Luckfox_Aura-Teleop-Buildroot.mk |  8 ++++++--
+ rk-teleop-post-build.sh                              | 12 ++++++++++++
+ 2 files changed, 18 insertions(+), 2 deletions(-)
+ create mode 100755 rk-teleop-post-build.sh
+
+diff --git a/BoardConfig-EMMC-RK801-Luckfox_Aura-Teleop-Buildroot.mk b/BoardConfig-EMMC-RK801-Luckfox_Aura-Teleop-Buildroot.mk
+index 36c4015..39cde9a 100644
+--- a/BoardConfig-EMMC-RK801-Luckfox_Aura-Teleop-Buildroot.mk
++++ b/BoardConfig-EMMC-RK801-Luckfox_Aura-Teleop-Buildroot.mk
+@@ -12,5 +12,9 @@ export RK_BOOTARGS_CMA_SIZE="256M"
+ # This development image has camera/network diagnostics and GStreamer.
+ export RK_BUILDROOT_DEFCONFIG=luckfox_64bit_teleop_defconfig
+ 
+-# The vendor overlay supplies SSH; this overlay only adds teleop defaults.
+-export RK_POST_OVERLAY="overlay-luckfox-buildroot-64bit overlay-luckfox-teleop"
++# Keep the vendor overlay path as a single value: the vendor build script's
++# configuration presence check does not handle a whitespace-separated list.
++export RK_POST_OVERLAY="overlay-luckfox-buildroot-64bit"
++# Add project-owned teleop files after OEM preparation, including the static
++# direct-link Ethernet profile.
++export RK_POST_BUILD_SCRIPT="rk-teleop-post-build.sh"
+diff --git a/rk-teleop-post-build.sh b/rk-teleop-post-build.sh
+new file mode 100755
+index 0000000..b2f52b7
+--- /dev/null
++++ b/rk-teleop-post-build.sh
+@@ -0,0 +1,12 @@
++#!/bin/sh
++# Copy the project-owned teleop overlay after the SDK has assembled rootfs/OEM.
++set -eu
++
++config_dir=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
++overlay="$config_dir/overlay/overlay-luckfox-teleop"
++
++[ -d "$overlay" ]
++[ -n "${RK_PROJECT_PACKAGE_ROOTFS_DIR:-}" ]
++
++rsync -a --ignore-times --keep-dirlinks --chmod=u=rwX,go=rX --exclude .empty \
++    "$overlay/" "$RK_PROJECT_PACKAGE_ROOTFS_DIR/"
+-- 
+2.55.0
+

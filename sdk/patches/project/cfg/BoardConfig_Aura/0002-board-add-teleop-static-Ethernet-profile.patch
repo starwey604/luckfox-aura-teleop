@@ -1,0 +1,31 @@
+From 9af17ab4120e1260909524d4d7f79b0cfd85d7d9 Mon Sep 17 00:00:00 2001
+From: Starwey <moonbite233@gmail.com>
+Date: Sat, 19 Sep 2026 20:38:47 +0800
+Subject: [PATCH] board: add teleop static Ethernet profile
+
+---
+ overlay/overlay-luckfox-teleop/etc/dhcpcd.conf | 12 ++++++++++++
+ 1 file changed, 12 insertions(+)
+ create mode 100644 overlay/overlay-luckfox-teleop/etc/dhcpcd.conf
+
+diff --git a/overlay/overlay-luckfox-teleop/etc/dhcpcd.conf b/overlay/overlay-luckfox-teleop/etc/dhcpcd.conf
+new file mode 100644
+index 0000000..b59d916
+--- /dev/null
++++ b/overlay/overlay-luckfox-teleop/etc/dhcpcd.conf
+@@ -0,0 +1,12 @@
++# Teleoperation direct-link network profile.
++#
++# Keep eth0 deterministic for the Aura <-> CachyOS point-to-point link. The
++# host uses 192.168.1.2/24 and the board uses 192.168.1.10/24 by default.
++# There is deliberately no router or DNS configuration on this isolated video
++# network; another interface can be used for Internet access when needed.
++
++interface eth0
++nodhcp
++noipv4ll
++nogateway
++static ip_address=192.168.1.10/24
+-- 
+2.55.0
+
