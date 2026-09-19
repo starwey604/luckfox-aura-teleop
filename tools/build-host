@@ -8,7 +8,8 @@ build_dir=${1:-"$root/build/host"}
 cmake -S "$root" -B "$build_dir" \
     -DCMAKE_BUILD_TYPE=Release \
     -DTELEOP_BUILD_AURA_SENDER=ON \
-    -DTELEOP_BUILD_HOST_VIEWER=ON
+    -DTELEOP_BUILD_HOST_VIEWER=ON \
+    -DTELEOP_BUILD_USB_CAMERA_SENDER=ON
 cmake --build "$build_dir"
 
-printf '%s\n' "built: $build_dir/bin/aura-sender and $build_dir/bin/host-viewer"
+printf '%s\n' "built: $build_dir/bin/aura-sender, host-viewer, and usb-camera-sender"

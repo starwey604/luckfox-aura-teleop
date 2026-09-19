@@ -1,0 +1,19 @@
+#!/bin/sh
+# Validate /dev/video0 -> H.264 UDP -> VAAPI -> Vulkan on the CachyOS host.
+set -eu
+
+root=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
+build_dir=${1:-"$root/build/usb-camera-loopback"}
+viewer_output="$build_dir/viewer-output.txt"
+
+"$root/tools/build-host" "$build_dir"
+"$build_dir/bin/host-viewer" --port 5003 --frames 120 --timeout-ms 5000 --same-clock > "$viewer_output" &
+viewer_pid=$!
+sleep 1
+"$build_dir/bin/usb-camera-sender" \
+    --device /dev/video0 \
+    --destination 127.0.0.1 \
+    --port 5003 \
+    --width 1280 --height 720 --fps 60 --frames 120 --bitrate-kbps 8000
+wait "$viewer_pid"
+cat "$viewer_output"

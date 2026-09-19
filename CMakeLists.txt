@@ -4,6 +4,7 @@ project(luckfox_aura_teleop VERSION 0.1.0 LANGUAGES C CXX)
 
 option(TELEOP_BUILD_AURA_SENDER "Build the Aura sender executable" ON)
 option(TELEOP_BUILD_HOST_VIEWER "Build the host viewer executable" OFF)
+option(TELEOP_BUILD_USB_CAMERA_SENDER "Build the CachyOS USB-camera sender" OFF)
 option(TELEOP_BUILD_TESTS "Build transport protocol tests" OFF)
 
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin")
@@ -19,6 +20,10 @@ endif()
 
 if(TELEOP_BUILD_HOST_VIEWER)
     add_subdirectory(src/host-viewer)
+endif()
+
+if(TELEOP_BUILD_USB_CAMERA_SENDER)
+    add_subdirectory(src/usb-camera-sender)
 endif()
 
 if(TELEOP_BUILD_TESTS)

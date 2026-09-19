@@ -186,6 +186,9 @@ AURA_SDK_ROOT=/path/to/aura-sdk ./tools/build-aura
 
 # CachyOS 实机显示验证：VAAPI → DRM PRIME → Vulkan/SDL3 窗口。
 ./tools/test-vulkan-presenter
+
+# CachyOS USB 摄像头闭环：/dev/video0 → H.264 UDP → VAAPI/Vulkan。
+./tools/test-usb-camera-loopback
 ```
 
 开发期通过以太网和 SSH 部署到 `/userdata`：
