@@ -3,6 +3,7 @@ cmake_minimum_required(VERSION 3.20)
 project(luckfox_aura_teleop VERSION 0.1.0 LANGUAGES C CXX)
 
 option(TELEOP_BUILD_AURA_SENDER "Build the Aura sender executable" ON)
+option(TELEOP_BUILD_TRANSPORT_TEST_SENDER "Build the host synthetic transport sender" OFF)
 option(TELEOP_BUILD_HOST_VIEWER "Build the host viewer executable" OFF)
 option(TELEOP_BUILD_USB_CAMERA_SENDER "Build the CachyOS USB-camera sender" OFF)
 option(TELEOP_BUILD_TESTS "Build transport protocol tests" OFF)
@@ -16,6 +17,10 @@ add_subdirectory(src/common)
 
 if(TELEOP_BUILD_AURA_SENDER)
     add_subdirectory(src/aura-sender)
+endif()
+
+if(TELEOP_BUILD_TRANSPORT_TEST_SENDER)
+    add_subdirectory(src/transport-test-sender)
 endif()
 
 if(TELEOP_BUILD_HOST_VIEWER)

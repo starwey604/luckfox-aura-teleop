@@ -93,6 +93,27 @@ VI → VPSS crop/scale → VENC H.264 → UDP
 - `split:out = MPP_ENC_SPLIT_OUT_LOWDELAY`；
 - 收到一个 slice packet 后立即交给网络线程。
 
+当前 `aura-sender` 已实现这一条最小硬件路径，直接绑定 `VI → VENC`，不经过
+VPSS，也不会把原始 NV12 图像带到用户态。默认值为 1280×720、12 Mbit/s CBR、
+GOP 15、VI/VENC wrap 256 行，以及 `VENC_SLICE_SPLIT_S` 的 mode 3、120 CTU。
+mode 3 是 SDK 定义的“一个 slice 输出一个 VENC packet”；每个 packet 取得后立刻
+按本项目 UDP 协议分片发送。`--frames 0` 持续运行，其他 VI、VENC、分辨率和编码
+参数都可以在命令行覆盖。
+
+首板时先使用与 ISP 当前输出一致的宽高，例如：
+
+```sh
+/oem/usr/bin/aura-sender \
+  --destination 192.168.1.2 --port 5000 \
+  --width 1280 --height 720 --max-width 1280 --max-height 720 \
+  --wrap-lines 256 --slice-ctus 120 --bitrate-kbps 12000 --gop 15
+```
+
+`VENC_PACK_S::bFrameEnd` 用于计数编码帧；slice packet 本身使用独立的传输 ID。
+接收端已开启 FFmpeg `AV_CODEC_FLAG2_CHUNKS`，使解码器可以接收未组成完整 access
+unit 的低延迟 slice。真实板验证时仍要确认该 SDK 版本的 VENC 输出顺序和 VAAPI
+驱动对该 slice 流的兼容性。
+
 调优按整帧稳定基线、wrap、slice、减小 VI/VENC buffer 的顺序进行。每次只改变一组参数并记录 P50、P95、P99、丢帧和温度。
 
 ### 4.2 线程模型
@@ -190,6 +211,12 @@ AURA_SDK_ROOT=/path/to/aura-sdk ./tools/build-aura
 # CachyOS USB 摄像头闭环：/dev/video0 → H.264 UDP → VAAPI/Vulkan。
 ./tools/test-usb-camera-loopback
 ```
+
+`tools/build-aura` 已在 Ubuntu 22.04 的 `aura-sdk` Distrobox 中验证：生成的
+`build/aura-mpp/bin/aura-sender` 为 AArch64、使用 SDK 的 `librockit.so` 和
+`librockchip_mpp.so.1`。目标端必须保留这两个媒体库及其动态依赖；虽然可以裁掉
+内核声卡驱动和音频应用，当前 SDK 的 `librockit.so` 仍依赖 `libasound.so.2`，所以
+在替换或重编该媒体库前不能从 rootfs 删除 ALSA 用户态运行库。
 
 开发期通过以太网和 SSH 部署到 `/userdata`：
 

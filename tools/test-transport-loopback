@@ -8,7 +8,8 @@ viewer_output="$build_dir/viewer-output.txt"
 
 cmake -S "$root" -B "$build_dir" \
     -DCMAKE_BUILD_TYPE=Release \
-    -DTELEOP_BUILD_AURA_SENDER=ON \
+    -DTELEOP_BUILD_AURA_SENDER=OFF \
+    -DTELEOP_BUILD_TRANSPORT_TEST_SENDER=ON \
     -DTELEOP_BUILD_HOST_VIEWER=ON \
     -DTELEOP_BUILD_TESTS=ON
 cmake --build "$build_dir"
@@ -18,7 +19,7 @@ ctest --test-dir "$build_dir" --output-on-failure
     --same-clock --transport-only > "$viewer_output" &
 viewer_pid=$!
 sleep 1
-"$build_dir/bin/aura-sender" --destination 127.0.0.1 --port 5001 \
+"$build_dir/bin/transport-test-sender" --destination 127.0.0.1 --port 5001 \
     --frames 90 --frame-bytes 24000 --fps 120
 wait "$viewer_pid"
 cat "$viewer_output"
