@@ -46,9 +46,10 @@ UDP
 luckfox-aura-teleop/
 ├── src/
 │   ├── common/
-│   │   ├── protocol.h
-│   │   ├── packetizer.c
-│   │   └── statistics.c
+│   │   ├── include/teleop/*.hpp
+│   │   ├── protocol.cpp
+│   │   ├── reassembler.cpp
+│   │   └── udp_socket.cpp
 │   ├── aura-sender/
 │   │   ├── CMakeLists.txt
 │   │   └── src/
@@ -108,19 +109,17 @@ MPP 到网络线程之间使用有界环形队列。队列满时丢弃旧的未�
 
 ## 5. UDP 协议
 
-单个 UDP datagram 控制在约 1200～1400 字节，避免普通 1500 MTU 网络上的 IP 分片。每个包包含固定小头部：
+单个 UDP datagram 固定上限为 1200 字节，避免普通 1500 MTU 网络上的 IP 分片。当前协议 v1 使用 40 字节、显式网络字节序的固定头，因而单包最多承载 1160 字节视频数据。每个包包含：
 
 ```text
 magic / version
 stream_id
-codec
 frame_id
 packet_id
 packet_count
-flags（IDR、frame start/end、slice）
-capture_timestamp
-payload_size
-可选 checksum
+frame_size / fragment_offset / payload_size
+flags（当前定义 IDR）
+capture_timestamp（`CLOCK_MONOTONIC` 域）
 ```
 
 初期使用直接网线，不增加 FEC。接收端维护一到两个 frame slot：
@@ -130,7 +129,9 @@ payload_size
 - 不为了补齐旧画面继续增加 jitter buffer；
 - 统计乱序、丢包、过期帧和 IDR 恢复时间。
 
-协议需要显式版本号，并为将来的双路视频、控制消息和时间同步保留 `stream_id` 与消息类型。
+协议需要显式版本号，并为将来的双路视频、控制消息和时间同步保留 `stream_id` 与保留字段。
+
+`capture_timestamp` 只能在发送端和接收端共享同一单调时钟时计算发送到接收的延迟；本机回环测试满足该条件。实机的一向延迟需先通过 PTP 同步时钟，screen-to-screen 则以外部光学测量为准。
 
 ## 6. CachyOS 接收端设计
 
@@ -167,6 +168,9 @@ cd /home/ww/codings/luckfox-aura-teleop
 # CI 或非相邻目录布局可以显式覆盖 SDK 路径。
 AURA_SDK_ROOT=/path/to/aura-sdk ./tools/build-aura
 ./tools/build-host
+
+# 主机回环：构建、协议单测、发送 90 帧假数据并由 viewer 重组。
+./tools/test-transport-loopback
 ```
 
 开发期通过以太网和 SSH 部署到 `/userdata`：
@@ -228,8 +232,10 @@ BoardConfig 已启用 `RK_BUILD_APP_TO_OEM_PARTITION=y`，使用 OEM 分区可�
 
 ### A. 协议与假数据
 
-- 完成公共包头、packetizer 和接收重组；
-- 使用 PC 端生成的假 H.264 数据测试乱序、丢包和 frame slot；
+- 已完成：C++20 公共包头、packetizer、接收重组与 `sendmmsg()` UDP 发送；
+- 已完成：协议单测覆盖头部序列化、坏 magic 和三分片乱序重组；
+- 已完成：同机回环发送端和接收端可输出完整性与同一时钟域下的传输延迟统计；
+- 待完成：在真实 H.264 Annex-B Access Unit 上测试乱序、丢包和 frame slot；
 - 对协议解析和边界条件增加必要测试。
 
 验收：本机回环和直连网卡下可持续传输，队列不会无限增长。

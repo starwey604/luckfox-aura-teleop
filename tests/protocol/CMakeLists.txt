@@ -1,0 +1,5 @@
+add_executable(protocol-test protocol_test.cpp)
+target_link_libraries(protocol-test PRIVATE teleop-common)
+target_compile_features(protocol-test PRIVATE cxx_std_20)
+target_compile_options(protocol-test PRIVATE -Wall -Wextra -Wpedantic -Wconversion)
+add_test(NAME protocol-test COMMAND protocol-test)
