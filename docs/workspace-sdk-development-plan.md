@@ -277,6 +277,24 @@ sudo ./upgrade_tool rd
 首次完整烧录可先用 `rkdownload.sh -d` 写入固定大小的分区，再立即运行上述两条命令
 补写 rootfs。日常仅更新根文件系统时，也只执行这两条命令即可。
 
+### USB CDC ACM 调试串口
+
+teleop BoardConfig 将 Aura 的 `USB3 OTG` Type-C 口配置为 USB gadget CDC ACM：板端是
+`/dev/ttyGS0`，CachyOS 主机枚举为 `/dev/ttyACM*`。内核日志会在 gadget 控制器可用后
+输出到该接口，Buildroot 也会在 `ttyGS0` 上运行 root 登录终端。物理 UART 控制台保持
+不变，作为无法启动时的恢复手段；USB 串口不能提供 U-Boot 或最早期内核初始化日志。
+
+将板子用独立的 5V/3A 电源启动，并以数据线连接主机与 `USB3 OTG` 后，在主机检查：
+
+```sh
+sudo dmesg -w
+ls -l /dev/ttyACM*
+```
+
+需要交互式登录时使用 `picocom -b 115200 /dev/ttyACM0`。如果主机未安装 picocom，先由
+用户安装 `picocom` 包；只看日志可使用 `sudo cat /dev/ttyACM0`。烧录模式与正常 gadget
+模式共用该 OTG 口，因此进入 Rockchip Loader 后不会枚举为 ACM 串口。
+
 推荐镜像序列：
 
 1. `factory-baseline`：未经裁切的厂商配置。

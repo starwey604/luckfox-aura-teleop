@@ -1,0 +1,35 @@
+From 531d99c9a304def8aa5cd8d545cfb28dd67c133d Mon Sep 17 00:00:00 2001
+From: Starwey <moonbite233@gmail.com>
+Date: Sun, 20 Sep 2026 10:12:23 +0800
+Subject: [PATCH] build: append board-specific kernel bootargs
+
+---
+ build.sh | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)
+
+diff --git a/build.sh b/build.sh
+index e3584c4..f7b1e84 100755
+--- a/build.sh
++++ b/build.sh
+@@ -131,7 +131,7 @@ function finish_build(){
+ function check_config(){
+ 	unset missing
+ 	for var in $@; do
+-		eval [ \$$var ] && continue
++		[ -n "${!var}" ] && continue
+ 
+ 		missing="$missing $var"
+ 	done
+@@ -2643,6 +2643,9 @@ __GET_BOOTARGS_FROM_BOARD_CFG()
+ 	if [ -n "$RK_BOOTARGS_CMA_SIZE" ]; then
+ 		SYS_BOOTARGS="$SYS_BOOTARGS rk_dma_heap_cma=$RK_BOOTARGS_CMA_SIZE"
+ 	fi
++	if [ "$RK_ENABLE_USB_GADGET_CONSOLE" = "y" ]; then
++		SYS_BOOTARGS="$SYS_BOOTARGS console=ttyGS0,115200"
++	fi
+ }
+ 
+ function __PREPARE_BOARD_CFG()
+-- 
+2.55.0
+
