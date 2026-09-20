@@ -6,7 +6,6 @@
 #include <teleop/udp_socket.hpp>
 
 #include <libavcodec/avcodec.h>
-#include <libavutil/error.h>
 
 #include <poll.h>
 
@@ -192,13 +191,6 @@ std::unique_ptr<teleop::VulkanPresenter> make_presenter(const Options& options)
     return std::make_unique<teleop::VulkanPresenter>(options.window);
 }
 
-std::string ffmpeg_error(int error_code)
-{
-    std::array<char, AV_ERROR_MAX_STRING_SIZE> message{};
-    av_strerror(error_code, message.data(), message.size());
-    return {message.data()};
-}
-
 void decode_annex_b_file(std::string_view path, teleop::H264VaapiDecoder& decoder)
 {
     std::ifstream file{std::string{path}, std::ios::binary | std::ios::ate};
@@ -217,54 +209,15 @@ void decode_annex_b_file(std::string_view path, teleop::H264VaapiDecoder& decode
         throw std::runtime_error("could not read H.264 input file");
     }
 
-    AVCodecParserContext* parser = av_parser_init(AV_CODEC_ID_H264);
-    if (parser == nullptr) {
-        throw std::runtime_error("FFmpeg was built without the H.264 Annex-B parser");
+    teleop::H264AnnexBParser parser{decoder};
+    constexpr std::size_t kInputChunkBytes = 257U;
+    const std::span<const std::byte> stream{input.data(), static_cast<std::size_t>(input_size)};
+    for (std::size_t offset = 0U; offset < stream.size(); offset += kInputChunkBytes) {
+        const std::size_t chunk_size = std::min(kInputChunkBytes, stream.size() - offset);
+        parser.submit_chunk(stream.subspan(offset, chunk_size));
     }
-    const auto* current = reinterpret_cast<const std::uint8_t*>(input.data());
-    int remaining = static_cast<int>(input_size);
-    try {
-        while (remaining > 0) {
-            std::uint8_t* access_unit = nullptr;
-            int access_unit_size = 0;
-            const int consumed = av_parser_parse2(
-                parser, decoder.codec_context(), &access_unit, &access_unit_size, current, remaining,
-                AV_NOPTS_VALUE, AV_NOPTS_VALUE, 0);
-            if (consumed < 0 || (consumed == 0 && access_unit_size == 0)) {
-                throw std::runtime_error("could not parse Annex-B H.264 input: " +
-                                         ffmpeg_error(consumed));
-            }
-            if (access_unit_size > 0) {
-                decoder.submit_access_unit(
-                    std::span<const std::byte>{reinterpret_cast<const std::byte*>(access_unit),
-                                               static_cast<std::size_t>(access_unit_size)});
-            }
-            current += consumed;
-            remaining -= consumed;
-        }
-
-        while (true) {
-            std::uint8_t* access_unit = nullptr;
-            int access_unit_size = 0;
-            const int result = av_parser_parse2(
-                parser, decoder.codec_context(), &access_unit, &access_unit_size, nullptr, 0,
-                AV_NOPTS_VALUE, AV_NOPTS_VALUE, 0);
-            if (result < 0) {
-                throw std::runtime_error("could not flush Annex-B parser: " + ffmpeg_error(result));
-            }
-            if (access_unit_size == 0) {
-                break;
-            }
-            decoder.submit_access_unit(
-                std::span<const std::byte>{reinterpret_cast<const std::byte*>(access_unit),
-                                           static_cast<std::size_t>(access_unit_size)});
-        }
-        decoder.flush();
-    } catch (...) {
-        av_parser_close(parser);
-        throw;
-    }
-    av_parser_close(parser);
+    parser.flush();
+    decoder.flush();
 }
 
 } // namespace
@@ -296,8 +249,10 @@ int main(int argc, char* argv[])
         teleop::LatencyStatistics latency;
         std::array<std::byte, teleop::kMaxDatagramSize> datagram{};
         std::optional<teleop::H264VaapiDecoder> decoder;
+        std::optional<teleop::H264AnnexBParser> parser;
         if (!options.transport_only) {
             decoder.emplace(options.vaapi_device, presenter.get(), !options.software_decode);
+            parser.emplace(*decoder);
         }
 
         while (options.max_frames == 0U || statistics.completed_frames < options.max_frames) {
@@ -324,7 +279,7 @@ int main(int argc, char* argv[])
                 continue;
             }
             if (decoder.has_value()) {
-                decoder->submit_access_unit(frame->payload);
+                parser->submit_chunk(frame->payload);
             }
             if (presenter != nullptr && presenter->close_requested()) {
                 break;
@@ -338,6 +293,7 @@ int main(int argc, char* argv[])
         }
 
         if (decoder.has_value()) {
+            parser->flush();
             decoder->flush();
         }
         std::printf(

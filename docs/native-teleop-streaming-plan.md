@@ -110,12 +110,11 @@ mode 3 是 SDK 定义的“一个 slice 输出一个 VENC packet”；每个 pac
   --wrap-lines 256 --slice-ctus 120 --bitrate-kbps 20000 --gop 15
 ```
 
-`VENC_PACK_S::bFrameEnd` 是完整 H.264 access unit 的边界。当前稳定基线将同一编码帧
-的多个 VENC slice 在 sender 端聚合，随后作为一个 UDP transport frame 交给 FFmpeg；
-这避免 VAAPI 在不完整 slice 输入下出现参考帧错误。VENC 仍保留 wrap 和 slice 设置，
-因此编码器内部可以低延迟运行。后续逐 slice 传输需要在协议中显式表达 access-unit
-开始和结束，且须逐一验证 FFmpeg/VAAPI 的 chunk 输入兼容性；当前 AMD VAAPI 路径不能
-启用 `AV_CODEC_FLAG2_CHUNKS`，也不能直接把每个 slice 伪装成独立帧。
+Aura 当前 low-delay VENC 配置每次 `RK_MPI_VENC_GetStream()` 回调给出一个 Annex-B
+码流片段；它不是 FFmpeg 可直接解码的完整 H.264 access unit。发送端立即将该片段按本项目
+UDP 协议分片发送，接收端完成 UDP 重组后使用 FFmpeg Annex-B parser 拼出完整 access unit，
+再送入 VAAPI。这样保留逐 slice 发送的低延迟，同时不启用 AMD VAAPI 不兼容的
+`AV_CODEC_FLAG2_CHUNKS`，也不会把每个 slice 伪装成独立图像帧。
 
 调优按整帧稳定基线、wrap、slice、减小 VI/VENC buffer 的顺序进行。每次只改变一组参数并记录 P50、P95、P99、丢帧和温度。
 

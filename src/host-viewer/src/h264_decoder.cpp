@@ -7,6 +7,7 @@
 #include <array>
 #include <cstdio>
 #include <cstring>
+#include <limits>
 #include <stdexcept>
 #include <string>
 
@@ -165,6 +166,81 @@ const DecodeStatistics& H264VaapiDecoder::statistics() const
 AVCodecContext* H264VaapiDecoder::codec_context() const
 {
     return context_;
+}
+
+H264AnnexBParser::H264AnnexBParser(H264VaapiDecoder& decoder) : decoder_(decoder)
+{
+    parser_ = av_parser_init(AV_CODEC_ID_H264);
+    if (parser_ == nullptr) {
+        throw std::runtime_error("FFmpeg was built without the H.264 Annex-B parser");
+    }
+}
+
+H264AnnexBParser::~H264AnnexBParser()
+{
+    av_parser_close(parser_);
+}
+
+void H264AnnexBParser::parse_input(const std::uint8_t* input, int input_size)
+{
+    const std::uint8_t* current = input;
+    int remaining = input_size;
+    while (remaining > 0) {
+        std::uint8_t* access_unit = nullptr;
+        int access_unit_size = 0;
+        const int consumed = av_parser_parse2(
+            parser_, decoder_.codec_context(), &access_unit, &access_unit_size, current, remaining,
+            AV_NOPTS_VALUE, AV_NOPTS_VALUE, 0);
+        if (consumed < 0 || (consumed == 0 && access_unit_size == 0)) {
+            throw std::runtime_error("could not parse H.264 Annex-B stream: " +
+                                     ffmpeg_error(consumed));
+        }
+        if (access_unit_size > 0) {
+            decoder_.submit_access_unit(
+                std::span<const std::byte>{reinterpret_cast<const std::byte*>(access_unit),
+                                           static_cast<std::size_t>(access_unit_size)});
+        }
+        if (consumed == 0) {
+            throw std::runtime_error("H.264 Annex-B parser made no input progress");
+        }
+        current += consumed;
+        remaining -= consumed;
+    }
+}
+
+void H264AnnexBParser::submit_chunk(std::span<const std::byte> chunk)
+{
+    if (chunk.empty()) {
+        return;
+    }
+    if (chunk.size() > static_cast<std::size_t>(std::numeric_limits<int>::max())) {
+        throw std::runtime_error("H.264 Annex-B chunk exceeds FFmpeg parser input limit");
+    }
+    padded_input_.assign(chunk.size() + AV_INPUT_BUFFER_PADDING_SIZE, std::byte{0});
+    std::memcpy(padded_input_.data(), chunk.data(), chunk.size());
+    parse_input(reinterpret_cast<const std::uint8_t*>(padded_input_.data()),
+                static_cast<int>(chunk.size()));
+}
+
+void H264AnnexBParser::flush()
+{
+    while (true) {
+        std::uint8_t* access_unit = nullptr;
+        int access_unit_size = 0;
+        const int result = av_parser_parse2(
+            parser_, decoder_.codec_context(), &access_unit, &access_unit_size, nullptr, 0,
+            AV_NOPTS_VALUE, AV_NOPTS_VALUE, 0);
+        if (result < 0) {
+            throw std::runtime_error("could not flush H.264 Annex-B parser: " +
+                                     ffmpeg_error(result));
+        }
+        if (access_unit_size == 0) {
+            return;
+        }
+        decoder_.submit_access_unit(
+            std::span<const std::byte>{reinterpret_cast<const std::byte*>(access_unit),
+                                       static_cast<std::size_t>(access_unit_size)});
+    }
 }
 
 } // namespace teleop
