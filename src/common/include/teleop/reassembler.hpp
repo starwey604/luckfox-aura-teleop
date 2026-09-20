@@ -21,7 +21,7 @@ struct CompletedFrame {
 
 class FrameReassembler {
 public:
-    explicit FrameReassembler(std::size_t maximum_frame_size = 2U * 1024U * 1024U);
+    explicit FrameReassembler(std::size_t maximum_frame_size = kMaxEncodedAccessUnitSize);
 
     [[nodiscard]] std::optional<CompletedFrame> accept(
         std::span<const std::byte> datagram, TransportStatistics& statistics);

@@ -13,6 +13,7 @@ constexpr std::uint8_t kProtocolVersion = 1U;
 constexpr std::size_t kWireHeaderSize = 40U;
 constexpr std::size_t kMaxDatagramSize = 1200U;
 constexpr std::size_t kMaxPayloadSize = kMaxDatagramSize - kWireHeaderSize;
+constexpr std::size_t kMaxEncodedAccessUnitSize = 2U * 1024U * 1024U;
 
 enum class PacketFlags : std::uint16_t {
     kNone = 0,

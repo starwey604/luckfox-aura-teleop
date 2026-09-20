@@ -23,6 +23,7 @@ extern "C" {
 #include <stdexcept>
 #include <string>
 #include <string_view>
+#include <vector>
 
 namespace {
 
@@ -386,8 +387,10 @@ int main(int argc, char* argv[])
         teleop::UdpSender sender{options.destination, options.port};
         teleop::TransportStatistics statistics;
         MppPipeline pipeline{options};
-        std::uint32_t transport_packet_id = 0U;
         std::uint32_t encoded_frames = 0U;
+        std::vector<std::byte> access_unit;
+        std::uint64_t access_unit_pts_us = 0U;
+        bool access_unit_is_key_frame = false;
 
         std::printf("aura-sender: VI %d/%d/%d -> H.264 VENC %d, %ux%u@%u, %u kbps, wrap=%u lines, "
                     "slice low-delay=%u CTUs, UDP %.*s:%u\n",
@@ -409,13 +412,30 @@ int main(int argc, char* argv[])
             }
             const auto* payload = base + pack.u32Offset;
             const std::span<const std::byte> packet{payload, static_cast<std::size_t>(pack.u32Len)};
-            if (!sender.send_frame(options.stream_id, transport_packet_id++, teleop::PacketFlags::kNone,
-                                   pts_us_to_ns(pack.u64PTS), packet, statistics)) {
-                std::fprintf(stderr, "VENC packet was not completely queued for UDP transmission\n");
+            if (access_unit.empty()) {
+                access_unit_pts_us = pack.u64PTS;
             }
+            if (packet.size() > teleop::kMaxEncodedAccessUnitSize - access_unit.size()) {
+                pipeline.release_stream(stream);
+                throw std::runtime_error("H.264 access unit exceeds the transport size limit");
+            }
+            access_unit.insert(access_unit.end(), packet.begin(), packet.end());
+            access_unit_is_key_frame = access_unit_is_key_frame ||
+                                       pack.DataType.enH264EType == H264E_NALU_IDRSLICE;
             const bool frame_finished = pack.bFrameEnd == RK_TRUE;
             pipeline.release_stream(stream);
-            if (frame_finished) ++encoded_frames;
+            if (!frame_finished) continue;
+
+            const auto flags = access_unit_is_key_frame ? teleop::PacketFlags::kKeyFrame
+                                                         : teleop::PacketFlags::kNone;
+            if (!sender.send_frame(options.stream_id, encoded_frames, flags,
+                                   pts_us_to_ns(access_unit_pts_us), access_unit, statistics)) {
+                std::fprintf(stderr, "encoded frame %u was not completely queued for UDP transmission\n",
+                             encoded_frames);
+            }
+            access_unit.clear();
+            access_unit_is_key_frame = false;
+            ++encoded_frames;
         }
 
         std::printf("aura-sender: encoded-frames=%u datagrams=%llu bytes=%llu\n", encoded_frames,

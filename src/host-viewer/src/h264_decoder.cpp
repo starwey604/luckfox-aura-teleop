@@ -61,9 +61,6 @@ H264VaapiDecoder::H264VaapiDecoder(std::string_view vaapi_device, DecodedFrameSi
         }
         context_->get_format = select_vaapi_format;
         context_->thread_count = 1;
-        // Aura's VENC low-delay slice mode emits one slice at a time. Let
-        // FFmpeg consume partial access units as they arrive.
-        context_->flags2 |= AV_CODEC_FLAG2_CHUNKS;
 
         const int open_result = avcodec_open2(context_, codec, nullptr);
         if (open_result < 0) {
