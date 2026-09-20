@@ -6,6 +6,7 @@
 #include <SDL3/SDL.h>
 #include <SDL3/SDL_vulkan.h>
 
+#include <cstdio>
 #include <stdexcept>
 #include <string>
 
@@ -19,7 +20,7 @@ namespace {
 
 } // namespace
 
-VulkanPresenter::VulkanPresenter(int width, int height)
+VulkanPresenter::VulkanPresenter(const VulkanWindowOptions& options)
 {
     try {
         if (!SDL_Init(SDL_INIT_VIDEO)) {
@@ -28,10 +29,17 @@ VulkanPresenter::VulkanPresenter(int width, int height)
         if (!SDL_Vulkan_LoadLibrary(nullptr)) {
             throw_sdl_error("SDL Vulkan loader initialization failed");
         }
-        window_ = SDL_CreateWindow("Luckfox Aura Teleop", width, height,
-                                   SDL_WINDOW_VULKAN | SDL_WINDOW_RESIZABLE);
+        const SDL_WindowFlags flags = SDL_WINDOW_VULKAN | SDL_WINDOW_RESIZABLE |
+                                      (options.borderless ? SDL_WINDOW_BORDERLESS : 0U);
+        window_ = SDL_CreateWindow("Luckfox Aura Teleop", options.width, options.height, flags);
         if (window_ == nullptr) {
             throw_sdl_error("SDL window creation failed");
+        }
+        if (options.position_specified && !SDL_SetWindowPosition(window_, options.x, options.y)) {
+            std::fprintf(stderr,
+                         "host-viewer: compositor did not accept --window-x/--window-y (%s); "
+                         "place this window in the lower half with KWin\n",
+                         SDL_GetError());
         }
 
         std::uint32_t extension_count = 0U;

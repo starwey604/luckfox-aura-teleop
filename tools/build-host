@@ -10,7 +10,8 @@ cmake -S "$root" -B "$build_dir" \
     -DTELEOP_BUILD_AURA_SENDER=OFF \
     -DTELEOP_BUILD_TRANSPORT_TEST_SENDER=ON \
     -DTELEOP_BUILD_HOST_VIEWER=ON \
-    -DTELEOP_BUILD_USB_CAMERA_SENDER=ON
+    -DTELEOP_BUILD_USB_CAMERA_SENDER=ON \
+    -DTELEOP_BUILD_LATENCY_STIMULUS=ON
 cmake --build "$build_dir"
 
-printf '%s\n' "built: $build_dir/bin/transport-test-sender, host-viewer, and usb-camera-sender"
+printf '%s\n' "built: $build_dir/bin/transport-test-sender, host-viewer, usb-camera-sender, and latency-stimulus"

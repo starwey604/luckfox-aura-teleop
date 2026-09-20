@@ -11,6 +11,7 @@
 #include <poll.h>
 
 #include <array>
+#include <charconv>
 #include <chrono>
 #include <cstddef>
 #include <cstdint>
@@ -40,6 +41,7 @@ struct Options {
     bool same_clock{false};
     bool transport_only{false};
     bool headless{false};
+    teleop::VulkanWindowOptions window{};
 };
 
 void print_usage(const char* program)
@@ -51,10 +53,15 @@ void print_usage(const char* program)
         "FFmpeg VAAPI. Configure and run this executable on the CachyOS host only.\n"
         "\n"
         "  --port PORT            UDP listen port (default: 5000)\n"
-        "  --frames COUNT         Exit after complete network access units (default: 120)\n"
+        "  --frames COUNT         Exit after complete network access units; 0 runs until closed\n"
         "  --timeout-ms TIMEOUT   Network inactivity timeout (default: 5000)\n"
         "  --vaapi-device PATH    DRM render node (default: /dev/dri/renderD128)\n"
         "  --input FILE           Decode a local Annex-B H.264 file, then exit\n"
+        "  --window-width PIXELS  Viewer client width (default: 1280)\n"
+        "  --window-height PIXELS Viewer client height (default: 720)\n"
+        "  --window-x PIXELS      Viewer left position; requires --window-y too\n"
+        "  --window-y PIXELS      Viewer top position; requires --window-x too\n"
+        "  --borderless           Create the viewer without window decorations\n"
         "  --headless             Decode without creating the SDL3/Vulkan window\n"
         "  --transport-only       Validate UDP reassembly without opening FFmpeg\n"
         "  --same-clock           Report source-to-receive latency; only valid when\n"
@@ -65,29 +72,14 @@ void print_usage(const char* program)
 template <typename Integer>
 bool parse_integer(std::string_view text, Integer& output)
 {
-    if (text.empty()) {
-        return false;
-    }
-    std::uint64_t value = 0U;
-    for (const char character : text) {
-        if (character < '0' || character > '9') {
-            return false;
-        }
-        const auto digit = static_cast<std::uint64_t>(character - '0');
-        if (value > (std::numeric_limits<std::uint64_t>::max() - digit) / 10U) {
-            return false;
-        }
-        value = value * 10U + digit;
-    }
-    if (value > std::numeric_limits<Integer>::max()) {
-        return false;
-    }
-    output = static_cast<Integer>(value);
-    return true;
+    const auto result = std::from_chars(text.data(), text.data() + text.size(), output);
+    return result.ec == std::errc{} && result.ptr == text.data() + text.size();
 }
 
 bool parse_options(int argc, char* argv[], Options& options)
 {
+    bool has_window_x = false;
+    bool has_window_y = false;
     for (int index = 1; index < argc; ++index) {
         const std::string_view option{argv[index]};
         if (option == "--help") {
@@ -106,6 +98,10 @@ bool parse_options(int argc, char* argv[], Options& options)
             options.headless = true;
             continue;
         }
+        if (option == "--borderless") {
+            options.window.borderless = true;
+            continue;
+        }
         if (index + 1 >= argc) {
             return false;
         }
@@ -115,7 +111,7 @@ bool parse_options(int argc, char* argv[], Options& options)
                 return false;
             }
         } else if (option == "--frames") {
-            if (!parse_integer(value, options.max_frames) || options.max_frames == 0U) {
+            if (!parse_integer(value, options.max_frames)) {
                 return false;
             }
         } else if (option == "--timeout-ms") {
@@ -126,11 +122,30 @@ bool parse_options(int argc, char* argv[], Options& options)
             options.vaapi_device = value;
         } else if (option == "--input") {
             options.input_path = value;
+        } else if (option == "--window-width") {
+            if (!parse_integer(value, options.window.width) || options.window.width <= 0) {
+                return false;
+            }
+        } else if (option == "--window-height") {
+            if (!parse_integer(value, options.window.height) || options.window.height <= 0) {
+                return false;
+            }
+        } else if (option == "--window-x") {
+            if (!parse_integer(value, options.window.x)) {
+                return false;
+            }
+            has_window_x = true;
+        } else if (option == "--window-y") {
+            if (!parse_integer(value, options.window.y)) {
+                return false;
+            }
+            has_window_y = true;
         } else {
             return false;
         }
     }
-    return !options.transport_only || options.input_path.empty();
+    options.window.position_specified = has_window_x && has_window_y;
+    return (!options.transport_only || options.input_path.empty()) && has_window_x == has_window_y;
 }
 
 std::uint64_t monotonic_time_ns()
@@ -168,7 +183,7 @@ std::unique_ptr<teleop::VulkanPresenter> make_presenter(const Options& options)
     if (options.headless || options.transport_only) {
         return nullptr;
     }
-    return std::make_unique<teleop::VulkanPresenter>(1280, 720);
+    return std::make_unique<teleop::VulkanPresenter>(options.window);
 }
 
 std::string ffmpeg_error(int error_code)
@@ -278,7 +293,7 @@ int main(int argc, char* argv[])
             decoder.emplace(options.vaapi_device, presenter.get());
         }
 
-        while (statistics.completed_frames < options.max_frames) {
+        while (options.max_frames == 0U || statistics.completed_frames < options.max_frames) {
             pollfd descriptor{.fd = receiver.fd(), .events = POLLIN, .revents = 0};
             const int readiness = poll(&descriptor, 1U, static_cast<int>(options.timeout_ms));
             if (readiness == 0) {

@@ -6,6 +6,7 @@ option(TELEOP_BUILD_AURA_SENDER "Build the Aura sender executable" ON)
 option(TELEOP_BUILD_TRANSPORT_TEST_SENDER "Build the host synthetic transport sender" OFF)
 option(TELEOP_BUILD_HOST_VIEWER "Build the host viewer executable" OFF)
 option(TELEOP_BUILD_USB_CAMERA_SENDER "Build the CachyOS USB-camera sender" OFF)
+option(TELEOP_BUILD_LATENCY_STIMULUS "Build the CachyOS optical latency test pattern" OFF)
 option(TELEOP_BUILD_TESTS "Build transport protocol tests" OFF)
 
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin")
@@ -29,6 +30,10 @@ endif()
 
 if(TELEOP_BUILD_USB_CAMERA_SENDER)
     add_subdirectory(src/usb-camera-sender)
+endif()
+
+if(TELEOP_BUILD_LATENCY_STIMULUS)
+    add_subdirectory(src/latency-stimulus)
 endif()
 
 if(TELEOP_BUILD_TESTS)

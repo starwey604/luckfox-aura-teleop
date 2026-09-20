@@ -16,9 +16,18 @@ extern "C" {
 
 namespace teleop {
 
+struct VulkanWindowOptions {
+    int width{1280};
+    int height{720};
+    int x{0};
+    int y{0};
+    bool position_specified{false};
+    bool borderless{false};
+};
+
 class VulkanPresenter final : public DecodedFrameSink {
 public:
-    VulkanPresenter(int width, int height);
+    explicit VulkanPresenter(const VulkanWindowOptions& options);
     ~VulkanPresenter() override;
 
     VulkanPresenter(const VulkanPresenter&) = delete;
