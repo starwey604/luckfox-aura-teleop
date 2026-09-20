@@ -1,0 +1,290 @@
+#!/usr/bin/env python3
+"""Host-side MIA1321 high-fps parameter sweep for Luckfox Aura.
+
+Runs on the CachyOS host, drives the board over SSH, and sweeps the 0007/0008
+runtime parameters (mode_fps, link_freq_mhz, pll_fbdiv, pll_outdiv,
+pll_div_{adc,pclk,cpclk}, regs) while measuring captured fps and MIPI errors.
+
+Requires the board to already run the kernel with the mia1321 module
+parameters, and the second-session SSH password in BOARD_PASSWORD (default
+"luckfox").
+
+Examples:
+  # divider sweep at a fixed link, keep VTS untouched
+  ./tools/scan-mia1321-highfps --fbdiv 216,224,232,240 --outdiv 2 --div 2 --link 576
+
+  # raw register override (e.g. MIPI PLL 0x0305..): ';' separates cases
+  ./tools/scan-mia1321-highfps --fbdiv 240 --outdiv 2 --div 2 --link 576 \
+      --regs "0x0305:0x08,0x0306:0x87;0x0305:0x08,0x0306:0x90"
+
+  # apply the known-good config and exit
+  ./tools/scan-mia1321-highfps --apply
+"""
+
+import argparse
+import os
+import pty
+import select
+import sys
+import time
+
+DEFAULT_LINKS = [
+    "576", "600", "624", "648", "672", "691", "720", "748", "768", "800",
+    "810", "832", "864", "900", "936", "960", "1000", "1036", "1080",
+    "1123", "1152", "1200", "1248",
+]
+
+# Validated default configuration (100 fps at 1280x1080, 0 errors).
+# The 0009 kernel bakes the same values into the default 100 fps mode.
+GOOD = {
+    "mode_fps": "100",
+    "link_freq_mhz": "576",
+    "pll_fbdiv": "240",
+    "pll_outdiv": "2",
+    "pll_div_adc": "2",
+    "pll_div_pclk": "2",
+    "pll_div_cpclk": "2",
+    # Trim only the oversized HTS (0x01c9/0x01ca, col_n).  Do NOT trim the
+    # vertical blanking (0x00d0/0x00d1): the online ISP needs it and
+    # trimming causes intermittent rkcif "size err" stalls.
+    "regs": "0x01c9:0x3a,0x01ca:0x02",
+}
+
+
+class Board:
+    def __init__(self, host, password, control_path):
+        self.host = host
+        self.password = password
+        self.control_path = control_path
+        self._base = [
+            "ssh",
+            "-o", "StrictHostKeyChecking=no",
+            "-o", "UserKnownHostsFile=/dev/null",
+            "-o", "LogLevel=ERROR",
+            "-o", "ConnectTimeout=8",
+            "-o", "ControlMaster=auto",
+            "-o", f"ControlPath={control_path}",
+            "-o", "ControlPersist=120",
+            host,
+        ]
+
+    def run(self, remote_cmd, timeout=60.0):
+        argv = self._base + [remote_cmd]
+        pid, fd = pty.fork()
+        if pid == 0:
+            os.execvp("ssh", argv)
+            os._exit(1)
+
+        out = bytearray()
+        sent_pw = False
+        answered_hostkey = False
+        start = time.time()
+        while True:
+            if time.time() - start > timeout:
+                out += b"\n[scan] SSH TIMEOUT\n"
+                try:
+                    os.kill(pid, 9)
+                except OSError:
+                    pass
+                break
+            r, _, _ = select.select([fd], [], [], 0.3)
+            if fd in r:
+                try:
+                    data = os.read(fd, 65536)
+                except OSError:
+                    break
+                if not data:
+                    break
+                out += data
+                low = bytes(out).lower()
+                if not answered_hostkey and (b"yes/no" in low or b"fingerprint" in low):
+                    os.write(fd, b"yes\n")
+                    answered_hostkey = True
+                if not sent_pw and b"assword" in bytes(out):
+                    os.write(fd, (self.password + "\n").encode())
+                    sent_pw = True
+            wpid, _ = os.waitpid(pid, os.WNOHANG)
+            if wpid == pid:
+                try:
+                    while True:
+                        r, _, _ = select.select([fd], [], [], 0.2)
+                        if fd not in r:
+                            break
+                        data = os.read(fd, 65536)
+                        if not data:
+                            break
+                        out += data
+                except OSError:
+                    pass
+                break
+        return bytes(out).decode(errors="replace")
+
+    def close(self):
+        try:
+            os.unlink(self.control_path)
+        except OSError:
+            pass
+
+
+
+def build_case_cmd(args, mode, link, fbdiv, outdiv, div, regs):
+    common = (
+        f"echo {mode} > {args.param}/mode_fps; "
+        f"echo {outdiv} > {args.param}/pll_outdiv; "
+        f"echo {div} > {args.param}/pll_div_adc; "
+        f"echo {div} > {args.param}/pll_div_pclk; "
+        f"echo {div} > {args.param}/pll_div_cpclk; "
+        f"echo {fbdiv} > {args.param}/pll_fbdiv; "
+        f"echo {link} > {args.param}/link_freq_mhz; "
+        f"if [ -w {args.param}/regs ]; then echo '{regs}' > {args.param}/regs; fi"
+    )
+    sfmt = ""
+    if not args.no_sfmt:
+        sfmt = (f"; media-ctl -d {args.media_dev} --set-v4l2 "
+                f"'\"{args.entity}\":0[fmt:SGRBG10_1X10/1280x1080]' "
+                f">/dev/null 2>&1")
+    capture = (
+        f"dmesg -c >/dev/null 2>&1; "
+        f"t0=$(date +%s.%N); "
+        f"timeout -s INT -k 3 {args.timeout} v4l2-ctl -d {args.device} "
+        f"--stream-mmap=4 --stream-count={args.count} --stream-to=/dev/null "
+        f">/dev/null 2>&1; rc=$?; t1=$(date +%s.%N); "
+        f"d=$(dmesg); "
+        f"fps=$(awk -v a=$t0 -v b=$t1 -v n={args.count} "
+        f"'BEGIN{{ if (b>a) printf \"%.2f\", n/(b-a); else print 0 }}'); "
+        f"errs=$(printf '%s' \"$d\" | grep -c 'MIPI_CSI2 ERR'); "
+        f"dphy=$(printf '%s' \"$d\" | grep -o 'data_rate_mbps [0-9]*' | tail -1 | awk '{{print $2}}'); "
+        f"sen=$(printf '%s' \"$d\" | grep -o 'start stream:.*' | tail -1); "
+        f"echo \"RESULT rc=$rc fps=$fps errs=$errs dphy=$dphy sen=$sen\""
+    )
+    return common + sfmt + "; " + capture
+
+
+def parse_result(text):
+    for line in reversed(text.splitlines()):
+        if "RESULT " in line:
+            line = line[line.index("RESULT "):]
+            out = {}
+            for token in line.split():
+                if "=" in token and token != "RESULT":
+                    k, v = token.split("=", 1)
+                    out[k] = v
+            return out
+    return {}
+
+
+def splitext_list(value):
+    return [v for v in value.split(",") if v != ""]
+
+
+def main():
+    ap = argparse.ArgumentParser(description=__doc__,
+                                 formatter_class=argparse.RawDescriptionHelpFormatter)
+    ap.add_argument("--host", default=os.environ.get("BOARD_HOST", "root@192.168.1.10"))
+    ap.add_argument("--password", default=os.environ.get("BOARD_PASSWORD", "luckfox"))
+    ap.add_argument("--param", default="/sys/module/mia1321/parameters")
+    ap.add_argument("--device", default="/dev/video13")
+    ap.add_argument("--media-dev", default="/dev/media1")
+    ap.add_argument("--entity", default="m00_b_mia1321 4-0060")
+    ap.add_argument("--mode-fps", dest="mode_fps", default="117")
+    ap.add_argument("--link", default="")
+    ap.add_argument("--fbdiv", default="0")
+    ap.add_argument("--outdiv", default="0")
+    ap.add_argument("--div", default="0")
+    ap.add_argument("--regs", default="")
+    ap.add_argument("--count", type=int, default=300)
+    ap.add_argument("--timeout", type=float, default=8.0)
+    ap.add_argument("--no-sfmt", action="store_true",
+                    help="do not force a sensor S_FMT before each capture")
+    ap.add_argument("--apply", action="store_true",
+                    help="apply the known-good config and exit")
+    args = ap.parse_args()
+
+    board = Board(args.host, args.password,
+                  control_path=f"/tmp/opencode/scan-mia1321-{os.getpid()}.sock")
+    try:
+        if args.apply:
+            cmd = (
+                f"echo {GOOD['mode_fps']} > {args.param}/mode_fps; "
+                f"echo {GOOD['link_freq_mhz']} > {args.param}/link_freq_mhz; "
+                f"echo {GOOD['pll_fbdiv']} > {args.param}/pll_fbdiv; "
+                f"echo {GOOD['pll_outdiv']} > {args.param}/pll_outdiv; "
+                f"echo {GOOD['pll_div_adc']} > {args.param}/pll_div_adc; "
+                f"echo {GOOD['pll_div_pclk']} > {args.param}/pll_div_pclk; "
+                f"echo {GOOD['pll_div_cpclk']} > {args.param}/pll_div_cpclk; "
+                f"if [ -w {args.param}/regs ]; then echo '{GOOD['regs']}' > {args.param}/regs; fi; "
+                f"media-ctl -d {args.media_dev} --set-v4l2 "
+                f"'\"{args.entity}\":0[fmt:SGRBG10_1X10/1280x1080]' >/dev/null 2>&1; "
+                f"echo applied"
+            )
+            print(board.run(cmd, timeout=30))
+            return 0
+
+        links = splitext_list(args.link) or DEFAULT_LINKS
+        modes = splitext_list(args.mode_fps)
+        fbdivs = splitext_list(args.fbdiv)
+        outdivs = splitext_list(args.outdiv)
+        divs = splitext_list(args.div)
+        # --regs uses ';' as its case separator so the addr:value commas
+        # inside each override stay intact.
+        regs_list = [v for v in args.regs.split(";") if v]
+        if not regs_list:
+            regs_list = [""]
+
+        header = f"{'mode':>4} {'link':>5} {'fb':>5} {'od':>3} {'div':>3} {'regs':<22} {'rc':>4} {'errs':>5} {'result':<6} {'fps':>7} dphy"
+        print(header)
+        print("-" * len(header))
+
+        results = []
+        for mode in modes:
+            for fbdiv in fbdivs:
+                for outdiv in outdivs:
+                    for div in divs:
+                        for regs in regs_list:
+                            for link in links:
+                                cmd = build_case_cmd(args, mode, link, fbdiv,
+                                                     outdiv, div, regs)
+                                text = board.run(cmd, timeout=args.timeout + 20)
+                                r = parse_result(text)
+                                rc = r.get("rc", "?")
+                                errs = r.get("errs", "?")
+                                fps = r.get("fps", "0")
+                                if rc == "0" and errs == "0":
+                                    verdict = "OK"
+                                elif rc == "0":
+                                    verdict = "DIRTY"
+                                else:
+                                    verdict = "FAIL"
+                                row = (mode, link, fbdiv, outdiv, div, regs or "-",
+                                       rc, errs, verdict, fps)
+                                results.append(row)
+                                print(f"{mode:>4} {link:>5} {fbdiv:>5} {outdiv:>3} "
+                                      f"{div:>3} {regs or '-':<22} {rc:>4} {errs:>5} "
+                                      f"{verdict:<6} {fps:>7} {r.get('dphy', '?')}")
+
+        print()
+        ok = [r for r in results if r[8] == "OK"]
+        print(f"{len(ok)}/{len(results)} cases locked cleanly")
+        if ok:
+            best = max(ok, key=lambda r: float(r[9]) if r[9] not in ("", "?") else 0)
+            print("best:", dict(zip(
+                ["mode", "link", "fbdiv", "outdiv", "div", "regs",
+                 "rc", "errs", "result", "fps"], best)))
+        return 0
+    finally:
+        # Restore the known-good configuration.
+        board.run(
+            f"echo {GOOD['mode_fps']} > {args.param}/mode_fps; "
+            f"echo {GOOD['link_freq_mhz']} > {args.param}/link_freq_mhz; "
+            f"echo {GOOD['pll_fbdiv']} > {args.param}/pll_fbdiv; "
+            f"echo {GOOD['pll_outdiv']} > {args.param}/pll_outdiv; "
+            f"echo {GOOD['pll_div_adc']} > {args.param}/pll_div_adc; "
+            f"echo {GOOD['pll_div_pclk']} > {args.param}/pll_div_pclk; "
+            f"echo {GOOD['pll_div_cpclk']} > {args.param}/pll_div_cpclk; "
+            f"if [ -w {args.param}/regs ]; then echo '{GOOD['regs']}' > {args.param}/regs; fi",
+            timeout=30)
+        board.close()
+
+
+if __name__ == "__main__":
+    sys.exit(main())

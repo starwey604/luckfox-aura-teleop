@@ -1,0 +1,145 @@
+#!/bin/sh
+# Sweep MIA1321 high-fps MIPI link frequencies / PLL FBDIV on the Aura board
+# and report which combinations the CSI2 receiver can lock.
+#
+# Requires the 0007 kernel (module parameters under /sys/module/mia1321).
+#
+# Notes:
+#  * The Rockchip ISP caches the sensor format and does not call the sensor's
+#    set_fmt() on every stream, but the CSI2 D-PHY reads V4L2_CID_LINK_FREQ when
+#    it starts streaming.  Force one S_FMT via media-ctl after each parameter
+#    change so the D-PHY actually picks up the new link frequency.
+#  * `dmesg -c` is used to isolate each attempt.  Counting lines in a growing
+#    kernel ring buffer is unreliable because the buffer wraps and drops the
+#    oldest entries.
+#  * `timeout -s INT` lets v4l2-ctl stop the stream gracefully; SIGTERM leaves
+#    the ISP pipeline stopping for longer than the next attempt can wait.
+#
+# Usage:
+#   sweep-mia1321-highfps [link_mhz ...]
+#
+# Environment:
+#   MODE_FPS       preferred sensor mode fps (default 117)
+#   FBDIVS         PLL FBDIV overrides, 0 = table default (default "0")
+#   OUTDIV         PLL OUTDIV override, 0 = table value (default 0)
+#   DIV            PLL ADC/PCLK/CPCLK override, 0 = table value (default 0)
+#   DEV            capture device (default /dev/video13)
+#   MEDIA_DEV      media device holding the sensor (default /dev/media1)
+#   SENSOR_ENTITY  media entity name (default "m00_b_mia1321 4-0060")
+#   COUNT          frames per attempt (default 20)
+#   TIMEOUT        per-attempt timeout in seconds (default 5)
+#   LINKS          link list used when no positional arguments are given
+#
+# An attempt is OK only when v4l2-ctl captured all COUNT frames within TIMEOUT
+# and the attempt produced no MIPI_CSI2 errors.
+#
+# Known-good >60 fps recipe found on 2026-09-20 (84.5 fps, 0 MIPI errors):
+#   MODE_FPS=117 FBDIVS=240 OUTDIV=2 DIV=2 LINKS=576 \
+#       ./sweep-mia1321-highfps
+# Without OUTDIV=2 the vendor 117/100 fps tables never lock (the default
+# OUTDIV=1 PLL configuration produces an unusable MIPI stream).
+set -u
+
+PARAM=/sys/module/mia1321/parameters
+DEV=${DEV:-/dev/video13}
+MEDIA_DEV=${MEDIA_DEV:-/dev/media1}
+SENSOR_ENTITY=${SENSOR_ENTITY:-"m00_b_mia1321 4-0060"}
+MODE_FPS=${MODE_FPS:-117}
+COUNT=${COUNT:-20}
+TIMEOUT=${TIMEOUT:-5}
+FBDIVS=${FBDIVS:-0}
+OUTDIV=${OUTDIV:-0}
+DIV=${DIV:-0}
+RESTORE_MODE_FPS=${RESTORE_MODE_FPS:-117}
+RESTORE_FBDIV=${RESTORE_FBDIV:-240}
+RESTORE_OUTDIV=${RESTORE_OUTDIV:-2}
+RESTORE_DIV=${RESTORE_DIV:-2}
+RESTORE_LINK=${RESTORE_LINK:-576}
+LINKS=${LINKS:-"576 600 624 648 672 691 720 748 768 800 810 832 864 900 936 960 1000 1036 1080 1123 1152 1200 1248"}
+
+if [ ! -w "$PARAM/link_freq_mhz" ]; then
+	echo "error: $PARAM/link_freq_mhz is missing; the 0007 kernel is not running" >&2
+	exit 1
+fi
+
+[ "$#" -eq 0 ] || LINKS="$*"
+
+# Restore the known-good high-fps configuration on exit (override with the
+# RESTORE_* variables, e.g. RESTORE_MODE_FPS=60 for the safe baseline).
+cleanup() {
+	pkill -f 'v4l2-ctl -d' >/dev/null 2>&1
+	echo "$RESTORE_MODE_FPS" > "$PARAM/mode_fps" 2>/dev/null
+	echo "$RESTORE_LINK" > "$PARAM/link_freq_mhz" 2>/dev/null
+	echo "$RESTORE_FBDIV" > "$PARAM/pll_fbdiv" 2>/dev/null
+	echo "$RESTORE_OUTDIV" > "$PARAM/pll_outdiv" 2>/dev/null
+	echo "$RESTORE_DIV" > "$PARAM/pll_div_adc" 2>/dev/null
+	echo "$RESTORE_DIV" > "$PARAM/pll_div_pclk" 2>/dev/null
+	echo "$RESTORE_DIV" > "$PARAM/pll_div_cpclk" 2>/dev/null
+}
+trap cleanup EXIT INT TERM
+
+force_sfmt() {
+	media-ctl -d "$MEDIA_DEV" --set-v4l2 \
+		"\"$SENSOR_ENTITY\":0[fmt:SGRBG10_1X10/1280x1080]" \
+		>/dev/null 2>&1
+}
+
+pkill -f 'v4l2-ctl -d' >/dev/null 2>&1
+sleep 0.5
+
+echo "mode_fps=$MODE_FPS fbdivs=$FBDIVS outdiv=$OUTDIV div=$DIV dev=$DEV media=$MEDIA_DEV count=$COUNT timeout=${TIMEOUT}s"
+
+printf '%-6s %-6s %-4s %-6s %-7s %-9s %s\n' LINK FBDIV RC ERRS RESULT DPHY SENSOR
+printf '%s\n' "----------------------------------------------------------------------------------"
+
+echo "$MODE_FPS" > "$PARAM/mode_fps"
+echo "$OUTDIV" > "$PARAM/pll_outdiv"
+echo "$DIV" > "$PARAM/pll_div_adc"
+echo "$DIV" > "$PARAM/pll_div_pclk"
+echo "$DIV" > "$PARAM/pll_div_cpclk"
+
+for fb in $FBDIVS; do
+	echo "$fb" > "$PARAM/pll_fbdiv"
+	for link in $LINKS; do
+		echo "$link" > "$PARAM/link_freq_mhz"
+		force_sfmt
+		sleep 0.2
+
+		dmesg -c >/dev/null 2>&1
+		timeout -s INT -k 3 "$TIMEOUT" v4l2-ctl -d "$DEV" \
+			--stream-mmap=3 --stream-count="$COUNT" \
+			--stream-to=/dev/null >/dev/null 2>&1
+		rc=$?
+		sleep 1
+
+		log=$(dmesg)
+		errs=$(printf '%s\n' "$log" | grep -c 'MIPI_CSI2 ERR')
+		dphy=$(printf '%s\n' "$log" | grep -o 'data_rate_mbps [0-9]*' | tail -n 1)
+		sensor=$(printf '%s\n' "$log" | grep -o 'start stream:.*' | tail -n 1 |
+			sed 's/start stream: //')
+
+		if [ -z "$sensor" ]; then
+			result=NOSTART
+		elif [ "$rc" -eq 0 ] && [ "$errs" -eq 0 ]; then
+			result=OK
+		elif [ "$rc" -eq 0 ]; then
+			result=DIRTY
+		else
+			result=FAIL
+		fi
+
+		printf '%-6s 0x%-4s %-4s %-6s %-7s %-9s %s\n' \
+			"$link" "$fb" "$rc" "$errs" "$result" "${dphy:-?}" "$sensor"
+
+		if [ "$result" = OK ]; then
+			echo ">>> locked: link=${link}MHz fbdiv=0x$fb mode_fps=$MODE_FPS"
+		fi
+
+		while pgrep -f 'v4l2-ctl -d' >/dev/null 2>&1; do
+			sleep 0.3
+		done
+	done
+done
+
+echo
+echo "sweep finished"

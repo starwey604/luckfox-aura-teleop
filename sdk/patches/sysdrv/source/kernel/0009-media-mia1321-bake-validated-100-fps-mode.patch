@@ -1,0 +1,118 @@
+From fce5caf3cc5279439662c9f7c6773d7c32347af9 Mon Sep 17 00:00:00 2001
+From: Starwey <moonbite233@gmail.com>
+Date: Sun, 20 Sep 2026 14:00:17 +0800
+Subject: [PATCH] media: mia1321: bake validated 100 fps mode
+
+Default to a validated 100 fps 1280x1080 RAW10 configuration: use
+OUTDIV=2/FBDIV=0xf0 (the vendor OUTDIV=1 PLL never produces a lockable
+MIPI stream) and trim the oversized HTS/vertical blanking registers.
+The 117 fps mode keeps the same PLL with less horizontal blanking.
+
+Add per-mode pll_outdiv and regs fields so a mode can carry its own PLL
+divider and register overrides without duplicating the register table.
+---
+ drivers/media/i2c/mia1321.c | 39 ++++++++++++++++++++++++++++++-------
+ 1 file changed, 32 insertions(+), 7 deletions(-)
+
+diff --git a/drivers/media/i2c/mia1321.c b/drivers/media/i2c/mia1321.c
+index cc10beb2a..d04141485 100755
+--- a/drivers/media/i2c/mia1321.c
++++ b/drivers/media/i2c/mia1321.c
+@@ -50,15 +50,24 @@
+ #define MIA1321_FBDIV_100FPS		0xc0
+ #define MIA1321_FBDIV_117FPS		0xd8
+ 
++/*
++ * Validated 26 MHz high-fps PLL configuration.  The vendor 117 fps table
++ * uses OUTDIV=1/FBDIV=0xd8, which does not produce a lockable MIPI stream;
++ * OUTDIV=2/FBDIV=0xf0 with the same output dividers does.
++ */
++#define MIA1321_FBDIV_HIGHFPS		0xf0
++#define MIA1321_PLL_OUTDIV_HIGHFPS	0x02
++#define MIA1321_LINK_FREQ_HIGHFPS	576000000
++
+ /*
+  * High-fps bring-up knobs, exposed at
+  * /sys/module/mia1321/parameters/.  All default to 0 (except mode_fps) so a
+  * clean boot behaves exactly like the per-mode register table.
+  */
+-static uint mode_fps = 117;
++static uint mode_fps = 100;
+ module_param(mode_fps, uint, 0644);
+ MODULE_PARM_DESC(mode_fps,
+-	"Preferred MIA1321 mode frame rate (30/60/100/117), default 117");
++	"Preferred MIA1321 mode frame rate (30/60/100/117), default 100");
+ 
+ static uint link_freq_mhz;
+ module_param(link_freq_mhz, uint, 0644);
+@@ -185,6 +194,8 @@ struct mia1321_mode {
+ 	const struct regval *reg_list;
+ 	u32 link_freq_hz;
+ 	u32 pll_fbdiv;
++	u32 pll_outdiv;
++	const char *regs;
+ 	u32 hdr_mode;
+ 	u32 vc[PAD_MAX];
+ };
+@@ -635,8 +646,10 @@ static const struct mia1321_mode supported_modes[] = {
+ 		.vts_def = 0x04b0,
+ 		.bus_fmt = MEDIA_BUS_FMT_SGRBG10_1X10,
+ 		.reg_list = mia1321_linear_120_1280x1080_regs,
+-		.link_freq_hz = MIA1321_LINK_FREQ_117FPS,
+-		.pll_fbdiv = MIA1321_FBDIV_117FPS,
++		.link_freq_hz = MIA1321_LINK_FREQ_HIGHFPS,
++		.pll_fbdiv = MIA1321_FBDIV_HIGHFPS,
++		.pll_outdiv = MIA1321_PLL_OUTDIV_HIGHFPS,
++		.regs = "0x01c9:0x00,0x01ca:0x02,0x00d0:0x08,0x00d1:0x00",
+ 		.hdr_mode = NO_HDR,
+ 		.vc[PAD0] = 0,
+ 	},
+@@ -652,8 +665,10 @@ static const struct mia1321_mode supported_modes[] = {
+ 		.vts_def = 0x04b0,
+ 		.bus_fmt = MEDIA_BUS_FMT_SGRBG10_1X10,
+ 		.reg_list = mia1321_linear_120_1280x1080_regs,
+-		.link_freq_hz = MIA1321_LINK_FREQ_100FPS,
+-		.pll_fbdiv = MIA1321_FBDIV_100FPS,
++		.link_freq_hz = MIA1321_LINK_FREQ_HIGHFPS,
++		.pll_fbdiv = MIA1321_FBDIV_HIGHFPS,
++		.pll_outdiv = MIA1321_PLL_OUTDIV_HIGHFPS,
++		.regs = "0x01c9:0x58,0x01ca:0x02,0x00d0:0x08,0x00d1:0x00",
+ 		.hdr_mode = NO_HDR,
+ 		.vc[PAD0] = 0,
+ 	},
+@@ -744,6 +759,13 @@ static u16 mia1321_effective_fbdiv(const struct mia1321_mode *mode)
+ 	return (u16)mode->pll_fbdiv;
+ }
+ 
++static u16 mia1321_effective_outdiv(const struct mia1321_mode *mode)
++{
++	if (pll_outdiv)
++		return (u16)pll_outdiv;
++	return (u16)mode->pll_outdiv;
++}
++
+ static u32 mia1321_effective_pixel_rate(const struct mia1321_mode *mode)
+ {
+ 	u64 pixel_rate = 2ULL * mia1321_effective_link_hz(mode) * MIA1321_LANES;
+@@ -1458,7 +1480,7 @@ static int __mia1321_start_stream(struct mia1321 *mia1321)
+ {
+ 	const struct mia1321_mode *mode = mia1321->cur_mode;
+ 	struct mia1321_pll_override ov = {
+-		.outdiv = pll_outdiv,
++		.outdiv = mia1321_effective_outdiv(mode),
+ 		.fbdiv = mia1321_effective_fbdiv(mode),
+ 		.div_adc = pll_div_adc,
+ 		.div_bitclk = pll_div_bitclk,
+@@ -1477,6 +1499,9 @@ static int __mia1321_start_stream(struct mia1321 *mia1321)
+ 		if (ret)
+ 			return ret;
+ 
++		ret = mia1321_apply_reg_overrides(mia1321->client, mode->regs);
++		if (ret)
++			return ret;
+ 		ret = mia1321_apply_reg_overrides(mia1321->client, regs);
+ 		if (ret)
+ 			return ret;
+-- 
+2.55.0
+

@@ -1,0 +1,91 @@
+From 7e7677310d82d6d04ee172174709a7e8ff5b5aaa Mon Sep 17 00:00:00 2001
+From: Starwey <moonbite233@gmail.com>
+Date: Sun, 20 Sep 2026 13:28:38 +0800
+Subject: [PATCH] media: mia1321: add raw register override parameter
+
+Add a regs module parameter that applies comma-separated addr:value sensor
+register writes after the mode register table on every stream start.  This
+makes VTS (0x1024/0x1025), HTS and MIPI PLL registers tunable at runtime
+without rebuilding the kernel.
+
+Example:
+  echo 0x1024:0x04,0x1025:0xb0 > /sys/module/mia1321/parameters/regs
+---
+ drivers/media/i2c/mia1321.c | 47 +++++++++++++++++++++++++++++++++++++
+ 1 file changed, 47 insertions(+)
+
+diff --git a/drivers/media/i2c/mia1321.c b/drivers/media/i2c/mia1321.c
+index d329e57b5..cc10beb2a 100755
+--- a/drivers/media/i2c/mia1321.c
++++ b/drivers/media/i2c/mia1321.c
+@@ -89,6 +89,15 @@ static uint pll_div_cpclk;
+ module_param(pll_div_cpclk, uint, 0644);
+ MODULE_PARM_DESC(pll_div_cpclk, "Override sensor PLL DIV_CPCLK 0x0053 (0 = keep table value)");
+ 
++/*
++ * Raw sensor register overrides applied after the mode register table on every
++ * stream start, e.g. regs="0x1024:0x04,0x1025:0xb0" (VTS) or MIPI PLL values.
++ * Addresses/values accept decimal or 0x-prefixed hex.
++ */
++static char *regs;
++module_param(regs, charp, 0644);
++MODULE_PARM_DESC(regs, "Comma-separated addr:value sensor register overrides");
++
+ #define CHIP_ID				0x0400
+ #define MIA1321_REG_CHIP_ID		0x0011
+ 
+@@ -1411,6 +1420,40 @@ static long mia1321_compat_ioctl32(struct v4l2_subdev *sd,
+ }
+ #endif
+ 
++static int mia1321_apply_reg_overrides(struct i2c_client *client,
++				       const char *spec)
++{
++	char *buf, *cursor, *token;
++	int ret = 0;
++
++	if (!spec || !*spec)
++		return 0;
++
++	buf = kstrdup(spec, GFP_KERNEL);
++	if (!buf)
++		return -ENOMEM;
++
++	cursor = buf;
++	while (ret == 0 && (token = strsep(&cursor, ",")) != NULL) {
++		char *sep = strchr(token, ':');
++		unsigned int addr, val;
++
++		if (!sep)
++			continue;
++		*sep = '\0';
++		if (kstrtouint(token, 0, &addr) ||
++		    kstrtouint(sep + 1, 0, &val))
++			continue;
++		if (addr > 0xffff || val > 0xff)
++			continue;
++		ret = mia1321_write_reg(client, addr,
++					MIA1321_REG_VALUE_08BIT, val);
++	}
++
++	kfree(buf);
++	return ret;
++}
++
+ static int __mia1321_start_stream(struct mia1321 *mia1321)
+ {
+ 	const struct mia1321_mode *mode = mia1321->cur_mode;
+@@ -1434,6 +1477,10 @@ static int __mia1321_start_stream(struct mia1321 *mia1321)
+ 		if (ret)
+ 			return ret;
+ 
++		ret = mia1321_apply_reg_overrides(mia1321->client, regs);
++		if (ret)
++			return ret;
++
+ 		/* In case these controls are set before streaming */
+ 		ret = __v4l2_ctrl_handler_setup(&mia1321->ctrl_handler);
+ 
+-- 
+2.55.0
+
