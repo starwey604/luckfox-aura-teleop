@@ -41,6 +41,7 @@ struct Options {
     bool same_clock{false};
     bool transport_only{false};
     bool headless{false};
+    bool software_decode{false};
     teleop::VulkanWindowOptions window{};
 };
 
@@ -63,6 +64,7 @@ void print_usage(const char* program)
         "  --window-y PIXELS      Viewer top position; requires --window-x too\n"
         "  --borderless           Create the viewer without window decorations\n"
         "  --headless             Decode without creating the SDL3/Vulkan window\n"
+        "  --software-decode      Decode in FFmpeg software; diagnostic fallback for VAAPI\n"
         "  --transport-only       Validate UDP reassembly without opening FFmpeg\n"
         "  --same-clock           Report source-to-receive latency; only valid when\n"
         "                         sender and viewer share CLOCK_MONOTONIC\n",
@@ -96,6 +98,10 @@ bool parse_options(int argc, char* argv[], Options& options)
         }
         if (option == "--headless") {
             options.headless = true;
+            continue;
+        }
+        if (option == "--software-decode") {
+            options.software_decode = true;
             continue;
         }
         if (option == "--borderless") {
@@ -274,7 +280,8 @@ int main(int argc, char* argv[])
     try {
         auto presenter = make_presenter(options);
         if (!options.input_path.empty()) {
-            teleop::H264VaapiDecoder decoder{options.vaapi_device, presenter.get()};
+            teleop::H264VaapiDecoder decoder{options.vaapi_device, presenter.get(),
+                                             !options.software_decode};
             decode_annex_b_file(options.input_path, decoder);
             print_decoder_statistics(decoder.statistics());
             if (presenter != nullptr) {
@@ -290,7 +297,7 @@ int main(int argc, char* argv[])
         std::array<std::byte, teleop::kMaxDatagramSize> datagram{};
         std::optional<teleop::H264VaapiDecoder> decoder;
         if (!options.transport_only) {
-            decoder.emplace(options.vaapi_device, presenter.get());
+            decoder.emplace(options.vaapi_device, presenter.get(), !options.software_decode);
         }
 
         while (options.max_frames == 0U || statistics.completed_frames < options.max_frames) {

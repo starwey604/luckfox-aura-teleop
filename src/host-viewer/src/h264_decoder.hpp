@@ -24,7 +24,8 @@ struct DecodeStatistics {
 
 class H264VaapiDecoder {
 public:
-    explicit H264VaapiDecoder(std::string_view vaapi_device, DecodedFrameSink* sink = nullptr);
+    explicit H264VaapiDecoder(std::string_view vaapi_device, DecodedFrameSink* sink = nullptr,
+                              bool use_vaapi = true);
     ~H264VaapiDecoder();
 
     H264VaapiDecoder(const H264VaapiDecoder&) = delete;
@@ -42,6 +43,7 @@ private:
     AVCodecContext* context_{};
     AVBufferRef* hardware_device_{};
     DecodedFrameSink* sink_{};
+    bool use_vaapi_{true};
     DecodeStatistics statistics_{};
 };
 

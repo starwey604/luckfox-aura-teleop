@@ -33,8 +33,9 @@ AVPixelFormat select_vaapi_format(AVCodecContext*, const AVPixelFormat* formats)
 
 } // namespace
 
-H264VaapiDecoder::H264VaapiDecoder(std::string_view vaapi_device, DecodedFrameSink* sink)
-    : sink_(sink)
+H264VaapiDecoder::H264VaapiDecoder(std::string_view vaapi_device, DecodedFrameSink* sink,
+                                   bool use_vaapi)
+    : sink_(sink), use_vaapi_(use_vaapi)
 {
     try {
         const AVCodec* codec = avcodec_find_decoder(AV_CODEC_ID_H264);
@@ -42,24 +43,25 @@ H264VaapiDecoder::H264VaapiDecoder(std::string_view vaapi_device, DecodedFrameSi
             throw std::runtime_error("FFmpeg was built without the H.264 decoder");
         }
 
-        const std::string device_path{vaapi_device};
-        const int device_result = av_hwdevice_ctx_create(
-            &hardware_device_, AV_HWDEVICE_TYPE_VAAPI,
-            device_path.empty() ? nullptr : device_path.c_str(), nullptr, 0);
-        if (device_result < 0) {
-            throw std::runtime_error("could not create VAAPI device " + device_path + ": " +
-                                     ffmpeg_error(device_result));
-        }
-
         context_ = avcodec_alloc_context3(codec);
         if (context_ == nullptr) {
             throw std::runtime_error("could not allocate H.264 decoder context");
         }
-        context_->hw_device_ctx = av_buffer_ref(hardware_device_);
-        if (context_->hw_device_ctx == nullptr) {
-            throw std::runtime_error("could not retain VAAPI device context");
+        if (use_vaapi_) {
+            const std::string device_path{vaapi_device};
+            const int device_result = av_hwdevice_ctx_create(
+                &hardware_device_, AV_HWDEVICE_TYPE_VAAPI,
+                device_path.empty() ? nullptr : device_path.c_str(), nullptr, 0);
+            if (device_result < 0) {
+                throw std::runtime_error("could not create VAAPI device " + device_path + ": " +
+                                         ffmpeg_error(device_result));
+            }
+            context_->hw_device_ctx = av_buffer_ref(hardware_device_);
+            if (context_->hw_device_ctx == nullptr) {
+                throw std::runtime_error("could not retain VAAPI device context");
+            }
+            context_->get_format = select_vaapi_format;
         }
-        context_->get_format = select_vaapi_format;
         context_->thread_count = 1;
 
         const int open_result = avcodec_open2(context_, codec, nullptr);
@@ -96,12 +98,14 @@ void H264VaapiDecoder::drain()
             av_frame_free(&frame);
             throw std::runtime_error("VAAPI H.264 decode failed: " + ffmpeg_error(result));
         }
-        if (frame->format != AV_PIX_FMT_VAAPI) {
+        if (use_vaapi_ && frame->format != AV_PIX_FMT_VAAPI) {
             av_frame_free(&frame);
             throw std::runtime_error("decoder returned a software frame; VAAPI fallback is disabled");
         }
         ++statistics_.decoded_frames;
-        ++statistics_.hardware_frames;
+        if (frame->format == AV_PIX_FMT_VAAPI) {
+            ++statistics_.hardware_frames;
+        }
         if (sink_ != nullptr) {
             sink_->present(*frame);
         }
