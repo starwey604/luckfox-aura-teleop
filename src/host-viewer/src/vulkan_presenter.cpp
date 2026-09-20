@@ -211,6 +211,12 @@ void VulkanPresenter::render_latest_frames()
     }
     pl_frame target{};
     pl_frame_from_swapchain(&target, &swapchain_frame);
+    const float black[3]{0.0F, 0.0F, 0.0F};
+    pl_frame_clear(vulkan_->gpu, &target, black);
+    pl_render_params render_params = pl_render_fast_params;
+    // In stereo mode each call owns only one target half. The default border
+    // clear would erase the other half after it has been rendered.
+    render_params.border = PL_CLEAR_SKIP;
     bool rendered = false;
     for (std::size_t stream = 0U; stream < stream_count; ++stream) {
         if (!mapped[stream]) continue;
@@ -223,7 +229,7 @@ void VulkanPresenter::render_latest_frames()
                                   .x1 = static_cast<float>(width),
                                   .y1 = static_cast<float>(y1)};
         }
-        rendered = pl_render_image(renderer_, &images[stream], &target_region, &pl_render_fast_params) ||
+        rendered = pl_render_image(renderer_, &images[stream], &target_region, &render_params) ||
                    rendered;
     }
     const bool submitted = pl_swapchain_submit_frame(swapchain_);
