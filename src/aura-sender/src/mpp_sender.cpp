@@ -18,6 +18,7 @@ extern "C" {
 #include <cstdlib>
 #include <cstring>
 #include <exception>
+#include <fstream>
 #include <limits>
 #include <span>
 #include <stdexcept>
@@ -43,6 +44,7 @@ struct Options {
     std::uint32_t gop{15U};
     std::uint32_t wrap_lines{256U};
     std::uint32_t slice_ctus{120U};
+    std::string_view output_h264{};
     int vi_device{0};
     int vi_pipe{0};
     int vi_channel{0};
@@ -69,6 +71,7 @@ void print_usage(const char* program)
         "  --gop FRAMES           IDR interval in frames (default: 15)\n"
         "  --wrap-lines LINES     VI/VENC wrap line count (default: 256)\n"
         "  --slice-ctus COUNT     CTUs per slice, low-delay mode 3 (default: 120)\n"
+        "  --output-h264 FILE     Also save complete encoded access units as Annex-B H.264\n"
         "  --vi-device ID         VI device (default: 0)\n"
         "  --vi-pipe ID           VI pipe (default: 0)\n"
         "  --vi-channel ID        VI channel (default: 0)\n"
@@ -142,6 +145,8 @@ bool parse_options(int argc, char* argv[], Options& options)
             if (!parse_integer(value, options.wrap_lines)) return false;
         } else if (option == "--slice-ctus") {
             if (!parse_integer(value, options.slice_ctus) || options.slice_ctus == 0U) return false;
+        } else if (option == "--output-h264") {
+            options.output_h264 = value;
         } else if (option == "--vi-device") {
             if (!parse_integer(value, options.vi_device)) return false;
         } else if (option == "--vi-pipe") {
@@ -387,6 +392,14 @@ int main(int argc, char* argv[])
         teleop::UdpSender sender{options.destination, options.port};
         teleop::TransportStatistics statistics;
         MppPipeline pipeline{options};
+        std::ofstream output;
+        if (!options.output_h264.empty()) {
+            output.open(std::string{options.output_h264}, std::ios::binary | std::ios::trunc);
+            if (!output) {
+                throw std::runtime_error("could not open H.264 output file: " +
+                                         std::string{options.output_h264});
+            }
+        }
         std::uint32_t encoded_frames = 0U;
         std::vector<std::byte> access_unit;
         std::uint64_t access_unit_pts_us = 0U;
@@ -428,6 +441,13 @@ int main(int argc, char* argv[])
 
             const auto flags = access_unit_is_key_frame ? teleop::PacketFlags::kKeyFrame
                                                          : teleop::PacketFlags::kNone;
+            if (output.is_open()) {
+                output.write(reinterpret_cast<const char*>(access_unit.data()),
+                             static_cast<std::streamsize>(access_unit.size()));
+                if (!output) {
+                    throw std::runtime_error("could not write H.264 output file");
+                }
+            }
             if (!sender.send_frame(options.stream_id, encoded_frames, flags,
                                    pts_us_to_ns(access_unit_pts_us), access_unit, statistics)) {
                 std::fprintf(stderr, "encoded frame %u was not completely queued for UDP transmission\n",
