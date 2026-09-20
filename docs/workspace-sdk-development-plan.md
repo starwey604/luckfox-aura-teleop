@@ -274,8 +274,19 @@ sudo ./upgrade_tool rd
 或修改过分区表的镜像复用该值。若设备处于 MaskRom 而非 Loader 模式，先运行
 `sudo ./upgrade_tool db ../../../output/image/download.bin`，再执行上述 `wl`。
 
-首次完整烧录可先用 `rkdownload.sh -d` 写入固定大小的分区，再立即运行上述两条命令
-补写 rootfs。日常仅更新根文件系统时，也只执行这两条命令即可。
+完整烧录使用项目脚本，它会校验当前 `env.img` 分区表、识别 Loader/MaskRom，并写入
+`env`、`idblock`、`uboot`、`boot`、`userdata`、`oem` 和 `rootfs`。它会清空
+`userdata`：
+
+```sh
+cd /home/ww/codings/luckfox-aura-teleop
+tools/flash-aura-emmc
+```
+
+脚本默认使用相邻的 `/home/ww/codings/aura-sdk`；可以用
+`AURA_SDK_ROOT=/path/to/sdk tools/flash-aura-emmc` 覆盖。先执行
+`tools/flash-aura-emmc --dry-run` 可检查镜像与将要运行的写入命令，而不会访问设备。
+日常仅更新根文件系统时，直接使用前述两条 `wl rootfs`、`rd` 命令即可。
 
 ### USB CDC ACM 调试串口
 
