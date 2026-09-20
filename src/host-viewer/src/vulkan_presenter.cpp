@@ -181,32 +181,9 @@ void VulkanPresenter::render_latest_frames()
     }
 
     const std::size_t stream_count = dual_stream_ ? 2U : 1U;
-    std::array<pl_frame, 2U> images{};
-    std::array<bool, 2U> mapped{};
-    for (std::size_t stream = 0U; stream < stream_count; ++stream) {
-        if (latest_frames_[stream] == nullptr) {
-            continue;
-        }
-        const pl_avframe_params mapping_params{
-            .frame = latest_frames_[stream],
-            .tex = nullptr,
-            .map_dovi = false,
-        };
-        if (!pl_map_avframe_ex(vulkan_->gpu, &images[stream], &mapping_params)) {
-            for (std::size_t previous = 0U; previous < stream; ++previous) {
-                if (mapped[previous]) pl_unmap_avframe(vulkan_->gpu, &images[previous]);
-            }
-            throw std::runtime_error("could not import decoded frame into Vulkan");
-        }
-        mapped[stream] = true;
-    }
-
     pl_swapchain_frame swapchain_frame{};
     const bool started = pl_swapchain_start_frame(swapchain_, &swapchain_frame);
     if (!started) {
-        for (std::size_t stream = 0U; stream < stream_count; ++stream) {
-            if (mapped[stream]) pl_unmap_avframe(vulkan_->gpu, &images[stream]);
-        }
         return;
     }
     pl_frame target{};
@@ -219,7 +196,16 @@ void VulkanPresenter::render_latest_frames()
     render_params.border = PL_CLEAR_SKIP;
     bool rendered = false;
     for (std::size_t stream = 0U; stream < stream_count; ++stream) {
-        if (!mapped[stream]) continue;
+        if (latest_frames_[stream] == nullptr) continue;
+        pl_frame image{};
+        const pl_avframe_params mapping_params{
+            .frame = latest_frames_[stream],
+            .tex = nullptr,
+            .map_dovi = false,
+        };
+        if (!pl_map_avframe_ex(vulkan_->gpu, &image, &mapping_params)) {
+            throw std::runtime_error("could not import decoded frame into Vulkan");
+        }
         pl_frame target_region = target;
         if (dual_stream_) {
             const int y0 = static_cast<int>(stream) * height / 2;
@@ -229,16 +215,15 @@ void VulkanPresenter::render_latest_frames()
                                   .x1 = static_cast<float>(width),
                                   .y1 = static_cast<float>(y1)};
         }
-        rendered = pl_render_image(renderer_, &images[stream], &target_region, &render_params) ||
-                   rendered;
+        const bool stream_rendered =
+            pl_render_image(renderer_, &image, &target_region, &render_params);
+        pl_unmap_avframe(vulkan_->gpu, &image);
+        rendered = stream_rendered || rendered;
     }
     const bool submitted = pl_swapchain_submit_frame(swapchain_);
     if (rendered && submitted) {
         pl_swapchain_swap_buffers(swapchain_);
         ++presented_frames_;
-    }
-    for (std::size_t stream = 0U; stream < stream_count; ++stream) {
-        if (mapped[stream]) pl_unmap_avframe(vulkan_->gpu, &images[stream]);
     }
     if (!rendered || !submitted) {
         throw std::runtime_error("Vulkan frame render or submit failed");
