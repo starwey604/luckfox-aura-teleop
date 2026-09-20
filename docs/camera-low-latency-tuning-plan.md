@@ -82,7 +82,11 @@ Luckfox 商品名 ISG1321 与内核驱动名 MIA1321 不一致。上板后必须
 3. 修正并复测传感器时钟与模式选择。当前默认 30 fps 寄存器表注释为 24 MHz 输入，而 DTS 和驱动给它提供 26 MHz MCLK；此外当前模式选择只按分辨率挑选，三个模式尺寸相同，导致 RAW10 60/117 fps 不能被格式协商可靠选中。
 4. 每次修改后先重新运行上述 120 帧丢弃采集；只有它在规定帧数内退出且没有 CSI 错误，才进入 ISP 调参与 MPP sender。
 
-首次尝试把 1280×1080 RAW10、标称 117 fps 的 26 MHz 寄存器表设为默认模式后，实测出现 CSI ECC/CRC/packet-ID 错误和 CIF size error，不能使用。当前 teleop 内核补丁改为默认使用同样以 26 MHz xvclk 工作的 RAW10 60 fps 表，并保留按 RAW 位深选择模式的修正。烧录后必须重新记录实际帧率、完整帧数与 CSI 错误计数；只有稳定通过后，它才是当前模组可用的最高帧率。117 fps 需要单独匹配传感器输出速率和 CSI D-PHY 参数后再尝试。
+首次尝试把 1280×1080 RAW10、标称 117 fps 的 26 MHz 寄存器表设为默认模式后，实测出现 CSI ECC/CRC/packet-ID 错误和 CIF size error，不能使用。原因是 `mia1321` 驱动只注册了一个 576 MHz 的 link-frequency，CSI D-PHY 因而固定配置为 1152 Mbps；117 fps 寄存器表的 PLL 值为 60 fps 表的 1.5 倍，实际需要 864 MHz link-frequency，即 1728 Mbps/lane。
+
+当前已验证的 60 fps 模式完整采集 120 帧，帧间隔稳定在 17.076 ms，实测为 58.56 fps。新的高帧率补丁把 V4L2 的 link-frequency 和 pixel-rate 改为每个模式独立的值：60 fps 为 576 MHz / 230.4 Mpixel/s，117 fps 为 864 MHz / 345.6 Mpixel/s；并重新让 117 fps 表成为默认 RAW10 模式。RV1126B 的 CSI D-PHY 规格为 2.5 Gbps/lane，因此 1728 Mbps/lane 在接收器范围内。
+
+重新烧录后，高帧率验收首先检查 `dmesg` 中 `rockchip-csi2-dphy0: dphy0, data_rate_mbps 1728`，再运行 120 帧采集。通过的条件是命令自行退出、序号连续且没有新的 CSI ECC/CRC/packet-ID 或 CIF size error。117 fps 下现有 VTS 的 vblank 约为 854 us，小于 CIF online ISP 建议的 1000 us；这只是当前内核的警告。若链路速率修正后仍有 ISP 侧不稳定，下一步将把高帧率表的 VTS 从 1200 行小幅提高到约 1232 行，使 vblank 超过 1 ms，并以约 114 fps 换取在线 ISP 余量。
 
 双摄 DTS 从厂商 `rv1126b-luckfox-aura-dual-cam.dtsi` 派生，重点验证两个 module index、CIF virtual channel、ISP 路由、reset 极性和同时启动能力。严格双目曝光同步可能需要模组硬件 trigger/sync，设备树和软件同时 `stream on` 不能保证微秒级同步。
 

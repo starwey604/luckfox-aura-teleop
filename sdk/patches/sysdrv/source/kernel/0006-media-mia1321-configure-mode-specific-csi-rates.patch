@@ -1,0 +1,161 @@
+From 95e772430300ad776e670841612617ffba44d9eb Mon Sep 17 00:00:00 2001
+From: Starwey <moonbite233@gmail.com>
+Date: Sun, 20 Sep 2026 11:45:46 +0800
+Subject: [PATCH] media: mia1321: configure mode-specific CSI rates
+
+---
+ drivers/media/i2c/mia1321.c | 60 +++++++++++++++++++++++--------------
+ 1 file changed, 37 insertions(+), 23 deletions(-)
+
+diff --git a/drivers/media/i2c/mia1321.c b/drivers/media/i2c/mia1321.c
+index db39e2525..31d2f10eb 100755
+--- a/drivers/media/i2c/mia1321.c
++++ b/drivers/media/i2c/mia1321.c
+@@ -30,11 +30,12 @@
+ #define DRIVER_VERSION			KERNEL_VERSION(0, 0x01, 0x01)
+ 
+ #define MIA1321_LANES			2
+-#define MIA1321_BITS_PER_SAMPLE		12
+-#define MIA1321_LINK_FREQ_37125		576000000  //37.125mbp
++#define MIA1321_LINK_FREQ_60FPS		576000000
++#define MIA1321_LINK_FREQ_117FPS	864000000
+ 
+-#define PIXEL_RATE_WITH_315M_10BIT	(MIA1321_LINK_FREQ_37125 / MIA1321_BITS_PER_SAMPLE * 2 * \
+-					MIA1321_LANES)
++#define MIA1321_PIXEL_RATE_30FPS	192000000
++#define MIA1321_PIXEL_RATE_60FPS	230400000
++#define MIA1321_PIXEL_RATE_117FPS	345600000
+ #define MIA1321_XVCLK_FREQ		26000000
+ 
+ #define CHIP_ID				0x0400
+@@ -122,6 +123,8 @@ struct mia1321_mode {
+ 	u32 vts_def;
+ 	u32 exp_def;
+ 	const struct regval *reg_list;
++	u32 link_freq_idx;
++	u32 pixel_rate;
+ 	u32 hdr_mode;
+ 	u32 vc[PAD_MAX];
+ };
+@@ -145,6 +148,8 @@ struct mia1321 {
+ 	struct v4l2_ctrl	*digi_gain;
+ 	struct v4l2_ctrl	*hblank;
+ 	struct v4l2_ctrl	*vblank;
++	struct v4l2_ctrl	*pixel_rate;
++	struct v4l2_ctrl	*link_freq;
+ 	struct v4l2_ctrl	*test_pattern;
+ 	struct mutex		mutex;
+ 	bool			streaming;
+@@ -552,24 +557,21 @@ static const struct regval mia1321_linear_10_1280x720_regs[] = {
+ 
+ 
+ static const struct mia1321_mode supported_modes[] = {
+-	/*
+-	 * Aura supplies this sensor with a 26 MHz xvclk.  The 117 fps register
+-	 * table must be paired with a faster CSI receiver configuration before it
+-	 * can be used.  Keep the 60 fps 26 MHz RAW10 mode first so the default
+-	 * media pipeline uses the highest validated mode.
+-	 */
++	/* Aura supplies this sensor with a 26 MHz xvclk. */
+ 	{
+ 		.width = 1280,
+ 		.height = 1080,
+ 		.max_fps = {
+ 			.numerator = 10000,
+-			.denominator = 600000,
++			.denominator = 1170000,
+ 		},
+ 		.exp_def = 0x01f4,
+ 		.hts_def = 0x0a68,
+ 		.vts_def = 0x04b0,
+ 		.bus_fmt = MEDIA_BUS_FMT_SGRBG10_1X10,
+-		.reg_list = mia1321_linear_60_1280x1080_regs,
++		.reg_list = mia1321_linear_120_1280x1080_regs,
++		.link_freq_idx = 1,
++		.pixel_rate = MIA1321_PIXEL_RATE_117FPS,
+ 		.hdr_mode = NO_HDR,
+ 		.vc[PAD0] = 0,
+ 	},
+@@ -578,13 +580,15 @@ static const struct mia1321_mode supported_modes[] = {
+ 		.height = 1080,
+ 		.max_fps = {
+ 			.numerator = 10000,
+-			.denominator = 1170000,
++			.denominator = 600000,
+ 		},
+ 		.exp_def = 0x01f4,
+ 		.hts_def = 0x0a68,
+ 		.vts_def = 0x04b0,
+ 		.bus_fmt = MEDIA_BUS_FMT_SGRBG10_1X10,
+-		.reg_list = mia1321_linear_120_1280x1080_regs,
++		.reg_list = mia1321_linear_60_1280x1080_regs,
++		.link_freq_idx = 0,
++		.pixel_rate = MIA1321_PIXEL_RATE_60FPS,
+ 		.hdr_mode = NO_HDR,
+ 		.vc[PAD0] = 0,
+ 	},
+@@ -600,13 +604,16 @@ static const struct mia1321_mode supported_modes[] = {
+ 		.vts_def = 0x04b0,
+ 		.bus_fmt = MEDIA_BUS_FMT_SGRBG12_1X12,
+ 		.reg_list = mia1321_linear_10_1280x720_regs,
++		.link_freq_idx = 0,
++		.pixel_rate = MIA1321_PIXEL_RATE_30FPS,
+ 		.hdr_mode = NO_HDR,
+ 		.vc[PAD0] = 0,
+ 	},
+ };
+ 
+ static const s64 link_freq_menu_items[] = {
+-	MIA1321_LINK_FREQ_37125
++	MIA1321_LINK_FREQ_60FPS,
++	MIA1321_LINK_FREQ_117FPS,
+ };
+ 
+ static const char *const mia1321_test_pattern_menu[] = {
+@@ -924,6 +931,9 @@ static int mia1321_set_fmt(struct v4l2_subdev *sd,
+ 		__v4l2_ctrl_modify_range(mia1321->vblank, vblank_def,
+ 					 MIA1321_VTS_MAX - mode->height,
+ 					 1, vblank_def);
++		__v4l2_ctrl_s_ctrl_int64(mia1321->pixel_rate,
++						 mode->pixel_rate);
++		__v4l2_ctrl_s_ctrl(mia1321->link_freq, mode->link_freq_idx);
+ 		mia1321->cur_fps = mode->max_fps;
+ 	}
+ 
+@@ -1621,7 +1631,6 @@ static int mia1321_initialize_controls(struct mia1321 *mia1321)
+ {
+ 	const struct mia1321_mode *mode;
+ 	struct v4l2_ctrl_handler *handler;
+-	struct v4l2_ctrl *ctrl;
+ 	s64 exposure_max, vblank_def;
+ 	u32 h_blank;
+ 	int ret;
+@@ -1633,13 +1642,18 @@ static int mia1321_initialize_controls(struct mia1321 *mia1321)
+ 		return ret;
+ 	handler->lock = &mia1321->mutex;
+ 
+-	ctrl = v4l2_ctrl_new_int_menu(handler, NULL, V4L2_CID_LINK_FREQ,
+-				      0, 0, link_freq_menu_items);
+-	if (ctrl)
+-		ctrl->flags |= V4L2_CTRL_FLAG_READ_ONLY;
+-
+-	v4l2_ctrl_new_std(handler, NULL, V4L2_CID_PIXEL_RATE,
+-			  0, PIXEL_RATE_WITH_315M_10BIT, 1, PIXEL_RATE_WITH_315M_10BIT);
++	mia1321->link_freq = v4l2_ctrl_new_int_menu(handler, NULL,
++						     V4L2_CID_LINK_FREQ,
++						     ARRAY_SIZE(link_freq_menu_items) - 1,
++						     mode->link_freq_idx,
++						     link_freq_menu_items);
++	if (mia1321->link_freq)
++		mia1321->link_freq->flags |= V4L2_CTRL_FLAG_READ_ONLY;
++
++	mia1321->pixel_rate = v4l2_ctrl_new_std(handler, NULL,
++						   V4L2_CID_PIXEL_RATE, 0,
++						   MIA1321_PIXEL_RATE_117FPS, 1,
++						   mode->pixel_rate);
+ 
+ 	h_blank = mode->hts_def - mode->width;
+ 	mia1321->hblank = v4l2_ctrl_new_std(handler, NULL, V4L2_CID_HBLANK,
+-- 
+2.55.0
+
