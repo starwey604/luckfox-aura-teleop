@@ -212,7 +212,23 @@ public:
         stream.pstPack = &pack;
         const RK_S32 result = RK_MPI_VENC_GetStream(options_.venc_channel, &stream, 1'000);
         if (result == RK_SUCCESS) return true;
-        if (result == -ETIMEDOUT) return false;
+        // This Rockit SDK reports a normal GetStream wait expiry as its VENC
+        // buffer-empty code, rather than the POSIX ETIMEDOUT used by some SDKs.
+        if (result == -ETIMEDOUT || result == RK_ERR_VENC_BUF_EMPTY) {
+            ++empty_stream_polls_;
+            if (empty_stream_polls_ % 10U == 0U) {
+                VENC_CHN_STATUS_S status{};
+                const RK_S32 status_result = RK_MPI_VENC_QueryStatus(options_.venc_channel, &status);
+                if (status_result == RK_SUCCESS) {
+                    std::fprintf(stderr,
+                                 "aura-sender: waiting for VENC stream: left-pics=%u "
+                                 "left-stream-frames=%u left-stream-bytes=%u\n",
+                                 status.u32LeftPics, status.u32LeftStreamFrames,
+                                 status.u32LeftStreamBytes);
+                }
+            }
+            return false;
+        }
         check(result, "RK_MPI_VENC_GetStream");
         return false;
     }
@@ -256,6 +272,8 @@ private:
         attributes.stIspOpt.stMaxSize.u32Width = options_.max_width;
         attributes.stIspOpt.stMaxSize.u32Height = options_.max_height;
         attributes.u32Depth = 0U;
+        attributes.stFrameRate.s32SrcFrameRate = static_cast<RK_S32>(options_.frame_rate);
+        attributes.stFrameRate.s32DstFrameRate = static_cast<RK_S32>(options_.frame_rate);
         check(RK_MPI_VI_SetChnAttr(options_.vi_pipe, options_.vi_channel, &attributes),
               "RK_MPI_VI_SetChnAttr");
 
@@ -280,7 +298,10 @@ private:
         attributes.stVencAttr.u32PicHeight = options_.height;
         attributes.stVencAttr.u32VirWidth = options_.width;
         attributes.stVencAttr.u32VirHeight = options_.height;
-        attributes.stVencAttr.u32StreamBufCnt = 3U;
+        attributes.stVencAttr.u32Profile = H264E_PROFILE_HIGH;
+        // The SDK VI→VENC wrap reference uses five stream buffers. Three is
+        // legal but leaves too little headroom while slice packets are drained.
+        attributes.stVencAttr.u32StreamBufCnt = 5U;
         attributes.stVencAttr.u32BufSize = options_.max_width * options_.max_height * 3U / 2U;
         attributes.stRcAttr.enRcMode = VENC_RC_MODE_H264CBR;
         attributes.stRcAttr.stH264Cbr.u32BitRate = options_.bitrate_kbps;
@@ -344,6 +365,7 @@ private:
     bool venc_created_{false};
     bool venc_started_{false};
     bool bound_{false};
+    std::uint32_t empty_stream_polls_{0U};
 };
 
 } // namespace
