@@ -185,6 +185,7 @@ void H264AnnexBParser::parse_input(const std::uint8_t* input, int input_size)
 {
     const std::uint8_t* current = input;
     int remaining = input_size;
+    unsigned int consecutive_output_only_results = 0U;
     while (remaining > 0) {
         std::uint8_t* access_unit = nullptr;
         int access_unit_size = 0;
@@ -201,8 +202,15 @@ void H264AnnexBParser::parse_input(const std::uint8_t* input, int input_size)
                                            static_cast<std::size_t>(access_unit_size)});
         }
         if (consumed == 0) {
-            throw std::runtime_error("H.264 Annex-B parser made no input progress");
+            // FFmpeg may emit the completed previous picture before consuming
+            // the first byte of this new fragment. Re-submit the same input;
+            // retain a bound only as protection against a broken parser loop.
+            if (++consecutive_output_only_results > 64U) {
+                throw std::runtime_error("H.264 Annex-B parser repeatedly emitted without input progress");
+            }
+            continue;
         }
+        consecutive_output_only_results = 0U;
         current += consumed;
         remaining -= consumed;
     }
