@@ -1,0 +1,84 @@
+From 4ad07fc27015c20670c9f93140e4bdf48216c068 Mon Sep 17 00:00:00 2001
+From: Starwey <moonbite233@gmail.com>
+Date: Sun, 20 Sep 2026 11:16:34 +0800
+Subject: [PATCH] media: mia1321: prefer native 117 fps mode
+
+---
+ drivers/media/i2c/mia1321.c | 28 +++++++++++++++++++---------
+ 1 file changed, 19 insertions(+), 9 deletions(-)
+
+diff --git a/drivers/media/i2c/mia1321.c b/drivers/media/i2c/mia1321.c
+index b9c5d416a..39add489b 100755
+--- a/drivers/media/i2c/mia1321.c
++++ b/drivers/media/i2c/mia1321.c
+@@ -552,18 +552,23 @@ static const struct regval mia1321_linear_10_1280x720_regs[] = {
+ 
+ 
+ static const struct mia1321_mode supported_modes[] = {
++	/*
++	 * Aura supplies this sensor with a 26 MHz xvclk.  Prefer the native
++	 * 1280x1080 RAW10 117 fps mode at probe time: the media pipeline queries
++	 * the active format before an application can negotiate another mode.
++	 */
+ 	{
+ 		.width = 1280,
+ 		.height = 1080,
+ 		.max_fps = {
+ 			.numerator = 10000,
+-			.denominator = 300000,
++			.denominator = 1170000,
+ 		},
+-		.exp_def = 0x0052,
++		.exp_def = 0x01f4,
+ 		.hts_def = 0x0a68,
+ 		.vts_def = 0x04b0,
+-		.bus_fmt = MEDIA_BUS_FMT_SGRBG12_1X12,
+-		.reg_list = mia1321_linear_10_1280x720_regs,
++		.bus_fmt = MEDIA_BUS_FMT_SGRBG10_1X10,
++		.reg_list = mia1321_linear_120_1280x1080_regs,
+ 		.hdr_mode = NO_HDR,
+ 		.vc[PAD0] = 0,
+ 	},
+@@ -587,16 +592,16 @@ static const struct mia1321_mode supported_modes[] = {
+ 		.height = 1080,
+ 		.max_fps = {
+ 			.numerator = 10000,
+-			.denominator = 1170000,
++			.denominator = 300000,
+ 		},
+-		.exp_def = 0x01f4,
++		.exp_def = 0x0052,
+ 		.hts_def = 0x0a68,
+ 		.vts_def = 0x04b0,
+-		.bus_fmt = MEDIA_BUS_FMT_SGRBG10_1X10,
+-		.reg_list = mia1321_linear_120_1280x1080_regs,
++		.bus_fmt = MEDIA_BUS_FMT_SGRBG12_1X12,
++		.reg_list = mia1321_linear_10_1280x720_regs,
+ 		.hdr_mode = NO_HDR,
+ 		.vc[PAD0] = 0,
+-	}
++	},
+ };
+ 
+ static const s64 link_freq_menu_items[] = {
+@@ -872,6 +877,8 @@ mia1321_find_best_fit(struct v4l2_subdev_format *fmt)
+ 	unsigned int i;
+ 
+ 	for (i = 0; i < ARRAY_SIZE(supported_modes); i++) {
++		if (framefmt->code && supported_modes[i].bus_fmt != framefmt->code)
++			continue;
+ 		dist = mia1321_get_reso_dist(&supported_modes[i], framefmt);
+ 		if (cur_best_fit_dist == -1 || dist < cur_best_fit_dist) {
+ 			cur_best_fit_dist = dist;
+@@ -879,6 +886,9 @@ mia1321_find_best_fit(struct v4l2_subdev_format *fmt)
+ 		}
+ 	}
+ 
++	if (cur_best_fit_dist == -1)
++		return &supported_modes[0];
++
+ 	return &supported_modes[cur_best_fit];
+ }
+ 
+-- 
+2.55.0

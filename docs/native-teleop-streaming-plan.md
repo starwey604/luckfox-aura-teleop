@@ -94,19 +94,20 @@ VI → VPSS crop/scale → VENC H.264 → UDP
 - 收到一个 slice packet 后立即交给网络线程。
 
 当前 `aura-sender` 已实现这一条最小硬件路径，直接绑定 `VI → VENC`，不经过
-VPSS，也不会把原始 NV12 图像带到用户态。默认值为 1280×720、12 Mbit/s CBR、
-GOP 15、VI/VENC wrap 256 行，以及 `VENC_SLICE_SPLIT_S` 的 mode 3、120 CTU。
+VPSS，也不会把原始 NV12 图像带到用户态。配合 teleop MIA1321 内核补丁，默认值为
+1280×1080、117 fps、20 Mbit/s H.264 CBR、GOP 15、VI/VENC wrap 256 行，以及
+`VENC_SLICE_SPLIT_S` 的 mode 3、120 CTU。
 mode 3 是 SDK 定义的“一个 slice 输出一个 VENC packet”；每个 packet 取得后立刻
 按本项目 UDP 协议分片发送。`--frames 0` 持续运行，其他 VI、VENC、分辨率和编码
 参数都可以在命令行覆盖。
 
-首板时先使用与 ISP 当前输出一致的宽高，例如：
+首板上以传感器最高模式和 ISP 当前输出一致的宽高测试：
 
 ```sh
 /oem/usr/bin/aura-sender \
   --destination 192.168.1.2 --port 5000 \
-  --width 1280 --height 720 --max-width 1280 --max-height 720 \
-  --wrap-lines 256 --slice-ctus 120 --bitrate-kbps 12000 --gop 15
+  --width 1280 --height 1080 --max-width 1280 --max-height 1080 --fps 117 \
+  --wrap-lines 256 --slice-ctus 120 --bitrate-kbps 20000 --gop 15
 ```
 
 `VENC_PACK_S::bFrameEnd` 用于计数编码帧；slice packet 本身使用独立的传输 ID。

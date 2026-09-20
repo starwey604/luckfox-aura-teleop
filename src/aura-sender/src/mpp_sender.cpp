@@ -34,10 +34,11 @@ struct Options {
     std::uint16_t stream_id{0U};
     std::uint32_t frame_count{0U};
     std::uint32_t width{1280U};
-    std::uint32_t height{720U};
+    std::uint32_t height{1080U};
     std::uint32_t max_width{1280U};
-    std::uint32_t max_height{720U};
-    std::uint32_t bitrate_kbps{12'000U};
+    std::uint32_t max_height{1080U};
+    std::uint32_t frame_rate{117U};
+    std::uint32_t bitrate_kbps{20'000U};
     std::uint32_t gop{15U};
     std::uint32_t wrap_lines{256U};
     std::uint32_t slice_ctus{120U};
@@ -59,10 +60,11 @@ void print_usage(const char* program)
         "  --stream-id ID         Stream identifier (default: 0)\n"
         "  --frames COUNT         Stop after COUNT encoded frames; 0 runs forever\n"
         "  --width PIXELS         VI/VENC output width (default: 1280)\n"
-        "  --height PIXELS        VI/VENC output height (default: 720)\n"
+        "  --height PIXELS        VI/VENC output height (default: 1080)\n"
         "  --max-width PIXELS     Sensor maximum width (default: width)\n"
         "  --max-height PIXELS    Sensor maximum height (default: height)\n"
-        "  --bitrate-kbps RATE    H.264 CBR rate (default: 12000)\n"
+        "  --fps RATE             VI/VENC source and output frame rate (default: 117)\n"
+        "  --bitrate-kbps RATE    H.264 CBR rate (default: 20000)\n"
         "  --gop FRAMES           IDR interval in frames (default: 15)\n"
         "  --wrap-lines LINES     VI/VENC wrap line count (default: 256)\n"
         "  --slice-ctus COUNT     CTUs per slice, low-delay mode 3 (default: 120)\n"
@@ -129,6 +131,8 @@ bool parse_options(int argc, char* argv[], Options& options)
         } else if (option == "--max-height") {
             if (!parse_integer(value, options.max_height) || options.max_height == 0U) return false;
             max_height_set = true;
+        } else if (option == "--fps") {
+            if (!parse_integer(value, options.frame_rate) || options.frame_rate == 0U) return false;
         } else if (option == "--bitrate-kbps") {
             if (!parse_integer(value, options.bitrate_kbps) || options.bitrate_kbps == 0U) return false;
         } else if (option == "--gop") {
@@ -281,6 +285,11 @@ private:
         attributes.stRcAttr.enRcMode = VENC_RC_MODE_H264CBR;
         attributes.stRcAttr.stH264Cbr.u32BitRate = options_.bitrate_kbps;
         attributes.stRcAttr.stH264Cbr.u32Gop = options_.gop;
+        attributes.stRcAttr.stH264Cbr.u32SrcFrameRateNum = options_.frame_rate;
+        attributes.stRcAttr.stH264Cbr.u32SrcFrameRateDen = 1U;
+        attributes.stRcAttr.stH264Cbr.fr32DstFrameRateNum = options_.frame_rate;
+        attributes.stRcAttr.stH264Cbr.fr32DstFrameRateDen = 1U;
+        attributes.stRcAttr.stH264Cbr.u32StatTime = 1U;
         attributes.stGopAttr.u32MaxLtrCount = 0U;
         check(RK_MPI_VENC_CreateChn(options_.venc_channel, &attributes), "RK_MPI_VENC_CreateChn");
         venc_created_ = true;
@@ -357,10 +366,11 @@ int main(int argc, char* argv[])
         std::uint32_t transport_packet_id = 0U;
         std::uint32_t encoded_frames = 0U;
 
-        std::printf("aura-sender: VI %d/%d/%d -> H.264 VENC %d, %ux%u, wrap=%u lines, "
+        std::printf("aura-sender: VI %d/%d/%d -> H.264 VENC %d, %ux%u@%u, %u kbps, wrap=%u lines, "
                     "slice low-delay=%u CTUs, UDP %.*s:%u\n",
                     options.vi_device, options.vi_pipe, options.vi_channel, options.venc_channel,
-                    options.width, options.height, options.wrap_lines, options.slice_ctus,
+                    options.width, options.height, options.frame_rate, options.bitrate_kbps,
+                    options.wrap_lines, options.slice_ctus,
                     static_cast<int>(options.destination.size()), options.destination.data(), options.port);
 
         while (g_stop_requested == 0 &&
