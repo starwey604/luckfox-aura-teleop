@@ -52,7 +52,7 @@ private:
     VkSurfaceKHR surface_{VK_NULL_HANDLE};
     pl_vulkan vulkan_{};
     pl_swapchain swapchain_{};
-    pl_renderer renderer_{};
+    std::array<pl_renderer, 2U> renderers_{};
     bool close_requested_{};
     bool dual_stream_{};
     std::array<AVFrame*, 2U> latest_frames_{};

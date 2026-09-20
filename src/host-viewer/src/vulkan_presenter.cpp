@@ -95,9 +95,15 @@ VulkanPresenter::VulkanPresenter(const VulkanWindowOptions& options)
         if (swapchain_ == nullptr) {
             throw std::runtime_error("Vulkan swapchain creation failed");
         }
-        renderer_ = pl_renderer_create(log_, vulkan_->gpu);
-        if (renderer_ == nullptr) {
+        renderers_[0] = pl_renderer_create(log_, vulkan_->gpu);
+        if (renderers_[0] == nullptr) {
             throw std::runtime_error("libplacebo renderer creation failed");
+        }
+        if (dual_stream_) {
+            renderers_[1] = pl_renderer_create(log_, vulkan_->gpu);
+            if (renderers_[1] == nullptr) {
+                throw std::runtime_error("second libplacebo renderer creation failed");
+            }
         }
     } catch (...) {
         destroy();
@@ -115,7 +121,9 @@ void VulkanPresenter::destroy()
     for (AVFrame*& frame : latest_frames_) {
         av_frame_free(&frame);
     }
-    pl_renderer_destroy(&renderer_);
+    for (pl_renderer& renderer : renderers_) {
+        pl_renderer_destroy(&renderer);
+    }
     pl_swapchain_destroy(&swapchain_);
     pl_vulkan_destroy(&vulkan_);
     if (surface_ != VK_NULL_HANDLE && instance_ != nullptr) {
@@ -216,7 +224,7 @@ void VulkanPresenter::render_latest_frames()
                                   .y1 = static_cast<float>(y1)};
         }
         const bool stream_rendered =
-            pl_render_image(renderer_, &image, &target_region, &render_params);
+            pl_render_image(renderers_[stream], &image, &target_region, &render_params);
         pl_unmap_avframe(vulkan_->gpu, &image);
         rendered = stream_rendered || rendered;
     }
