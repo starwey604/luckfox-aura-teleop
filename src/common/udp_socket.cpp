@@ -15,6 +15,11 @@
 namespace teleop {
 namespace {
 
+// A 1280x1080 H.264 access unit can be split into hundreds of UDP datagrams.
+// Keep several frames of those datagrams in each kernel queue.  This avoids a
+// transient userspace scheduling delay turning into an incomplete access unit.
+constexpr int kSocketBufferBytes = 4 * 1024 * 1024;
+
 int make_udp_socket(int family)
 {
     const int fd = socket(family, SOCK_DGRAM | SOCK_CLOEXEC, 0);
@@ -22,6 +27,13 @@ int make_udp_socket(int family)
         throw std::runtime_error(std::string{"socket: "} + std::strerror(errno));
     }
     return fd;
+}
+
+void configure_socket_buffer(int fd, int option)
+{
+    // The effective Linux value may be capped by net.core.{r,w}mem_max.  The
+    // default is still usable, so do not make platform-specific caps fatal.
+    (void)setsockopt(fd, SOL_SOCKET, option, &kSocketBufferBytes, sizeof(kSocketBufferBytes));
 }
 
 } // namespace
@@ -41,6 +53,7 @@ UdpSender::UdpSender(std::string_view destination, std::uint16_t port)
     }
 
     fd_ = make_udp_socket(result->ai_family);
+    configure_socket_buffer(fd_, SO_SNDBUF);
     std::memcpy(&destination_, result->ai_addr, result->ai_addrlen);
     destination_length_ = static_cast<socklen_t>(result->ai_addrlen);
     freeaddrinfo(result);
@@ -99,21 +112,35 @@ bool UdpSender::send_frame(std::uint16_t stream_id, std::uint32_t frame_id,
         message.msg_hdr.msg_iovlen = 2U;
     }
 
-    const int sent = sendmmsg(fd_, messages_.data(), packet_count, MSG_DONTWAIT);
-    if (sent < 0) {
-        return false;
+    std::size_t first_unsent = 0U;
+    while (first_unsent < packet_count) {
+        const auto remaining = static_cast<unsigned int>(packet_count - first_unsent);
+        const int sent = sendmmsg(fd_, messages_.data() + first_unsent, remaining, 0);
+        if (sent < 0) {
+            if (errno == EINTR) {
+                continue;
+            }
+            return false;
+        }
+        if (sent == 0) {
+            return false;
+        }
+
+        const auto sent_count = static_cast<std::size_t>(sent);
+        statistics.datagrams_sent += sent_count;
+        for (std::size_t packet_id = first_unsent;
+             packet_id < first_unsent + sent_count; ++packet_id) {
+            statistics.bytes_sent += messages_[packet_id].msg_len;
+        }
+        first_unsent += sent_count;
     }
-    const auto sent_count = static_cast<std::uint16_t>(sent);
-    statistics.datagrams_sent += sent_count;
-    for (std::uint16_t packet_id = 0U; packet_id < sent_count; ++packet_id) {
-        statistics.bytes_sent += messages_[packet_id].msg_len;
-    }
-    return sent_count == packet_count;
+    return true;
 }
 
 UdpReceiver::UdpReceiver(std::uint16_t port)
 {
     fd_ = make_udp_socket(AF_INET6);
+    configure_socket_buffer(fd_, SO_RCVBUF);
     const int disabled = 0;
     (void)setsockopt(fd_, IPPROTO_IPV6, IPV6_V6ONLY, &disabled, sizeof(disabled));
 
