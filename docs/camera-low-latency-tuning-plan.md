@@ -62,6 +62,24 @@ MIA1321 DTS 使用：
 
 Luckfox 商品名 ISG1321 与内核驱动名 MIA1321 不一致。上板后必须验证 I²C 响应、`mia1321` probe、media graph、曝光控制和实际画面，确认模组确实兼容。
 
+### 首次实机探测记录（2026-09-20）
+
+在 Aura 的 CSI0 配置和一只 ISG1321/MIA1321 模组上，板端已经完成下列验证：
+
+- `mia1321 4-0060` 成功读取芯片 ID，并报告 `Detected MIA1321(mis0400) sensor`；
+- `/dev/media1` 已形成 `MIA1321 -> csi2-dphy0 -> mipi0-csi2 -> rkcif` 拓扑；
+- `/dev/media2` 已形成 `rkcif -> rkisp-vir0 -> /dev/video13` 拓扑；
+- `/dev/video13` 是 `1280x1080 NV12` 的 ISP mainpath 输出；Buildroot 镜像中已有 `media-ctl`、`v4l2-ctl`、`i2cdetect` 和 `gst-launch-1.0`。
+
+执行 `v4l2-ctl -d /dev/video13 --stream-mmap=3 --stream-count=120 --stream-to=/dev/null --verbose` 后，驱动开始 streaming，但没有返回帧；`mipi0-csi2` 持续报告 `MIPI_CSI2 ERR2:0x10000000`。因此现阶段不能把问题归因于 MPP、UDP 或 SSH，而应先解决传感器到 CSI 接收器之间的有效帧传输。
+
+复测按以下顺序进行：
+
+1. 断电后重新插拔并检查 FPC 的朝向、锁扣和 CSI0 插座；I²C 能工作不代表 MIPI 时钟和两条 data lane 都可靠连接。
+2. 保持当前 DTS 的 CSI0、I²C4、`data-lanes = <1 2>`，避免在未确认硬件连接前切换到 CSI1。
+3. 修正并复测传感器时钟与模式选择。当前默认 30 fps 寄存器表注释为 24 MHz 输入，而 DTS 和驱动给它提供 26 MHz MCLK；此外当前模式选择只按分辨率挑选，三个模式尺寸相同，导致 RAW10 60/117 fps 不能被格式协商可靠选中。
+4. 每次修改后先重新运行上述 120 帧丢弃采集；只有它在规定帧数内退出且没有 CSI 错误，才进入 ISP 调参与 MPP sender。
+
 双摄 DTS 从厂商 `rv1126b-luckfox-aura-dual-cam.dtsi` 派生，重点验证两个 module index、CIF virtual channel、ISP 路由、reset 极性和同时启动能力。严格双目曝光同步可能需要模组硬件 trigger/sync，设备树和软件同时 `stream on` 不能保证微秒级同步。
 
 ## 4. 720p 与原始流带宽
