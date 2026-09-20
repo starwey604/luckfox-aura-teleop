@@ -254,6 +254,29 @@ cd /home/ww/codings/aura-sdk
 烧录工具时，应写入新的 `rootfs.img` 到 rootfs 分区；不能只刷 `update.img` 来更新
 rootfs 中的静态网络配置。
 
+### USB eMMC 烧录注意事项
+
+当前 SDK 附带的 `tools/linux/Linux_Upgrade_Tool/rkdownload.sh` 会把末尾的
+`-(rootfs)` 分区大小原样传给 `upgrade_tool wl`。该工具不接受 `-` 作为扇区数，因而
+`rkdownload.sh -d output/image` 会在前序分区成功后，以 `Size is invalid` 跳过
+`rootfs.img`。不要把该命令的退出过程视为完整烧录成功。
+
+板子已进入 Loader 模式时，直接省略 `wl` 的可选扇区数量参数，让工具根据镜像文件
+长度写入 rootfs：
+
+```sh
+cd /home/ww/codings/aura-sdk/tools/linux/Linux_Upgrade_Tool
+sudo ./upgrade_tool wl 0x607C40 ../../../output/image/rootfs.img
+sudo ./upgrade_tool rd
+```
+
+`0x607C40` 来自当前 teleop `env.img` 的 rootfs 起始 LBA；不要对不同 BoardConfig
+或修改过分区表的镜像复用该值。若设备处于 MaskRom 而非 Loader 模式，先运行
+`sudo ./upgrade_tool db ../../../output/image/download.bin`，再执行上述 `wl`。
+
+首次完整烧录可先用 `rkdownload.sh -d` 写入固定大小的分区，再立即运行上述两条命令
+补写 rootfs。日常仅更新根文件系统时，也只执行这两条命令即可。
+
 推荐镜像序列：
 
 1. `factory-baseline`：未经裁切的厂商配置。
