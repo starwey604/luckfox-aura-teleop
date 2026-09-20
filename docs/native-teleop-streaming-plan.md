@@ -42,6 +42,12 @@ UDP
 UDP 重组器、Annex-B parser 和 VAAPI decoder；显示器只保留每路最新帧，并将 0 放在窗口
 上半区、1 放在下半区。这样一侧编码或网络片段延迟不会污染另一侧的 H.264 parser 状态。
 
+当前 Aura stereo 镜像的程序预设为：`--camera 0` 对应 `m00_b_mia1321`、`rkisp-vir0`、
+`VI 0/0/0`、`VENC 0`、`stream_id 0`；`--camera 1` 对应 `m01_b_mia1321`、`rkisp-vir1`、
+`VI 1/1/0`、`VENC 1`、`stream_id 1`。先分别启动两个 sender 进程验证硬件资源可并发工作；
+无需在命令行重复填写 VI/VENC 编号。sender 默认编码基线为 1280×1080、100 fps、30 Mbit/s
+CBR、GOP 15、wrap 256 行、slice 120。
+
 发送端优先复用 SDK 已有的 RK MPI sample、VENC 配置和内存管理代码。VI、VPSS 和 VENC 尽可能通过 `RK_MPI_SYS_Bind()` 连接，使图像留在 DMA buffer 中。应用只获取编码后的 packet，不把原始帧复制到用户态。
 
 ## 3. 推荐仓库结构

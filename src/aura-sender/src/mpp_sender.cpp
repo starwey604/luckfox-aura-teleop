@@ -39,8 +39,8 @@ struct Options {
     std::uint32_t height{1080U};
     std::uint32_t max_width{1280U};
     std::uint32_t max_height{1080U};
-    std::uint32_t frame_rate{60U};
-    std::uint32_t bitrate_kbps{20'000U};
+    std::uint32_t frame_rate{100U};
+    std::uint32_t bitrate_kbps{30'000U};
     std::uint32_t gop{15U};
     std::uint32_t wrap_lines{256U};
     std::uint32_t slice_ctus{120U};
@@ -50,6 +50,21 @@ struct Options {
     int vi_channel{0};
     int venc_channel{0};
 };
+
+bool select_camera(Options& options, std::uint32_t camera)
+{
+    // Verified on the Aura stereo image: m00 is rkisp-vir0 and m01 is
+    // rkisp-vir1. The two streams use matching VI pipe/device and VENC IDs.
+    if (camera > 1U) {
+        return false;
+    }
+    options.stream_id = static_cast<std::uint16_t>(camera);
+    options.vi_device = static_cast<int>(camera);
+    options.vi_pipe = static_cast<int>(camera);
+    options.vi_channel = 0;
+    options.venc_channel = static_cast<int>(camera);
+    return true;
+}
 
 void print_usage(const char* program)
 {
@@ -61,13 +76,14 @@ void print_usage(const char* program)
         "  --destination ADDRESS  UDP destination (default: 192.168.1.2)\n"
         "  --port PORT            UDP destination port (default: 5000)\n"
         "  --stream-id ID         Stream identifier (default: 0)\n"
+        "  --camera INDEX         Aura stereo preset: 0=m00/rkisp-vir0, 1=m01/rkisp-vir1\n"
         "  --frames COUNT         Stop after COUNT encoded frames; 0 runs forever\n"
         "  --width PIXELS         VI/VENC output width (default: 1280)\n"
         "  --height PIXELS        VI/VENC output height (default: 1080)\n"
         "  --max-width PIXELS     Sensor maximum width (default: width)\n"
         "  --max-height PIXELS    Sensor maximum height (default: height)\n"
-        "  --fps RATE             VI/VENC source and output frame rate (default: 60)\n"
-        "  --bitrate-kbps RATE    H.264 CBR rate (default: 20000)\n"
+        "  --fps RATE             VI/VENC source and output frame rate (default: 100)\n"
+        "  --bitrate-kbps RATE    H.264 CBR rate (default: 30000)\n"
         "  --gop FRAMES           IDR interval in frames (default: 15)\n"
         "  --wrap-lines LINES     VI/VENC wrap line count (default: 256)\n"
         "  --slice-ctus COUNT     CTUs per slice, low-delay mode 3 (default: 120)\n"
@@ -119,6 +135,9 @@ bool parse_options(int argc, char* argv[], Options& options)
         const std::string_view value{argv[++index]};
         if (option == "--destination") {
             options.destination = value;
+        } else if (option == "--camera") {
+            std::uint32_t camera = 0U;
+            if (!parse_integer(value, camera) || !select_camera(options, camera)) return false;
         } else if (option == "--port") {
             if (!parse_integer(value, options.port) || options.port == 0U) return false;
         } else if (option == "--stream-id") {
