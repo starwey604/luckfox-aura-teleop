@@ -71,7 +71,9 @@ Luckfox 商品名 ISG1321 与内核驱动名 MIA1321 不一致。上板后必须
 - `/dev/media2` 已形成 `rkcif -> rkisp-vir0 -> /dev/video13` 拓扑；
 - `/dev/video13` 是 `1280x1080 NV12` 的 ISP mainpath 输出；Buildroot 镜像中已有 `media-ctl`、`v4l2-ctl`、`i2cdetect` 和 `gst-launch-1.0`。
 
-执行 `v4l2-ctl -d /dev/video13 --stream-mmap=3 --stream-count=120 --stream-to=/dev/null --verbose` 后，驱动开始 streaming，但没有返回帧；`mipi0-csi2` 持续报告 `MIPI_CSI2 ERR2:0x10000000`。因此现阶段不能把问题归因于 MPP、UDP 或 SSH，而应先解决传感器到 CSI 接收器之间的有效帧传输。
+首次采集时驱动开始 streaming，但没有返回帧，`mipi0-csi2` 持续报告 `MIPI_CSI2 ERR2:0x10000000`。断电重新插拔 FPC 后，该错误消失，说明原因是摄像头接口接触不可靠，并非 MPP、UDP 或 SSH。
+
+复测命令为 `v4l2-ctl -d /dev/video13 --stream-mmap=3 --stream-count=120 --stream-to=/dev/null --verbose`。它完整返回 120 帧，每帧 `bytesused=2073600`，符合 1280x1080 NV12；帧间隔稳定在 30.738 ms，即约 32.53 fps，内核日志也没有新的 CSI 错误。该帧率高于模式表登记的 30 fps，支持后续单独修正 24 MHz 寄存器表与 26 MHz xvclk 配置不一致的判断；在修正前以实测 32.53 fps 作为延迟和吞吐测试的基线。
 
 复测按以下顺序进行：
 
