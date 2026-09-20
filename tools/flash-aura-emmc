@@ -49,6 +49,9 @@ done
 # These values are deliberately tied to the current teleop BoardConfig.
 expected_parts='blkdevparts=mmcblk0:32K(env),512K@32K(idblock),4M(uboot),11M(boot),1G(userdata),2G(oem),-(rootfs)'
 actual_parts=$(strings "$images/env.img" | head -n 1)
+# Rockchip's environment image carries a short printable header before the
+# actual variable name; it is not part of the partition table.
+actual_parts=${actual_parts#<oG}
 [ "$actual_parts" = "$expected_parts" ] || {
     printf '%s\n' "error: env.img has an unexpected partition layout:" >&2
     printf '%s\n' "  $actual_parts" >&2
