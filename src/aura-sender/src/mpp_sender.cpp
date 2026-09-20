@@ -37,7 +37,7 @@ struct Options {
     std::uint32_t height{1080U};
     std::uint32_t max_width{1280U};
     std::uint32_t max_height{1080U};
-    std::uint32_t frame_rate{117U};
+    std::uint32_t frame_rate{60U};
     std::uint32_t bitrate_kbps{20'000U};
     std::uint32_t gop{15U};
     std::uint32_t wrap_lines{256U};
@@ -63,7 +63,7 @@ void print_usage(const char* program)
         "  --height PIXELS        VI/VENC output height (default: 1080)\n"
         "  --max-width PIXELS     Sensor maximum width (default: width)\n"
         "  --max-height PIXELS    Sensor maximum height (default: height)\n"
-        "  --fps RATE             VI/VENC source and output frame rate (default: 117)\n"
+        "  --fps RATE             VI/VENC source and output frame rate (default: 60)\n"
         "  --bitrate-kbps RATE    H.264 CBR rate (default: 20000)\n"
         "  --gop FRAMES           IDR interval in frames (default: 15)\n"
         "  --wrap-lines LINES     VI/VENC wrap line count (default: 256)\n"

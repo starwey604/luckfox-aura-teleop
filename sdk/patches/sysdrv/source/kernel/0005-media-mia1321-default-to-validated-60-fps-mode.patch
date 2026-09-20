@@ -1,0 +1,60 @@
+From bc082f3fc174de66345b5ba14f7f55de98666cea Mon Sep 17 00:00:00 2001
+From: Starwey <moonbite233@gmail.com>
+Date: Sun, 20 Sep 2026 11:25:37 +0800
+Subject: [PATCH] media: mia1321: default to validated 60 fps mode
+
+---
+ drivers/media/i2c/mia1321.c | 15 ++++++++-------
+ 1 file changed, 8 insertions(+), 7 deletions(-)
+
+diff --git a/drivers/media/i2c/mia1321.c b/drivers/media/i2c/mia1321.c
+index 39add489b..db39e2525 100755
+--- a/drivers/media/i2c/mia1321.c
++++ b/drivers/media/i2c/mia1321.c
+@@ -553,22 +553,23 @@ static const struct regval mia1321_linear_10_1280x720_regs[] = {
+ 
+ static const struct mia1321_mode supported_modes[] = {
+ 	/*
+-	 * Aura supplies this sensor with a 26 MHz xvclk.  Prefer the native
+-	 * 1280x1080 RAW10 117 fps mode at probe time: the media pipeline queries
+-	 * the active format before an application can negotiate another mode.
++	 * Aura supplies this sensor with a 26 MHz xvclk.  The 117 fps register
++	 * table must be paired with a faster CSI receiver configuration before it
++	 * can be used.  Keep the 60 fps 26 MHz RAW10 mode first so the default
++	 * media pipeline uses the highest validated mode.
+ 	 */
+ 	{
+ 		.width = 1280,
+ 		.height = 1080,
+ 		.max_fps = {
+ 			.numerator = 10000,
+-			.denominator = 1170000,
++			.denominator = 600000,
+ 		},
+ 		.exp_def = 0x01f4,
+ 		.hts_def = 0x0a68,
+ 		.vts_def = 0x04b0,
+ 		.bus_fmt = MEDIA_BUS_FMT_SGRBG10_1X10,
+-		.reg_list = mia1321_linear_120_1280x1080_regs,
++		.reg_list = mia1321_linear_60_1280x1080_regs,
+ 		.hdr_mode = NO_HDR,
+ 		.vc[PAD0] = 0,
+ 	},
+@@ -577,13 +578,13 @@ static const struct mia1321_mode supported_modes[] = {
+ 		.height = 1080,
+ 		.max_fps = {
+ 			.numerator = 10000,
+-			.denominator = 600000,
++			.denominator = 1170000,
+ 		},
+ 		.exp_def = 0x01f4,
+ 		.hts_def = 0x0a68,
+ 		.vts_def = 0x04b0,
+ 		.bus_fmt = MEDIA_BUS_FMT_SGRBG10_1X10,
+-		.reg_list = mia1321_linear_60_1280x1080_regs,
++		.reg_list = mia1321_linear_120_1280x1080_regs,
+ 		.hdr_mode = NO_HDR,
+ 		.vc[PAD0] = 0,
+ 	},
+-- 
+2.55.0
