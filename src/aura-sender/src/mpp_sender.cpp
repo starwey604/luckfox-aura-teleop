@@ -272,8 +272,9 @@ private:
         attributes.stIspOpt.stMaxSize.u32Width = options_.max_width;
         attributes.stIspOpt.stMaxSize.u32Height = options_.max_height;
         attributes.u32Depth = 0U;
-        attributes.stFrameRate.s32SrcFrameRate = static_cast<RK_S32>(options_.frame_rate);
-        attributes.stFrameRate.s32DstFrameRate = static_cast<RK_S32>(options_.frame_rate);
+        // rkisp-vir0 on this Aura SDK rejects VVI_IOCTL_SET_FR. Leave the VI
+        // rate at its auto (-1/-1) setting; the sensor mode supplies 100 fps
+        // while VENC still receives options_.frame_rate for rate control.
         check(RK_MPI_VI_SetChnAttr(options_.vi_pipe, options_.vi_channel, &attributes),
               "RK_MPI_VI_SetChnAttr");
 
