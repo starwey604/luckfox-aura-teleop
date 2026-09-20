@@ -21,6 +21,7 @@ namespace {
 } // namespace
 
 VulkanPresenter::VulkanPresenter(const VulkanWindowOptions& options)
+    : dual_stream_(options.dual_stream)
 {
     try {
         if (!SDL_Init(SDL_INIT_VIDEO)) {
@@ -111,6 +112,9 @@ VulkanPresenter::~VulkanPresenter()
 
 void VulkanPresenter::destroy()
 {
+    for (AVFrame*& frame : latest_frames_) {
+        av_frame_free(&frame);
+    }
     pl_renderer_destroy(&renderer_);
     pl_swapchain_destroy(&swapchain_);
     pl_vulkan_destroy(&vulkan_);
@@ -139,6 +143,26 @@ void VulkanPresenter::poll_events()
 
 void VulkanPresenter::present(const AVFrame& frame)
 {
+    present_stream(0U, frame);
+}
+
+void VulkanPresenter::present_stream(std::uint16_t stream_id, const AVFrame& frame)
+{
+    const std::size_t stream_count = dual_stream_ ? 2U : 1U;
+    if (stream_id >= stream_count) {
+        throw std::runtime_error("received a video frame for an unsupported stream");
+    }
+    AVFrame* retained = av_frame_clone(&frame);
+    if (retained == nullptr) {
+        throw std::runtime_error("could not retain decoded video frame");
+    }
+    av_frame_free(&latest_frames_[stream_id]);
+    latest_frames_[stream_id] = retained;
+    render_latest_frames();
+}
+
+void VulkanPresenter::render_latest_frames()
+{
     poll_events();
     if (close_requested_) {
         return;
@@ -156,31 +180,60 @@ void VulkanPresenter::present(const AVFrame& frame)
         throw std::runtime_error("Vulkan swapchain resize failed");
     }
 
-    pl_frame image{};
-    const pl_avframe_params mapping_params{
-        .frame = &frame,
-        .tex = nullptr,
-        .map_dovi = false,
-    };
-    if (!pl_map_avframe_ex(vulkan_->gpu, &image, &mapping_params)) {
-        throw std::runtime_error("could not import VAAPI frame into Vulkan");
+    const std::size_t stream_count = dual_stream_ ? 2U : 1U;
+    std::array<pl_frame, 2U> images{};
+    std::array<bool, 2U> mapped{};
+    for (std::size_t stream = 0U; stream < stream_count; ++stream) {
+        if (latest_frames_[stream] == nullptr) {
+            continue;
+        }
+        const pl_avframe_params mapping_params{
+            .frame = latest_frames_[stream],
+            .tex = nullptr,
+            .map_dovi = false,
+        };
+        if (!pl_map_avframe_ex(vulkan_->gpu, &images[stream], &mapping_params)) {
+            for (std::size_t previous = 0U; previous < stream; ++previous) {
+                if (mapped[previous]) pl_unmap_avframe(vulkan_->gpu, &images[previous]);
+            }
+            throw std::runtime_error("could not import decoded frame into Vulkan");
+        }
+        mapped[stream] = true;
     }
 
     pl_swapchain_frame swapchain_frame{};
     const bool started = pl_swapchain_start_frame(swapchain_, &swapchain_frame);
     if (!started) {
-        pl_unmap_avframe(vulkan_->gpu, &image);
+        for (std::size_t stream = 0U; stream < stream_count; ++stream) {
+            if (mapped[stream]) pl_unmap_avframe(vulkan_->gpu, &images[stream]);
+        }
         return;
     }
     pl_frame target{};
     pl_frame_from_swapchain(&target, &swapchain_frame);
-    const bool rendered = pl_render_image(renderer_, &image, &target, &pl_render_fast_params);
+    bool rendered = false;
+    for (std::size_t stream = 0U; stream < stream_count; ++stream) {
+        if (!mapped[stream]) continue;
+        pl_frame target_region = target;
+        if (dual_stream_) {
+            const int y0 = static_cast<int>(stream) * height / 2;
+            const int y1 = (stream == 0U) ? height / 2 : height;
+            target_region.crop = {.x0 = 0.0F,
+                                  .y0 = static_cast<float>(y0),
+                                  .x1 = static_cast<float>(width),
+                                  .y1 = static_cast<float>(y1)};
+        }
+        rendered = pl_render_image(renderer_, &images[stream], &target_region, &pl_render_fast_params) ||
+                   rendered;
+    }
     const bool submitted = pl_swapchain_submit_frame(swapchain_);
     if (rendered && submitted) {
         pl_swapchain_swap_buffers(swapchain_);
         ++presented_frames_;
     }
-    pl_unmap_avframe(vulkan_->gpu, &image);
+    for (std::size_t stream = 0U; stream < stream_count; ++stream) {
+        if (mapped[stream]) pl_unmap_avframe(vulkan_->gpu, &images[stream]);
+    }
     if (!rendered || !submitted) {
         throw std::runtime_error("Vulkan frame render or submit failed");
     }

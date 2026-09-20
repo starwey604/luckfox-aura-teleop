@@ -41,6 +41,7 @@ struct Options {
     bool transport_only{false};
     bool headless{false};
     bool software_decode{false};
+    bool dual_stream{false};
     teleop::VulkanWindowOptions window{};
 };
 
@@ -64,6 +65,7 @@ void print_usage(const char* program)
         "  --borderless           Create the viewer without window decorations\n"
         "  --headless             Decode without creating the SDL3/Vulkan window\n"
         "  --software-decode      Decode in FFmpeg software; diagnostic fallback for VAAPI\n"
+        "  --dual-stream          Receive stream IDs 0 and 1, stacked top to bottom\n"
         "  --transport-only       Validate UDP reassembly without opening FFmpeg\n"
         "  --same-clock           Report source-to-receive latency; only valid when\n"
         "                         sender and viewer share CLOCK_MONOTONIC\n",
@@ -101,6 +103,10 @@ bool parse_options(int argc, char* argv[], Options& options)
         }
         if (option == "--software-decode") {
             options.software_decode = true;
+            continue;
+        }
+        if (option == "--dual-stream") {
+            options.dual_stream = true;
             continue;
         }
         if (option == "--borderless") {
@@ -188,8 +194,24 @@ std::unique_ptr<teleop::VulkanPresenter> make_presenter(const Options& options)
     if (options.headless || options.transport_only) {
         return nullptr;
     }
-    return std::make_unique<teleop::VulkanPresenter>(options.window);
+    auto window = options.window;
+    window.dual_stream = options.dual_stream;
+    return std::make_unique<teleop::VulkanPresenter>(window);
 }
+
+class StreamPresenterSink final : public teleop::DecodedFrameSink {
+public:
+    StreamPresenterSink(teleop::VulkanPresenter& presenter, std::uint16_t stream_id)
+        : presenter_(presenter), stream_id_(stream_id)
+    {
+    }
+
+    void present(const AVFrame& frame) override { presenter_.present_stream(stream_id_, frame); }
+
+private:
+    teleop::VulkanPresenter& presenter_;
+    std::uint16_t stream_id_{};
+};
 
 void decode_annex_b_file(std::string_view path, teleop::H264VaapiDecoder& decoder)
 {
@@ -244,15 +266,25 @@ int main(int argc, char* argv[])
         }
 
         teleop::UdpReceiver receiver{options.port};
-        teleop::FrameReassembler reassembler;
+        std::array<teleop::FrameReassembler, 2U> reassemblers;
         teleop::TransportStatistics statistics;
         teleop::LatencyStatistics latency;
         std::array<std::byte, teleop::kMaxDatagramSize> datagram{};
-        std::optional<teleop::H264VaapiDecoder> decoder;
-        std::optional<teleop::H264AnnexBParser> parser;
+        constexpr std::size_t kMaximumStreams = 2U;
+        const std::size_t stream_count = options.dual_stream ? kMaximumStreams : 1U;
+        std::array<std::optional<teleop::H264VaapiDecoder>, kMaximumStreams> decoders;
+        std::array<std::optional<teleop::H264AnnexBParser>, kMaximumStreams> parsers;
+        std::array<std::unique_ptr<StreamPresenterSink>, kMaximumStreams> sinks;
         if (!options.transport_only) {
-            decoder.emplace(options.vaapi_device, presenter.get(), !options.software_decode);
-            parser.emplace(*decoder);
+            for (std::size_t stream = 0U; stream < stream_count; ++stream) {
+                if (presenter != nullptr) {
+                    sinks[stream] = std::make_unique<StreamPresenterSink>(
+                        *presenter, static_cast<std::uint16_t>(stream));
+                }
+                decoders[stream].emplace(options.vaapi_device, sinks[stream].get(),
+                                         !options.software_decode);
+                parsers[stream].emplace(*decoders[stream]);
+            }
         }
 
         while (options.max_frames == 0U || statistics.completed_frames < options.max_frames) {
@@ -273,13 +305,19 @@ int main(int argc, char* argv[])
                 std::perror("host-viewer: recv");
                 return EXIT_FAILURE;
             }
-            const auto frame = reassembler.accept(
-                std::span<const std::byte>{datagram.data(), static_cast<std::size_t>(received)}, statistics);
+            const std::span<const std::byte> datagram_view{datagram.data(),
+                                                            static_cast<std::size_t>(received)};
+            const auto header = teleop::parse_header(datagram_view);
+            if (!header.has_value() || header->stream_id >= stream_count) {
+                ++statistics.malformed_datagrams;
+                continue;
+            }
+            const auto frame = reassemblers[header->stream_id].accept(datagram_view, statistics);
             if (!frame.has_value()) {
                 continue;
             }
-            if (decoder.has_value()) {
-                parser->submit_chunk(frame->payload);
+            if (decoders[frame->stream_id].has_value()) {
+                parsers[frame->stream_id]->submit_chunk(frame->payload);
             }
             if (presenter != nullptr && presenter->close_requested()) {
                 break;
@@ -292,9 +330,11 @@ int main(int argc, char* argv[])
             }
         }
 
-        if (decoder.has_value()) {
-            parser->flush();
-            decoder->flush();
+        for (std::size_t stream = 0U; stream < stream_count; ++stream) {
+            if (decoders[stream].has_value()) {
+                parsers[stream]->flush();
+                decoders[stream]->flush();
+            }
         }
         std::printf(
             "viewer: access_units=%llu datagrams=%llu bytes=%llu malformed=%llu duplicates=%llu dropped=%llu\n",
@@ -304,8 +344,11 @@ int main(int argc, char* argv[])
             static_cast<unsigned long long>(statistics.malformed_datagrams),
             static_cast<unsigned long long>(statistics.duplicate_datagrams),
             static_cast<unsigned long long>(statistics.dropped_frames));
-        if (decoder.has_value()) {
-            print_decoder_statistics(decoder->statistics());
+        for (std::size_t stream = 0U; stream < stream_count; ++stream) {
+            if (decoders[stream].has_value()) {
+                std::printf("viewer stream %zu: ", stream);
+                print_decoder_statistics(decoders[stream]->statistics());
+            }
         }
         if (presenter != nullptr) {
             print_presenter_statistics(*presenter);

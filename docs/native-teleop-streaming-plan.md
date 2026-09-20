@@ -33,10 +33,14 @@ ISG1321/MIA1321
 
 CachyOS viewer
 UDP
-  → 分包校验与帧重组
+  → 按 stream_id 独立分包校验与帧重组
   → FFmpeg libavcodec（软件或 VAAPI）
   → Vulkan/DRM/SDL 显示
 ```
+
+`host-viewer --dual-stream` 接收 `stream_id` 为 0 和 1 的两路码流。两路各自使用
+UDP 重组器、Annex-B parser 和 VAAPI decoder；显示器只保留每路最新帧，并将 0 放在窗口
+上半区、1 放在下半区。这样一侧编码或网络片段延迟不会污染另一侧的 H.264 parser 状态。
 
 发送端优先复用 SDK 已有的 RK MPI sample、VENC 配置和内存管理代码。VI、VPSS 和 VENC 尽可能通过 `RK_MPI_SYS_Bind()` 连接，使图像留在 DMA buffer 中。应用只获取编码后的 packet，不把原始帧复制到用户态。
 
