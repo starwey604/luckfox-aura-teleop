@@ -1,0 +1,37 @@
+From 021f5465825dea1eb8d5362ad44b7d59b0391743 Mon Sep 17 00:00:00 2001
+From: Starwey <moonbite233@gmail.com>
+Date: Sun, 20 Sep 2026 16:08:20 +0800
+Subject: [PATCH] arm64: dts: aura: enable the second MIA1321 camera
+
+Wire the vendor dual-camera device tree into the Aura board so both CSI
+receivers are described:
+
+  cam0 = mia1321_0 @ i2c4 -> rkcif-mipi-lvds  -> rkisp-vir0
+  cam1 = mia1321_1 @ i2c3 -> rkcif-mipi-lvds2 -> rkisp-vir1
+
+Switch the include from rv1126b-luckfox-aura-cam-csi0.dtsi to
+rv1126b-luckfox-aura-dual-cam.dtsi.  The dual-cam overlay is a superset of
+the single-camera one, so single-camera operation is unchanged.
+---
+ arch/arm64/boot/dts/rockchip/rv1126b-luckfox-aura.dts | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/arch/arm64/boot/dts/rockchip/rv1126b-luckfox-aura.dts b/arch/arm64/boot/dts/rockchip/rv1126b-luckfox-aura.dts
+index 950188226..ed58f21f1 100644
+--- a/arch/arm64/boot/dts/rockchip/rv1126b-luckfox-aura.dts
++++ b/arch/arm64/boot/dts/rockchip/rv1126b-luckfox-aura.dts
+@@ -8,9 +8,9 @@
+ #include "rv1126b-aoa.dtsi"
+ #include "rv1126b-luckfox-aura.dtsi"
+ #include "rv1126b-luckfox-aura-dsi.dtsi"
+-#include "rv1126b-luckfox-aura-cam-csi0.dtsi"
++//#include "rv1126b-luckfox-aura-cam-csi0.dtsi"
+ //#include "rv1126b-luckfox-aura-cam-csi1.dtsi"
+-//#include "rv1126b-luckfox-aura-dual-cam.dtsi"
++#include "rv1126b-luckfox-aura-dual-cam.dtsi"
+ 
+ / {
+ 	model = "Luckfox Aura";
+-- 
+2.55.0
+
