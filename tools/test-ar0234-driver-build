@@ -1,0 +1,44 @@
+#!/bin/sh
+# Compile the SDK sensor port without rebuilding or replacing firmware images.
+set -eu
+
+if [ ! -f /run/.containerenv ] && [ ! -f /.dockerenv ]; then
+    printf '%s\n' 'error: run this target build inside the aura-sdk Distrobox' >&2
+    exit 1
+fi
+
+root=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
+sdk=$(realpath "${AURA_SDK_ROOT:-"$root/../aura-sdk"}")
+kernel="$sdk/sysdrv/source/kernel"
+sdk_objects="$sdk/sysdrv/source/objs_kernel"
+build_dir=$(realpath -m "${1:-"$root/build/ar0234-driver-check"}")
+cross="$sdk/tools/linux/toolchain/aarch64-rockchip1240-linux-gnu/bin/aarch64-rockchip1240-linux-gnu-"
+
+for input in "$kernel/drivers/media/i2c/ar0234.c" "$sdk_objects/.config" "$sdk_objects/Module.symvers"; do
+    [ -f "$input" ] || {
+        printf 'error: missing SDK input: %s\n' "$input" >&2
+        exit 1
+    }
+done
+"${cross}gcc" --version >/dev/null
+mkdir -p "$build_dir/kernel" "$build_dir/module"
+cp "$sdk_objects/.config" "$build_dir/kernel/.config"
+"$kernel/scripts/config" --file "$build_dir/kernel/.config" --enable VIDEO_AR0234
+
+# Use the exact BSP config, but keep all generated state in our ignored build dir.
+make -C "$kernel" O="$build_dir/kernel" ARCH=arm64 CROSS_COMPILE="$cross" \
+    olddefconfig modules_prepare
+make -C "$kernel" O="$build_dir/kernel" ARCH=arm64 CROSS_COMPILE="$cross" \
+    W=1 KCFLAGS=-Werror drivers/media/i2c/ar0234.o
+
+# Link this one driver as an external module as a second API/symbol check.
+# SDK Module.symvers is a build input, not a promise of compatibility with a
+# differently configured kernel currently running on the board.
+cp "$sdk_objects/Module.symvers" "$build_dir/kernel/Module.symvers"
+ln -sfn "$kernel/drivers/media/i2c/ar0234.c" "$build_dir/module/ar0234.c"
+printf 'obj-m += ar0234.o\n' > "$build_dir/module/Makefile"
+make -C "$kernel" O="$build_dir/kernel" ARCH=arm64 CROSS_COMPILE="$cross" \
+    W=1 KCFLAGS=-Werror M="$build_dir/module" modules
+"${cross}readelf" -h "$build_dir/module/ar0234.ko"
+printf '\ncompile/link checks passed: %s\n' "$build_dir/module/ar0234.ko"
+printf '%s\n' 'Hardware capture is not tested by this script.'
