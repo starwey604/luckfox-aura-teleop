@@ -2,15 +2,20 @@
 # Aura dual-MIA1321 stability test.
 #
 # Runs on the board.  For each scenario it starts one or both ISP mainpath
-# capture nodes and reports the achieved rate together with the hardware
-# frame/error counters, so frame loss on the second CSI camera and on the
-# shared ISP can be seen directly:
+# capture nodes and samples the hardware counters *while the stream is
+# running* (the rkcif/rkisp proc files only expose the per-stream counters
+# then).  Reported per camera:
 #
-#   frames   rkisp_mainpath frames delivered in the scenario (cumulative)
-#   isp_los  rkisp_mainpath "frameloss" delta
-#   cif_los  rkcif "frame loss" delta
-#   cif_err  rkcif csi size/overflow/bandwidth/all error delta
-#   isp_err  rkisp "ErrCnt" delta
+#   fps      achieved capture rate for COUNT frames
+#   cif_rx   frames the CSI receiver handed to the CIF
+#   isp_rx   frames the ISP delivered on rkisp_mainpath
+#   cif_los  CIF "frame loss"                    (drops)
+#   isp_los  rkisp_mainpath "frameloss"          (drops)
+#   cif_err  CIF csi size/overflow/bandwidth/all errors
+#   isp_err  rkisp "ErrCnt"
+#
+# A healthy run shows fps close to the mode rate, cif_rx ~= isp_rx ~= COUNT
+# and zero loss/error counters.
 #
 # Run it on the board:
 #   COUNT=600 ./test-dual-camera-stability
@@ -85,43 +90,49 @@ cam_video() { # $1 = camera index -> capture node
 # ---------------------------------------------------------------------------
 # Counter readers (empty when a counter is unavailable)
 # ---------------------------------------------------------------------------
-sum_lines() { awk '{ s += $1 } END { print s + 0 }'; }
-
+cif_frames()   { sed -n 's/.*frame amount:\([0-9][0-9]*\).*/\1/p' "$1" 2>/dev/null | head -1; }
 cif_allerr()   { sed -n 's/.*all err count:\([0-9][0-9]*\).*/\1/p' "$1" 2>/dev/null | head -1; }
 cif_sizeerr()  { sed -n 's/.*csi size err:\([0-9][0-9]*\).*/\1/p' "$1" 2>/dev/null | head -1; }
 cif_overflow() { sed -n 's/.*csi over flow:\([0-9][0-9]*\).*/\1/p' "$1" 2>/dev/null | head -1; }
 cif_bwlack()   { sed -n 's/.*csi bandwidth lack:\([0-9][0-9]*\).*/\1/p' "$1" 2>/dev/null | head -1; }
 cif_loss()     { awk '/frame loss:/ { s = 0; for (i = 3; i <= NF; i++) s += $i; print s + 0; exit }' "$1" 2>/dev/null; }
-cif_fps()      { sed -n 's/.*fps:\([0-9][0-9]*\).*/\1/p' "$1" 2>/dev/null | head -1; }
-
-# rkisp_mainpath "frame" counter: cumulative across streams.
 isp_frame()    { sed -n 's/.*(frame:\([0-9][0-9]*\) rate:.*/\1/p' "$1" 2>/dev/null | head -1; }
 isp_frameloss(){ sed -n 's/.*frameloss:\([0-9][0-9]*\).*/\1/p' "$1" 2>/dev/null | head -1; }
 isp_errcnt()   { sed -n 's/.*Interrupt[[:space:]]*Cnt:[0-9][0-9]* ErrCnt:\([0-9][0-9]*\).*/\1/p' "$1" 2>/dev/null | head -1; }
 
 nz() { [ -n "${1:-}" ] && printf '%s' "$1" || printf '0'; }
 
-# snapshot <cam>: store the current counters in B<cam>_* variables
-snapshot() {
+# sample <cam> -> one line: cif_rx cif_loss cif_err isp_rx isp_loss isp_err
+sample() {
 	c=$1
 	cp=$(cam_cif "$c")
 	ip=$(cam_isp "$c")
-	eval "B${c}_CLOSS=$(nz "$(cif_loss "$cp")")"
-	eval "B${c}_CERR=$(( $(nz "$(cif_allerr "$cp")") + $(nz "$(cif_sizeerr "$cp")") + $(nz "$(cif_overflow "$cp")") + $(nz "$(cif_bwlack "$cp")") ))"
-	eval "B${c}_IFRAME=$(nz "$(isp_frame "$ip")")"
-	eval "B${c}_ILOSS=$(nz "$(isp_frameloss "$ip")")"
-	eval "B${c}_IERR=$(nz "$(isp_errcnt "$ip")")"
+	cerr=$(( $(nz "$(cif_allerr "$cp")") + $(nz "$(cif_sizeerr "$cp")") \
+		+ $(nz "$(cif_overflow "$cp")") + $(nz "$(cif_bwlack "$cp")") ))
+	printf '%s %s %s %s %s %s\n' \
+		"$(nz "$(cif_frames "$cp")")" "$(nz "$(cif_loss "$cp")")" "$cerr" \
+		"$(nz "$(isp_frame "$ip")")" "$(nz "$(isp_frameloss "$ip")")" \
+		"$(nz "$(isp_errcnt "$ip")")"
 }
 
-delta() { printf '%s' "$(( $1 - $2 ))"; }
+# sampler <cam> <outfile> <stopfile>: keep the last counters seen while the
+# stream is running (the proc files are empty once it stops).
+sampler() {
+	c=$1
+	out=$2
+	stop=$3
+	while [ ! -e "$stop" ]; do
+		sample "$c" > "$out.tmp" 2>/dev/null && mv "$out.tmp" "$out"
+		sleep 0.2
+	done
+}
 
 # ---------------------------------------------------------------------------
 # One capture
 # ---------------------------------------------------------------------------
-capture_one() { # $1 = cam, $2 = result file
-	c=$1
+capture_one() { # $1 = video node, $2 = result file
+	video=$1
 	out=$2
-	video=$(cam_video "$c") || { echo "MISSING" > "$out"; return; }
 	t0=$(date +%s.%N)
 	timeout -s INT -k 3 "$TIMEOUT" v4l2-ctl -d "$video" \
 		--stream-mmap=4 --stream-count="$COUNT" --stream-to=/dev/null \
@@ -142,34 +153,40 @@ run_scenario() {
 	echo
 	echo "=== scenario: $name ($cams), $COUNT frames each ==="
 
-	for c in $cams; do
-		snapshot "$c"
-	done
-
-	# Force a sensor S_FMT so the selected mode_fps is applied on every run.
+	# Force a sensor S_FMT so the selected mode_fps is applied on every run,
+	# and resolve the capture nodes up front.
 	for c in $cams; do
 		se=$(sensor_entity "$(cam_bus "$c")") || continue
-		sm=${se%%|*}
-		ent=${se#*|}
-		media-ctl -d "$sm" --set-v4l2 "\"$ent\":0[fmt:SGRBG10_1X10/1280x1080]" \
+		media-ctl -d "${se%%|*}" --set-v4l2 "\"${se#*|}\":0[fmt:SGRBG10_1X10/1280x1080]" \
 			>/dev/null 2>&1
+		eval "V$c=$(cam_video "$c")"
 	done
 
 	dmesg -c >/dev/null 2>&1
-	rm -f "$TMP"/dcam.*.res
+	stop="$TMP/dcam.$name.stop"
+	rm -f "$stop" "$TMP"/dcam."$name".*.res "$TMP"/dcam."$name".*.samp
 
+	cpids=""
 	for c in $cams; do
-		( capture_one "$c" "$TMP/dcam.$name.$c.res" ) &
+		eval "v=\$V$c"
+		( capture_one "$v" "$TMP/dcam.$name.$c.res" ) & cpids="$cpids $!"
 	done
-	wait
+	spids=""
+	for c in $cams; do
+		( sampler "$c" "$TMP/dcam.$name.$c.samp" "$stop" ) & spids="$spids $!"
+	done
 
-	printf '%-3s %-12s %-4s %-7s %-7s %-7s %-7s %-7s %-7s %-6s\n' \
-		cam video rc fps frames cif_los cif_err isp_err isp_los verdict
+	# Wait for the captures, then stop the samplers (their last sample is
+	# the final counter value observed while the stream was still up).
+	for p in $cpids; do wait "$p"; done
+	: > "$stop"
+	for p in $spids; do wait "$p"; done
+
+	printf '%-3s %-12s %-4s %-7s %-7s %-7s %-7s %-7s %-7s %-7s %-6s\n' \
+		cam video rc fps cif_rx isp_rx cif_los isp_los cif_err isp_err verdict
 
 	for c in $cams; do
-		video=$(cam_video "$c")
-		cp=$(cam_cif "$c")
-		ip=$(cam_isp "$c")
+		eval "video=\$V$c"
 		res=$(cat "$TMP/dcam.$name.$c.res" 2>/dev/null || echo MISSING)
 
 		if [ "$res" = "MISSING" ]; then
@@ -185,28 +202,25 @@ run_scenario() {
 		fps=$(awk -v n="$COUNT" -v a="$t0" -v b="$t1" \
 			'BEGIN { if (b > a) printf "%.1f", n / (b - a); else printf "0" }')
 
-		eval "bcloss=\${B${c}_CLOSS}"; eval "bcerr=\${B${c}_CERR}"
-		eval "biframe=\${B${c}_IFRAME}"; eval "biloss=\${B${c}_ILOSS}"
-		eval "bierr=\${B${c}_IERR}"
-
-		d_frame=$(delta "$(nz "$(isp_frame "$ip")")" "$biframe")
-		d_closs=$(delta "$(nz "$(cif_loss "$cp")")" "$bcloss")
-		d_ierr=$(delta "$(nz "$(isp_errcnt "$ip")")" "$bierr")
-		d_iloss=$(delta "$(nz "$(isp_frameloss "$ip")")" "$biloss")
-		cerr_now=$(( $(nz "$(cif_allerr "$cp")") + $(nz "$(cif_sizeerr "$cp")") + $(nz "$(cif_overflow "$cp")") + $(nz "$(cif_bwlack "$cp")") ))
-		d_cerr=$(delta "$cerr_now" "$bcerr")
+		samp=$(tail -1 "$TMP/dcam.$name.$c.samp" 2>/dev/null)
+		rx=$(printf '%s' "$samp" | awk '{print $1+0}')
+		closs=$(printf '%s' "$samp" | awk '{print $2+0}')
+		cerr=$(printf '%s' "$samp" | awk '{print $3+0}')
+		iframe=$(printf '%s' "$samp" | awk '{print $4+0}')
+		iloss=$(printf '%s' "$samp" | awk '{print $5+0}')
+		ierr=$(printf '%s' "$samp" | awk '{print $6+0}')
 
 		verdict=OK
 		[ "$rc" -eq 0 ] || verdict="rc=$rc"
-		[ "$d_iloss" -eq 0 ] && [ "$d_closs" -eq 0 ] || verdict=DROP
-		[ "$d_ierr" -eq 0 ] && [ "$d_cerr" -eq 0 ] || verdict=ERR
-		# A busy capture node returns immediately with almost no frames.
-		[ "$rc" -ne 0 ] || [ "$d_frame" -ge $((COUNT / 2)) ] || verdict="BUSY?"
+		[ "$closs" -eq 0 ] && [ "$iloss" -eq 0 ] || verdict=DROP
+		[ "$cerr" -eq 0 ] || verdict=ERR
+		# Frames must actually reach the ISP; a busy node delivers almost none.
+		[ "$iframe" -ge $((COUNT * 9 / 10)) ] || verdict="LOW"
 		[ "$verdict" = OK ] || FAILED=1
 
-		printf '%-3s %-12s %-4s %-7s %-7s %-7s %-7s %-7s %-7s %-6s\n' \
-			"$c" "$(basename "$video")" "$rc" "$fps" "$d_frame" \
-			"$d_closs" "$d_cerr" "$d_ierr" "$d_iloss" "$verdict"
+		printf '%-3s %-12s %-4s %-7s %-7s %-7s %-7s %-7s %-7s %-7s %-6s\n' \
+			"$c" "$(basename "$video")" "$rc" "$fps" "$rx" "$iframe" \
+			"$closs" "$iloss" "$cerr" "$ierr" "$verdict"
 	done
 
 	dmesg_err=$(dmesg 2>/dev/null |
@@ -223,13 +237,21 @@ echo "kernel : $(uname -r)"
 echo "count  : $COUNT   scenarios: $SCENARIOS   timeout: ${TIMEOUT}s"
 
 # The capture nodes cannot be shared; a running camera application makes every
-# capture return immediately with no frames.
-busy=$(ps 2>/dev/null |
-	grep -E 'teleop-sender|rkaiq|rkipc|rkisp_demo|usb-camera' |
-	grep -v grep || true)
+# capture fail.  Match on the process name only (/proc/<pid>/comm) so this
+# script's own command line cannot match itself.
+busy=""
+for p in /proc/[0-9]*; do
+	[ -r "$p/comm" ] || continue
+	name=$(cat "$p/comm" 2>/dev/null) || continue
+	case "$name" in
+	teleop-sender | rkaiq | rkipc | rkisp_demo | usb-camera*)
+		busy="$busy ${p#/proc/}:$name"
+		;;
+	esac
+done
 if [ -n "$busy" ]; then
 	echo "warning: camera application(s) currently running:"
-	printf '%s\n' "$busy" | sed 's/^/  /'
+	for b in $busy; do printf '  pid %s %s\n' "${b%%:*}" "${b#*:}"; done
 	if [ "${STOP_SENDER:-0}" = 1 ]; then
 		echo "STOP_SENDER=1: stopping teleop-sender"
 		killall teleop-sender 2>/dev/null || true

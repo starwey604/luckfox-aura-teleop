@@ -10,6 +10,7 @@ extern "C" {
 #include <rk_mpi_vi.h>
 }
 
+#include <array>
 #include <cerrno>
 #include <csignal>
 #include <cstddef>
@@ -230,13 +231,29 @@ public:
         if (system_initialized_) RK_MPI_SYS_Exit();
     }
 
-    bool get_stream(VENC_STREAM_S& stream, VENC_PACK_S& pack)
+    // one RK_MPI_VENC_GetStream() call returns one frame, split into
+    // u32PackCount packs (the low-delay slice split emits several).  The caller
+    // must provide an array large enough for every pack of the frame.
+    static constexpr std::size_t kMaximumPacks = 32U;
+
+    bool get_stream(VENC_STREAM_S& stream, std::array<VENC_PACK_S, kMaximumPacks>& packs)
     {
         std::memset(&stream, 0, sizeof(stream));
-        std::memset(&pack, 0, sizeof(pack));
-        stream.pstPack = &pack;
+        std::memset(packs.data(), 0, sizeof(VENC_PACK_S) * packs.size());
+        stream.pstPack = packs.data();
         const RK_S32 result = RK_MPI_VENC_GetStream(options_.venc_channel, &stream, 1'000);
-        if (result == RK_SUCCESS) return true;
+        if (result == RK_SUCCESS) {
+            if (stream.u32PackCount > packs.size()) {
+                std::fprintf(stderr,
+                             "aura-sender: VENC returned %u packs for one frame, but only %zu "
+                             "are supported\n",
+                             stream.u32PackCount, packs.size());
+                check(RK_MPI_VENC_ReleaseStream(options_.venc_channel, &stream),
+                      "RK_MPI_VENC_ReleaseStream");
+                return false;
+            }
+            return true;
+        }
         // This Rockit SDK reports a normal GetStream wait expiry as its VENC
         // buffer-empty code, rather than the POSIX ETIMEDOUT used by some SDKs.
         if (result == -ETIMEDOUT || result == RK_ERR_VENC_BUF_EMPTY) {
@@ -423,6 +440,7 @@ int main(int argc, char* argv[])
         std::vector<std::byte> access_unit;
         std::uint64_t access_unit_pts_us = 0U;
         bool access_unit_is_key_frame = false;
+        bool access_unit_open = false;
 
         std::printf("aura-sender: VI %d/%d/%d -> H.264 VENC %d, %ux%u@%u, %u kbps, wrap=%u lines, "
                     "slice low-delay=%u CTUs, UDP %.*s:%u\n",
@@ -431,33 +449,15 @@ int main(int argc, char* argv[])
                     options.wrap_lines, options.slice_ctus,
                     static_cast<int>(options.destination.size()), options.destination.data(), options.port);
 
-        while (g_stop_requested == 0 &&
-               (options.frame_count == 0U || encoded_frames < options.frame_count)) {
-            VENC_STREAM_S stream{};
-            VENC_PACK_S pack{};
-            if (!pipeline.get_stream(stream, pack)) continue;
-
-            const auto* base = static_cast<const std::byte*>(RK_MPI_MB_Handle2VirAddr(pack.pMbBlk));
-            if (base == nullptr) {
-                pipeline.release_stream(stream);
-                throw std::runtime_error("RK_MPI_MB_Handle2VirAddr returned null");
-            }
-            const auto* payload = base + pack.u32Offset;
-            const std::span<const std::byte> packet{payload, static_cast<std::size_t>(pack.u32Len)};
+        // The low-delay slice split makes one RK_MPI_VENC_GetStream() call return
+        // a single VENC_PACK_S and always set bFrameEnd, so the pack boundary is
+        // not the frame boundary.  Every slice of a frame shares the same
+        // u64PTS, so consecutive packs are grouped into one access unit by PTS.
+        const auto send_access_unit = [&]() {
             if (access_unit.empty()) {
-                access_unit_pts_us = pack.u64PTS;
+                access_unit_open = false;
+                return;
             }
-            if (packet.size() > teleop::kMaxEncodedAccessUnitSize - access_unit.size()) {
-                pipeline.release_stream(stream);
-                throw std::runtime_error("H.264 access unit exceeds the transport size limit");
-            }
-            access_unit.insert(access_unit.end(), packet.begin(), packet.end());
-            access_unit_is_key_frame = access_unit_is_key_frame ||
-                                       pack.DataType.enH264EType == H264E_NALU_IDRSLICE;
-            const bool frame_finished = pack.bFrameEnd == RK_TRUE;
-            pipeline.release_stream(stream);
-            if (!frame_finished) continue;
-
             const auto flags = access_unit_is_key_frame ? teleop::PacketFlags::kKeyFrame
                                                          : teleop::PacketFlags::kNone;
             if (output.is_open()) {
@@ -474,8 +474,72 @@ int main(int argc, char* argv[])
             }
             access_unit.clear();
             access_unit_is_key_frame = false;
+            access_unit_open = false;
             ++encoded_frames;
+        };
+
+        std::array<VENC_PACK_S, MppPipeline::kMaximumPacks> packs{};
+        const bool debug_packs = std::getenv("AURA_DEBUG_PACKS") != nullptr;
+
+        while (g_stop_requested == 0 &&
+               (options.frame_count == 0U || encoded_frames < options.frame_count)) {
+            VENC_STREAM_S stream{};
+            if (!pipeline.get_stream(stream, packs)) continue;
+
+            if (debug_packs) {
+                std::fprintf(stderr, "stream: packs=%u\n", stream.u32PackCount);
+                for (RK_U32 index = 0U; index < stream.u32PackCount; ++index) {
+                    const VENC_PACK_S& dbg = packs[index];
+                    const auto* dbase = dbg.pMbBlk != nullptr
+                        ? static_cast<const std::byte*>(RK_MPI_MB_Handle2VirAddr(dbg.pMbBlk))
+                        : nullptr;
+                    std::fprintf(stderr, "  pack[%u] len=%u end=%d type=%d pts=%llu first=", index,
+                                 dbg.u32Len, dbg.bFrameEnd,
+                                 static_cast<int>(dbg.DataType.enH264EType),
+                                 static_cast<unsigned long long>(dbg.u64PTS));
+                    if (dbase != nullptr) {
+                        for (RK_U32 byte = 0U; byte < 8U && byte < dbg.u32Len; ++byte) {
+                            std::fprintf(stderr, "%02x",
+                                         static_cast<unsigned>(dbase[dbg.u32Offset + byte]));
+                        }
+                    }
+                    std::fprintf(stderr, "\n");
+                }
+            }
+
+            for (RK_U32 index = 0U; index < stream.u32PackCount; ++index) {
+                const VENC_PACK_S& pack = packs[index];
+                if (pack.pMbBlk == nullptr || pack.u32Len == 0U) {
+                    continue;
+                }
+                // A change of PTS means the previous frame is complete.
+                if (access_unit_open && pack.u64PTS != access_unit_pts_us) {
+                    send_access_unit();
+                }
+                const auto* base =
+                    static_cast<const std::byte*>(RK_MPI_MB_Handle2VirAddr(pack.pMbBlk));
+                if (base == nullptr) {
+                    pipeline.release_stream(stream);
+                    throw std::runtime_error("RK_MPI_MB_Handle2VirAddr returned null");
+                }
+                const auto* payload = base + pack.u32Offset;
+                const std::span<const std::byte> packet{payload,
+                                                        static_cast<std::size_t>(pack.u32Len)};
+                if (!access_unit_open) {
+                    access_unit_pts_us = pack.u64PTS;
+                    access_unit_open = true;
+                }
+                if (packet.size() > teleop::kMaxEncodedAccessUnitSize - access_unit.size()) {
+                    pipeline.release_stream(stream);
+                    throw std::runtime_error("H.264 access unit exceeds the transport size limit");
+                }
+                access_unit.insert(access_unit.end(), packet.begin(), packet.end());
+                access_unit_is_key_frame = access_unit_is_key_frame ||
+                                           pack.DataType.enH264EType == H264E_NALU_IDRSLICE;
+            }
+            pipeline.release_stream(stream);
         }
+        send_access_unit();
 
         std::printf("aura-sender: encoded-frames=%u datagrams=%llu bytes=%llu\n", encoded_frames,
                     static_cast<unsigned long long>(statistics.datagrams_sent),
