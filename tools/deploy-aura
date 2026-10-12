@@ -14,4 +14,5 @@ destination=/userdata/teleop-sender
 
 ssh "$target" 'mkdir -p /userdata'
 scp "$sender" "$target:$destination"
-ssh "$target" "chmod 755 $destination && $destination --help"
+scp "$root/tools/diagnose-ar0234" "$root/tools/run-ar0234-stereo" "$target:/userdata/"
+ssh "$target" "chmod 755 $destination /userdata/diagnose-ar0234 /userdata/run-ar0234-stereo && $destination --help"

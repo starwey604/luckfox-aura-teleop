@@ -3,7 +3,7 @@
 set -eu
 
 [ "$#" -ge 1 ] && [ "$#" -le 2 ] || {
-	printf '%s\n' "usage: $0 <aura-sdk-path> [mia1321|ar0234]" >&2
+	printf '%s\n' "usage: $0 <aura-sdk-path> [mia1321|ar0234|ar0234-stereo]" >&2
 	exit 2
 }
 
@@ -11,7 +11,8 @@ sdk=$1
 case "${2:-mia1321}" in
 	mia1321) suffix=Teleop ;;
 	ar0234) suffix=Teleop-AR0234 ;;
-	*) printf '%s\n' 'error: camera profile must be mia1321 or ar0234' >&2; exit 2 ;;
+	ar0234-stereo) suffix=Teleop-AR0234-Stereo ;;
+	*) printf '%s\n' 'error: camera profile must be mia1321, ar0234 or ar0234-stereo' >&2; exit 2 ;;
 esac
 board="$sdk/project/cfg/BoardConfig_Aura/BoardConfig-EMMC-RK801-Luckfox_Aura-$suffix-Buildroot.mk"
 

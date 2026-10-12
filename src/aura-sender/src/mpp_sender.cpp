@@ -86,7 +86,7 @@ void print_usage(const char* program)
         "  --fps RATE             VI/VENC source and output frame rate (default: 100)\n"
         "  --bitrate-kbps RATE    H.264 CBR rate (default: 30000)\n"
         "  --gop FRAMES           IDR interval in frames (default: 15)\n"
-        "  --wrap-lines LINES     VI/VENC wrap line count (default: 256)\n"
+        "  --wrap-lines LINES     VI/VENC wrap line count; 0 disables wrap (default: 256)\n"
         "  --slice-ctus COUNT     CTUs per slice, low-delay mode 3 (default: 120)\n"
         "  --output-h264 FILE     Also save complete encoded access units as Annex-B H.264\n"
         "  --vi-device ID         VI device (default: 0)\n"
@@ -182,7 +182,8 @@ bool parse_options(int argc, char* argv[], Options& options)
     if (!max_width_set) options.max_width = options.width;
     if (!max_height_set) options.max_height = options.height;
     return options.max_width >= options.width && options.max_height >= options.height &&
-           options.wrap_lines >= 128U && options.wrap_lines <= options.height;
+           (options.wrap_lines == 0U ||
+            (options.wrap_lines >= 128U && options.wrap_lines <= options.height));
 }
 
 void check(RK_S32 result, const char* operation)
@@ -320,12 +321,14 @@ private:
         check(RK_MPI_VI_SetChnAttr(options_.vi_pipe, options_.vi_channel, &attributes),
               "RK_MPI_VI_SetChnAttr");
 
-        VI_CHN_BUF_WRAP_S wrap{};
-        wrap.bEnable = RK_TRUE;
-        wrap.u32BufLine = options_.wrap_lines;
-        wrap.u32WrapBufferSize = options_.wrap_lines * options_.width * 3U / 2U;
-        check(RK_MPI_VI_SetChnWrapBufAttr(options_.vi_pipe, options_.vi_channel, &wrap),
-              "RK_MPI_VI_SetChnWrapBufAttr");
+        if (options_.wrap_lines != 0U) {
+            VI_CHN_BUF_WRAP_S wrap{};
+            wrap.bEnable = RK_TRUE;
+            wrap.u32BufLine = options_.wrap_lines;
+            wrap.u32WrapBufferSize = options_.wrap_lines * options_.width * 3U / 2U;
+            check(RK_MPI_VI_SetChnWrapBufAttr(options_.vi_pipe, options_.vi_channel, &wrap),
+                  "RK_MPI_VI_SetChnWrapBufAttr");
+        }
         check(RK_MPI_VI_EnableChn(options_.vi_pipe, options_.vi_channel), "RK_MPI_VI_EnableChn");
         vi_enabled_ = true;
     }
@@ -358,12 +361,14 @@ private:
         check(RK_MPI_VENC_CreateChn(options_.venc_channel, &attributes), "RK_MPI_VENC_CreateChn");
         venc_created_ = true;
 
-        VENC_CHN_BUF_WRAP_S wrap{};
-        wrap.bEnable = RK_TRUE;
-        wrap.u32BufLine = options_.wrap_lines;
-        wrap.u32WrapBufferSize = options_.wrap_lines * options_.width * 3U / 2U;
-        check(RK_MPI_VENC_SetChnBufWrapAttr(options_.venc_channel, &wrap),
-              "RK_MPI_VENC_SetChnBufWrapAttr");
+        if (options_.wrap_lines != 0U) {
+            VENC_CHN_BUF_WRAP_S wrap{};
+            wrap.bEnable = RK_TRUE;
+            wrap.u32BufLine = options_.wrap_lines;
+            wrap.u32WrapBufferSize = options_.wrap_lines * options_.width * 3U / 2U;
+            check(RK_MPI_VENC_SetChnBufWrapAttr(options_.venc_channel, &wrap),
+                  "RK_MPI_VENC_SetChnBufWrapAttr");
+        }
 
         VENC_CHN_REF_BUF_SHARE_S reference_buffer{};
         reference_buffer.bEnable = RK_FALSE;
@@ -448,6 +453,7 @@ int main(int argc, char* argv[])
                     options.width, options.height, options.frame_rate, options.bitrate_kbps,
                     options.wrap_lines, options.slice_ctus,
                     static_cast<int>(options.destination.size()), options.destination.data(), options.port);
+        std::fflush(stdout);
 
         // The low-delay slice split makes one RK_MPI_VENC_GetStream() call return
         // a single VENC_PACK_S and always set bFrameEnd, so the pack boundary is

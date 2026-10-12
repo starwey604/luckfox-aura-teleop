@@ -1,0 +1,79 @@
+From b17875fb33551460cecd0169a9f41bd63dfd8106 Mon Sep 17 00:00:00 2001
+From: Starwey <moonbite233@gmail.com>
+Date: Mon, 12 Oct 2026 14:51:39 +0800
+Subject: [PATCH] arm64: dts: add Aura dual AR0234 720p profile
+
+---
+ .../rv1126b-luckfox-aura-ar0234-stereo.dts    | 60 +++++++++++++++++++
+ 1 file changed, 60 insertions(+)
+ create mode 100644 arch/arm64/boot/dts/rockchip/rv1126b-luckfox-aura-ar0234-stereo.dts
+
+diff --git a/arch/arm64/boot/dts/rockchip/rv1126b-luckfox-aura-ar0234-stereo.dts b/arch/arm64/boot/dts/rockchip/rv1126b-luckfox-aura-ar0234-stereo.dts
+new file mode 100644
+index 000000000..2a38577df
+--- /dev/null
++++ b/arch/arm64/boot/dts/rockchip/rv1126b-luckfox-aura-ar0234-stereo.dts
+@@ -0,0 +1,60 @@
++// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
++/* Two independent DECXIN-3478V1 720p RAW10 modules on Aura CSI0/CSI1. */
++#include "rv1126b-luckfox-aura-ar0234.dts"
++
++/ {
++	model = "Luckfox Aura (dual DECXIN AR0234 720p)";
++	ar0234_osc1: ar0234-osc1 {
++		compatible = "fixed-clock";
++		#clock-cells = <0>;
++		clock-frequency = <24000000>;
++		clock-output-names = "ar0234-module1-osc";
++	};
++};
++
++&i2c3 {
++	status = "okay";
++	clock-frequency = <100000>;
++	pinctrl-0 = <&i2c3m1_pins>;
++	ar0234_1: camera@10 {
++		compatible = "decxin,3478v1", "onnn,ar0234cs";
++		reg = <0x10>;
++		status = "okay";
++		clocks = <&ar0234_osc1>;
++		clock-names = "xvclk";
++		vdd-supply = <&vcc3v3_sys>;
++		rockchip,camera-module-index = <1>;
++		rockchip,camera-module-facing = "back";
++		rockchip,camera-module-name = "DECXIN-3478V1";
++		rockchip,camera-module-lens-name = "DECXIN-123deg";
++		port {
++			ar0234_1_out: endpoint {
++				remote-endpoint = <&ar0234_dphy1_input>;
++				clock-lanes = <0>;
++				data-lanes = <1 2>;
++				link-frequencies = /bits/ 64 <450000000>;
++			};
++		};
++	};
++};
++
++&csi2_dphy3 {
++	status = "okay";
++	ports {
++		port@0 {
++			ar0234_dphy1_input: endpoint@0 {
++				reg = <0>;
++				remote-endpoint = <&ar0234_1_out>;
++				clock-lanes = <0>;
++				data-lanes = <1 2>;
++			};
++		};
++	};
++};
++
++&mipi2_csi2 { status = "okay"; };
++&rkcif_mipi_lvds2 { status = "okay"; };
++&rkcif_mipi_lvds2_sditf { status = "okay"; };
++&rkisp_vir1 { status = "okay"; };
++&rkisp_vir1_sditf { status = "okay"; };
++&rkvpss_vir1 { status = "okay"; };
+-- 
+2.56.0
+

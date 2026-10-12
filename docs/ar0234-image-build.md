@@ -1,6 +1,8 @@
 # AR0234 镜像构建与烧录记录
 
-当前最新镜像为当天 14:16–14:17 生成的 CIF 裁剪修复版，见文末。
+当前 `output/image` 已更新为当天 14:46–14:47 的双 AR0234 720p 镜像，
+并由用户烧录；见 [双摄记录](ar0234-stereo-bringup.md)。
+下文 14:16–14:17 为此前单摄 CIF 裁剪修复版。
 下面 14:01–14:02 的记录保留为首次构建历史。
 
 2026-10-12，在 Ubuntu 22.04 `aura-sdk` Distrobox 中执行 `./build.sh all`，
@@ -66,7 +68,7 @@ ssh root@192.168.1.10 'sh -s -- --probe' < tools/diagnose-ar0234
 密码为 `luckfox`。ID 和媒体链路确认正常后，再按
 [SSH 诊断流程](ar0234-ssh-diagnostics.md) 采集 120 帧。
 
-## 首次实机测试后的修复镜像（当前最新）
+## 首次实机测试后的单摄修复镜像（历史）
 
 2026-10-12 14:16–14:17，在相同 AR0234 BoardConfig 下再次执行
 `./build.sh all`，退出码 0。kernel 更新到 `6f1aee66d`，修复 CIF 将

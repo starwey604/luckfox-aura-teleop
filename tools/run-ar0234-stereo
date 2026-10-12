@@ -1,0 +1,175 @@
+#!/bin/sh
+# Run on Aura alongside diagnose-ar0234. Manage only this script's children.
+set -eu
+
+usage() {
+    echo 'usage: run-ar0234-stereo [--capture-only] [--frames N] [--dry-run]'
+    echo 'Environment: DESTINATION=192.168.1.2 PORT=5000 FPS=100 BITRATE_KBPS=30000'
+    echo '             EXPOSURE=735 ANALOGUE_GAIN=32 DIGITAL_GAIN=512 REPORT_DIR=/path'
+    echo '             WRAP_LINES=0 (full-frame path for stereo; mono sender defaults to 256)'
+    echo '             H264_DIR=/path (optional per-camera Annex-B recordings)'
+    echo '             STARTUP_TIMEOUT=15 (wait for each sender to finish initialization)'
+}
+
+mode=sender
+frames=0
+dry_run=false
+while [ "$#" -gt 0 ]; do
+    case "$1" in
+        --capture-only) mode=capture; shift ;;
+        --dry-run) dry_run=true; shift ;;
+        --frames) [ "$#" -ge 2 ] || exit 2; frames=$2; shift 2 ;;
+        --help|-h) usage; exit 0 ;;
+        *) usage >&2; exit 2 ;;
+    esac
+done
+case "$frames" in ''|*[!0-9]*) echo 'invalid frame count' >&2; exit 2 ;; esac
+if [ "$mode" = capture ] && [ "$frames" -eq 0 ]; then frames=600; fi
+dir=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
+diagnostic=${DIAGNOSTIC:-"$dir/diagnose-ar0234"}
+sender=${SENDER:-/userdata/teleop-sender}
+sys=${SYS_ROOT:-/sys}
+dev=${DEV_ROOT:-/dev}
+destination=${DESTINATION:-192.168.1.2}
+port=${PORT:-5000}
+fps=${FPS:-100}
+bitrate=${BITRATE_KBPS:-30000}
+exposure=${EXPOSURE:-735}
+analogue=${ANALOGUE_GAIN:-32}
+digital=${DIGITAL_GAIN:-512}
+wrap_lines=${WRAP_LINES:-0}
+startup_timeout=${STARTUP_TIMEOUT:-15}
+for number in "$port" "$fps" "$bitrate" "$exposure" "$analogue" "$digital" "$wrap_lines" "$startup_timeout"; do
+    case "$number" in ''|*[!0-9]*) echo 'expected decimal parameter' >&2; exit 2 ;; esac
+done
+[ -x "$diagnostic" ] || { echo "missing diagnostic: $diagnostic" >&2; exit 3; }
+if [ "$mode" = sender ]; then
+    [ -x "$sender" ] || { echo "missing sender: $sender" >&2; exit 3; }
+fi
+report=${REPORT_DIR:-$(mktemp -d /tmp/ar0234-stereo.XXXXXX)}
+mkdir -p "$report"
+echo "stereo reports: $report"
+
+# Avoid sharing a capture node with an existing camera application.
+for process in "${PROC_ROOT:-/proc}"/[0-9]*/comm; do
+    [ -r "$process" ] || continue
+    name=$(cat "$process" 2>/dev/null) || continue
+    case "$name" in
+        teleop-sender|rkipc|rkisp_demo|v4l2-ctl)
+            echo "camera application already running: $name ($process)" >&2
+            exit 3 ;;
+    esac
+done
+
+# Validate both cameras before changing either camera's controls or starting
+# either process. The diagnostic resolves the Linux I2C bus from the DT alias.
+for camera in 0 1; do
+    if ! "$diagnostic" --camera "$camera" --probe --output "$report/camera$camera-probe" \
+        > "$report/camera$camera-preflight.log" 2>&1; then
+        cat "$report/camera$camera-preflight.log" >&2
+        exit 3
+    fi
+    probe="$report/camera$camera-probe/report.txt"
+    grep -q 'driver=ar0234' "$probe" || { echo "camera$camera driver not bound" >&2; exit 3; }
+    bus=$(sed -n 's/^selected adapter=\([0-9][0-9]*\),.*/\1/p' "$probe")
+    sensor=
+    for node in "$sys"/class/video4linux/v4l-subdev*; do
+        [ -r "$node/name" ] || continue
+        name=$(cat "$node/name")
+        case "$name" in *"ar0234 $bus-0010") sensor="$dev/${node##*/}"; break ;; esac
+    done
+    [ -n "$bus" ] && [ -n "$sensor" ] || { echo "camera$camera sensor node missing" >&2; exit 3; }
+    printf '%s\n' "$sensor" > "$report/camera$camera-sensor"
+    echo "camera$camera: I2C $bus:0x10 sensor=$sensor stream/VENC=$camera"
+done
+
+if [ "$dry_run" = true ]; then
+    echo "dry run: $mode, 1280x720, frames=$frames, destination=$destination:$port"
+    echo "sensor controls: exposure=$exposure analogue_gain=$analogue digital_gain=$digital"
+    echo 'No control changes or capture/sender processes started.'
+    exit 0
+fi
+
+pid0=
+pid1=
+cleanup() {
+    for pid in "$pid0" "$pid1"; do
+        [ -n "$pid" ] || continue
+        kill -INT "$pid" 2>/dev/null || true
+    done
+    for pid in "$pid0" "$pid1"; do
+        [ -n "$pid" ] || continue
+        wait "$pid" 2>/dev/null || true
+    done
+}
+trap cleanup EXIT
+trap 'exit 130' INT
+trap 'exit 143' TERM
+trap 'exit 129' HUP
+
+for camera in 0 1; do
+    sensor=$(cat "$report/camera$camera-sensor")
+    v4l2-ctl -d "$sensor" \
+        --set-ctrl="exposure=$exposure,analogue_gain=$analogue,digital_gain=$digital,test_pattern=0"
+done
+
+start_camera() {
+    camera=$1
+    if [ "$mode" = capture ]; then
+        exec "$diagnostic" --camera "$camera" --capture --frames "$frames" \
+            --timeout "$((frames / 20 + 20))" --output "$report/camera$camera-capture"
+    else
+        if [ -n "${H264_DIR:-}" ]; then
+            mkdir -p "$H264_DIR"
+            set -- --output-h264 "$H264_DIR/camera$camera.h264"
+        else
+            set --
+        fi
+        exec "$sender" --camera "$camera" --width 1280 --height 720 --fps "$fps" \
+            --destination "$destination" --port "$port" --bitrate-kbps "$bitrate" \
+            --wrap-lines "$wrap_lines" --slice-ctus 120 --frames "$frames" "$@"
+    fi
+}
+( start_camera 0 ) > "$report/camera0.log" 2>&1 & pid0=$!
+wait_ready() {
+    pid=$1
+    log=$2
+    deadline=$(( $(date +%s) + startup_timeout ))
+    while ! grep -q 'aura-sender: VI ' "$log"; do
+        if ! kill -0 "$pid" 2>/dev/null; then
+            result=0
+            wait "$pid" || result=$?
+            cat "$log" >&2
+            [ "$result" -ne 0 ] || result=1
+            return "$result"
+        fi
+        if [ "$(date +%s)" -ge "$deadline" ]; then
+            echo "sender startup timeout; see $log" >&2
+            return 1
+        fi
+        sleep 0.05
+    done
+}
+# Keep both streams concurrent, but finish the first SDK initialization before
+# starting the second. This also identifies which camera failed to initialize.
+if [ "$mode" = sender ]; then wait_ready "$pid0" "$report/camera0.log"; fi
+( start_camera 1 ) > "$report/camera1.log" 2>&1 & pid1=$!
+if [ "$mode" = sender ]; then wait_ready "$pid1" "$report/camera1.log"; fi
+echo "camera processes: $pid0 $pid1; Ctrl+C stops both."
+
+# Detect failure in either process even when its sibling runs indefinitely.
+while kill -0 "$pid0" 2>/dev/null && kill -0 "$pid1" 2>/dev/null; do sleep 0.2; done
+rc=0
+if ! kill -0 "$pid0" 2>/dev/null; then
+    wait "$pid0" || rc=$?
+    pid0=
+else
+    wait "$pid1" || rc=$?
+    pid1=
+fi
+if [ "$rc" -eq 0 ] && [ "$frames" -ne 0 ]; then
+    if [ -n "$pid0" ]; then wait "$pid0" || rc=$?; pid0=; fi
+    if [ -n "$pid1" ]; then wait "$pid1" || rc=$?; pid1=; fi
+fi
+echo "stereo exit=$rc; logs: $report/camera0.log $report/camera1.log"
+exit "$rc"

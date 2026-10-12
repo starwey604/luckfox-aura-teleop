@@ -1,0 +1,23 @@
+From 83389e1add23bfcfa9bca5c6f41f5b1fe29f340c Mon Sep 17 00:00:00 2001
+From: Starwey <moonbite233@gmail.com>
+Date: Mon, 12 Oct 2026 14:51:39 +0800
+Subject: [PATCH] board: add Aura dual AR0234 Buildroot preset
+
+---
+ ...-EMMC-RK801-Luckfox_Aura-Teleop-AR0234-Stereo-Buildroot.mk | 4 ++++
+ 1 file changed, 4 insertions(+)
+ create mode 100644 BoardConfig-EMMC-RK801-Luckfox_Aura-Teleop-AR0234-Stereo-Buildroot.mk
+
+diff --git a/BoardConfig-EMMC-RK801-Luckfox_Aura-Teleop-AR0234-Stereo-Buildroot.mk b/BoardConfig-EMMC-RK801-Luckfox_Aura-Teleop-AR0234-Stereo-Buildroot.mk
+new file mode 100644
+index 0000000..b7459ba
+--- /dev/null
++++ b/BoardConfig-EMMC-RK801-Luckfox_Aura-Teleop-AR0234-Stereo-Buildroot.mk
+@@ -0,0 +1,4 @@
++#!/bin/bash
++# Dual DECXIN-3478V1 profile; preserve the single-camera bring-up preset.
++source "$(dirname "$(realpath "${BASH_SOURCE[0]}")")/BoardConfig-EMMC-RK801-Luckfox_Aura-Teleop-AR0234-Buildroot.mk"
++export RK_KERNEL_DTS=rv1126b-luckfox-aura-ar0234-stereo.dts
+-- 
+2.56.0
+

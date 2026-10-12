@@ -6,6 +6,9 @@ import sys
 import unittest
 
 ROOT = Path(__file__).resolve().parents[2]
+STEREO = '--stereo' in sys.argv
+if STEREO:
+    sys.argv.remove('--stereo')
 DTB = Path(sys.argv.pop(1)) if len(sys.argv) > 1 else ROOT / 'build/ar0234-driver-check/kernel/arch/arm64/boot/dts/rockchip/rv1126b-luckfox-aura-ar0234.dtb'
 
 
@@ -81,14 +84,52 @@ class BringupDeviceTreeTests(unittest.TestCase):
             self.assertNotIn('clock-noncontinuous', node)
         self.assertEqual(struct.unpack('>Q', endpoint['link-frequencies']), (450000000,))
 
-    def test_old_sensor_nodes_are_removed_and_second_isp_disabled(self):
+    def test_old_sensor_nodes_are_removed_and_second_isp_matches_profile(self):
         for props in self.nodes.values():
             compatible = props.get('compatible', b'')
             self.assertNotIn(b'mia1321', compatible)
             self.assertNotIn(b'sony,imx415', compatible)
         isp1 = [p for n, p in self.nodes.items() if n.endswith('/rkisp-vir1')]
         self.assertEqual(len(isp1), 1)
-        self.assertEqual(string(isp1[0]['status']), 'disabled')
+        self.assertEqual(string(isp1[0]['status']), 'okay' if STEREO else 'disabled')
+
+    @unittest.skipUnless(STEREO, 'stereo profile only')
+    def test_second_sensor_supply_clock_lanes_and_independent_routing(self):
+        bus = string(self.nodes['/aliases']['i2c3'])
+        sensor = self.nodes[bus + '/camera@10']
+        self.assertEqual(sensor['compatible'], self.nodes[self.sensor]['compatible'])
+        self.assertEqual(words(sensor['reg']), (0x10,))
+        self.assertEqual(words(sensor['rockchip,camera-module-index']), (1,))
+        self.assertEqual(words(self.nodes[self.sensor]['rockchip,camera-module-index']), (0,))
+        self.assertEqual(words(self.nodes[bus]['clock-frequency']), (100000,))
+        self.assertEqual(words(sensor['vdd-supply']), words(self.nodes[self.sensor]['vdd-supply']))
+        osc = self.nodes[self.handles[words(sensor['clocks'])[0]]]
+        self.assertEqual(words(osc['clock-frequency']), (24000000,))
+        for key in ('reset-gpios', 'pwdn-gpios'):
+            self.assertNotIn(key, sensor)
+        endpoint = self.nodes[bus + '/camera@10/port/endpoint']
+        receiver_path = self.handles[words(endpoint['remote-endpoint'])[0]]
+        self.assertTrue(receiver_path.startswith('/csi2-dphy3/'))
+        receiver = self.nodes[receiver_path]
+        for node in (endpoint, receiver):
+            self.assertEqual(words(node['data-lanes']), (1, 2))
+            self.assertEqual(words(node['clock-lanes']), (0,))
+            self.assertNotIn('clock-noncontinuous', node)
+        self.assertEqual(words(receiver['remote-endpoint']), words(endpoint['phandle']))
+        self.assertEqual(struct.unpack('>Q', endpoint['link-frequencies']), (450000000,))
+        for name in ('csi2-dphy3', 'mipi2-csi2', 'rkcif-mipi-lvds2',
+                     'rkcif-mipi-lvds2-sditf', 'rkisp-vir1', 'rkisp-vir1-sditf', 'rkvpss-vir1'):
+            self.assertEqual(string(self.nodes['/' + name]['status']), 'okay', name)
+        # Check every existing second-path endpoint still has its reciprocal
+        # endpoint on the second path, rather than feeding camera zero's ISP.
+        allowed = ('/i2c@', '/csi2-dphy3/', '/mipi2-csi2/', '/rkcif-mipi-lvds2/',
+                   '/rkcif-mipi-lvds2-sditf/', '/rkisp-vir1/', '/rkisp-vir1-sditf/', '/rkvpss-vir1/')
+        for name, props in self.nodes.items():
+            if not name.startswith(allowed[1:]) or 'remote-endpoint' not in props:
+                continue
+            remote_name = self.handles[words(props['remote-endpoint'])[0]]
+            self.assertTrue(remote_name.startswith(allowed), (name, remote_name))
+            self.assertEqual(words(self.nodes[remote_name]['remote-endpoint']), words(props['phandle']))
 
     def test_primary_ethernet_and_emmc_remain_enabled(self):
         eth = [p for n, p in self.nodes.items() if 'ethernet@' in n and string(p.get('status', b'')) == 'okay']
