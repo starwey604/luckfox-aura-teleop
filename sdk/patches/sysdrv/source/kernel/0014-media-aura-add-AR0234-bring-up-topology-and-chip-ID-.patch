@@ -1,0 +1,275 @@
+From 17379bd8bb9545a71f5361ee1ee06f690949960b Mon Sep 17 00:00:00 2001
+From: Starwey <moonbite233@gmail.com>
+Date: Mon, 12 Oct 2026 13:16:43 +0800
+Subject: [PATCH] media: aura: add AR0234 bring-up topology and chip ID
+ diagnostics
+
+---
+ .../rv1126b-luckfox-aura-ar0234-csi0.dtsi     | 86 +++++++++++++++++++
+ .../rockchip/rv1126b-luckfox-aura-ar0234.dts  |  8 ++
+ .../configs/rv1126b_teleop_low_latency.config |  1 +
+ drivers/media/i2c/ar0234.c                    | 78 +++++++++++++++--
+ 4 files changed, 165 insertions(+), 8 deletions(-)
+ create mode 100644 arch/arm64/boot/dts/rockchip/rv1126b-luckfox-aura-ar0234-csi0.dtsi
+ create mode 100644 arch/arm64/boot/dts/rockchip/rv1126b-luckfox-aura-ar0234.dts
+
+diff --git a/arch/arm64/boot/dts/rockchip/rv1126b-luckfox-aura-ar0234-csi0.dtsi b/arch/arm64/boot/dts/rockchip/rv1126b-luckfox-aura-ar0234-csi0.dtsi
+new file mode 100644
+index 000000000..321485dcd
+--- /dev/null
++++ b/arch/arm64/boot/dts/rockchip/rv1126b-luckfox-aura-ar0234-csi0.dtsi
+@@ -0,0 +1,86 @@
++// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
++/*
++ * Experimental assumptions: module oscillator 24MHz, internal power/reset,
++ * 7-bit I2C address 0x10. Verify chip ID before relying on this configuration.
++ * CSI0 pin 1 is the board's always-on 3.3V rail. Pins 5/6 are NC on DECXIN.
++ * This file overrides the dual-MIA1321 topology included by the base Aura DTS.
++ */
++/ {
++	ar0234_osc: ar0234-osc {
++		compatible = "fixed-clock";
++		#clock-cells = <0>;
++		clock-frequency = <24000000>;
++		clock-output-names = "ar0234-module-osc";
++	};
++};
++
++&i2c4 {
++	status = "okay";
++	clock-frequency = <100000>;
++	pinctrl-0 = <&i2c4m2_pins>;
++	/delete-node/ imx415_0@37;
++	/delete-node/ mia1321_0@60;
++
++	ar0234_0: camera@10 {
++		compatible = "decxin,3478v1", "onnn,ar0234cs";
++		reg = <0x10>;
++		status = "okay";
++		clocks = <&ar0234_osc>;
++		clock-names = "xvclk";
++		vdd-supply = <&vcc3v3_sys>;
++		/* No external MCLK, reset or PWDN signal is connected. */
++		rockchip,camera-module-index = <0>;
++		rockchip,camera-module-facing = "back";
++		rockchip,camera-module-name = "DECXIN-3478V1";
++		rockchip,camera-module-lens-name = "DECXIN-123deg";
++		port {
++			ar0234_0_out: endpoint {
++				remote-endpoint = <&ar0234_dphy_input>;
++				clock-lanes = <0>;
++				data-lanes = <1 2>;
++				link-frequencies = /bits/ 64 <450000000>;
++				/* Continuous clock, matching vendor 0x31BC=0x8D89. */
++			};
++		};
++	};
++};
++
++&csi2_dphy0 {
++	ports {
++		port@0 {
++			/delete-node/ endpoint@1;
++			/delete-node/ endpoint@2;
++			ar0234_dphy_input: endpoint@0 {
++				reg = <0>;
++				remote-endpoint = <&ar0234_0_out>;
++				clock-lanes = <0>;
++				data-lanes = <1 2>;
++			};
++		};
++	};
++};
++
++/* First bring-up is single camera; keep CSI1 off until CSI0 is validated. */
++&i2c3 {
++	/delete-node/ imx415_1@37;
++	/delete-node/ mia1321_1@60;
++};
++
++&csi2_dphy3 {
++	status = "disabled";
++	ports {
++		port@0 {
++			/delete-node/ endpoint@1;
++			/delete-node/ endpoint@2;
++		};
++	};
++};
++
++&mipi2_csi2 { status = "disabled"; };
++&rkcif_mipi_lvds2 { status = "disabled"; };
++&rkcif_mipi_lvds2_sditf { status = "disabled"; };
++&rkisp_vir1 { status = "disabled"; };
++&rkisp_vir1_sditf { status = "disabled"; };
++&rkvpss_vir1 { status = "disabled"; };
++&cam_ircut0 { status = "disabled"; };
++&cam_ircut1 { status = "disabled"; };
+diff --git a/arch/arm64/boot/dts/rockchip/rv1126b-luckfox-aura-ar0234.dts b/arch/arm64/boot/dts/rockchip/rv1126b-luckfox-aura-ar0234.dts
+new file mode 100644
+index 000000000..5e20369ee
+--- /dev/null
++++ b/arch/arm64/boot/dts/rockchip/rv1126b-luckfox-aura-ar0234.dts
+@@ -0,0 +1,8 @@
++// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
++/* Experimental DECXIN-3478V1 single-camera bring-up configuration. */
++#include "rv1126b-luckfox-aura.dts"
++#include "rv1126b-luckfox-aura-ar0234-csi0.dtsi"
++
++/ {
++	model = "Luckfox Aura (DECXIN AR0234 720p bring-up)";
++};
+diff --git a/arch/arm64/configs/rv1126b_teleop_low_latency.config b/arch/arm64/configs/rv1126b_teleop_low_latency.config
+index 367e349db..6fd27ccbe 100644
+--- a/arch/arm64/configs/rv1126b_teleop_low_latency.config
++++ b/arch/arm64/configs/rv1126b_teleop_low_latency.config
+@@ -12,3 +12,4 @@ CONFIG_CC_OPTIMIZE_FOR_PERFORMANCE=y
+ 
+ # Compile the experimental AR0234 port; no camera DT node is enabled yet.
+ CONFIG_VIDEO_AR0234=y
++CONFIG_I2C_CHARDEV=y
+diff --git a/drivers/media/i2c/ar0234.c b/drivers/media/i2c/ar0234.c
+index fc2b555c8..667371a7f 100644
+--- a/drivers/media/i2c/ar0234.c
++++ b/drivers/media/i2c/ar0234.c
+@@ -26,6 +26,7 @@
+ #include <linux/pm_runtime.h>
+ #include <linux/regulator/consumer.h>
+ #include <linux/rk-camera-module.h>
++#include <linux/sysfs.h>
+ #include <linux/uaccess.h>
+ #include <media/v4l2-async.h>
+ #include <media/v4l2-ctrls.h>
+@@ -468,6 +469,7 @@ struct ar0234 {
+ 	struct gpio_desc *reset_gpio;
+ 	struct gpio_desc *pwdn_gpio;
+ 	struct regulator_bulk_data supplies[AR0234_NUM_SUPPLIES];
++	struct regulator *module_supply;
+ 	struct v4l2_mbus_config_mipi_csi2 bus;
+ 	const struct ar0234_pll_config *pll_config;
+ 	enum ar0234_lane_count_id lane_count_id;
+@@ -1208,6 +1210,21 @@ static const struct v4l2_subdev_ops ar0234_subdev_ops = {
+ 	.pad = &ar0234_pad_ops,
+ };
+ 
++static int ar0234_enable_supplies(struct ar0234 *ar)
++{
++	if (ar->decxin_profile)
++		return regulator_enable(ar->module_supply);
++	return regulator_bulk_enable(AR0234_NUM_SUPPLIES, ar->supplies);
++}
++
++static void ar0234_disable_supplies(struct ar0234 *ar)
++{
++	if (ar->decxin_profile)
++		regulator_disable(ar->module_supply);
++	else
++		regulator_bulk_disable(AR0234_NUM_SUPPLIES, ar->supplies);
++}
++
+ static int ar0234_power_on(struct device *dev)
+ {
+ 	struct ar0234 *ar = to_ar0234(i2c_get_clientdata(to_i2c_client(dev)));
+@@ -1216,12 +1233,12 @@ static int ar0234_power_on(struct device *dev)
+ 	/* GPIO values are logical: 1 asserts reset/PWDN, 0 releases them. */
+ 	gpiod_set_value_cansleep(ar->reset_gpio, 1);
+ 	gpiod_set_value_cansleep(ar->pwdn_gpio, 1);
+-	ret = regulator_bulk_enable(AR0234_NUM_SUPPLIES, ar->supplies);
++	ret = ar0234_enable_supplies(ar);
+ 	if (ret)
+ 		return ret;
+ 	ret = clk_prepare_enable(ar->xvclk);
+ 	if (ret) {
+-		regulator_bulk_disable(AR0234_NUM_SUPPLIES, ar->supplies);
++		ar0234_disable_supplies(ar);
+ 		return ret;
+ 	}
+ 	usleep_range(1000, 2000);
+@@ -1238,7 +1255,7 @@ static int ar0234_power_off(struct device *dev)
+ 	gpiod_set_value_cansleep(ar->reset_gpio, 1);
+ 	gpiod_set_value_cansleep(ar->pwdn_gpio, 1);
+ 	clk_disable_unprepare(ar->xvclk);
+-	regulator_bulk_disable(AR0234_NUM_SUPPLIES, ar->supplies);
++	ar0234_disable_supplies(ar);
+ 	return 0;
+ }
+ 
+@@ -1274,11 +1291,19 @@ static int ar0234_parse_hw_config(struct ar0234 *ar)
+ 	ar->pwdn_gpio = devm_gpiod_get_optional(dev, "pwdn", GPIOD_OUT_HIGH);
+ 	if (IS_ERR(ar->pwdn_gpio))
+ 		return dev_err_probe(dev, PTR_ERR(ar->pwdn_gpio), "failed to get PWDN GPIO\n");
+-	for (i = 0; i < AR0234_NUM_SUPPLIES; i++)
+-		ar->supplies[i].supply = ar0234_supply_names[i];
+-	ret = devm_regulator_bulk_get(dev, AR0234_NUM_SUPPLIES, ar->supplies);
+-	if (ret)
+-		return dev_err_probe(dev, ret, "failed to get sensor supplies\n");
++	if (ar->decxin_profile) {
++		/* The module connector accepts 3.3V; its sensor rails are internal. */
++		ar->module_supply = devm_regulator_get(dev, "vdd");
++		if (IS_ERR(ar->module_supply))
++			return dev_err_probe(dev, PTR_ERR(ar->module_supply),
++					     "failed to get module vdd supply\n");
++	} else {
++		for (i = 0; i < AR0234_NUM_SUPPLIES; i++)
++			ar->supplies[i].supply = ar0234_supply_names[i];
++		ret = devm_regulator_bulk_get(dev, AR0234_NUM_SUPPLIES, ar->supplies);
++		if (ret)
++			return dev_err_probe(dev, ret, "failed to get sensor supplies\n");
++	}
+ 
+ 	endpoint = fwnode_graph_get_next_endpoint(dev_fwnode(dev), NULL);
+ 	if (!endpoint)
+@@ -1439,6 +1464,42 @@ static void ar0234_remove(struct i2c_client *client)
+ 	mutex_destroy(&ar->mutex);
+ }
+ 
++/* Read through the driver so runtime PM and streaming share the same lock. */
++static int ar0234_read_chip_id(struct ar0234 *ar, u16 *id)
++{
++	int ret;
++
++	mutex_lock(&ar->mutex);
++	ret = pm_runtime_resume_and_get(ar->dev);
++	if (ret < 0)
++		goto out;
++	ret = ar0234_read_reg(ar, AR0234_REG_CHIP_ID, id);
++	pm_runtime_put(ar->dev);
++out:
++	mutex_unlock(&ar->mutex);
++	return ret;
++}
++
++static ssize_t chip_id_show(struct device *dev, struct device_attribute *attr,
++			   char *buf)
++{
++	struct ar0234 *ar = to_ar0234(i2c_get_clientdata(to_i2c_client(dev)));
++	u16 id;
++	int ret;
++
++	ret = ar0234_read_chip_id(ar, &id);
++	if (ret)
++		return ret;
++	return sysfs_emit(buf, "0x%04x\n", id);
++}
++static DEVICE_ATTR_RO(chip_id);
++
++static struct attribute *ar0234_attrs[] = {
++	&dev_attr_chip_id.attr,
++	NULL,
++};
++ATTRIBUTE_GROUPS(ar0234);
++
+ static const struct of_device_id ar0234_of_match[] = {
+ 	{ .compatible = "decxin,3478v1" },
+ 	{ .compatible = "onnn,ar0234cs" },
+@@ -1454,6 +1515,7 @@ static struct i2c_driver ar0234_i2c_driver = {
+ 	.driver = {
+ 		.name = "ar0234",
+ 		.of_match_table = ar0234_of_match,
++		.dev_groups = ar0234_groups,
+ 		.pm = &ar0234_pm_ops,
+ 	},
+ 	.probe_new = ar0234_probe,
+-- 
+2.56.0
+

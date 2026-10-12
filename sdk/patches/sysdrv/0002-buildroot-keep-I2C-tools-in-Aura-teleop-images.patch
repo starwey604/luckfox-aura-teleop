@@ -1,0 +1,23 @@
+From ad25269c183618ffb9e0c0ed1976dd45d229dca4 Mon Sep 17 00:00:00 2001
+From: Starwey <moonbite233@gmail.com>
+Date: Mon, 12 Oct 2026 13:16:43 +0800
+Subject: [PATCH] buildroot: keep I2C tools in Aura teleop images
+
+---
+ tools/board/buildroot/luckfox_64bit_teleop_defconfig | 3 +++
+ 1 file changed, 3 insertions(+)
+
+diff --git a/tools/board/buildroot/luckfox_64bit_teleop_defconfig b/tools/board/buildroot/luckfox_64bit_teleop_defconfig
+index a8a07ab..19cb8e5 100755
+--- a/tools/board/buildroot/luckfox_64bit_teleop_defconfig
++++ b/tools/board/buildroot/luckfox_64bit_teleop_defconfig
+@@ -123,3 +123,6 @@ BR2_PACKAGE_GST1_PLUGINS_GOOD_PLUGIN_UDP=y
+ BR2_PACKAGE_GST1_PLUGINS_GOOD_PLUGIN_V4L2=y
+ BR2_PACKAGE_GST1_PLUGINS_BAD=y
+ BR2_PACKAGE_GST1_PLUGINS_BAD_PLUGIN_VIDEOPARSERS=y
++
++# Explicit I2C register-read diagnostics for camera bring-up.
++BR2_PACKAGE_I2C_TOOLS=y
+-- 
+2.56.0
+

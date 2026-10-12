@@ -1,0 +1,245 @@
+#!/bin/sh
+# Run on Aura via SSH. Default is enumeration; --probe reads only chip ID.
+set -u
+
+usage() {
+    cat <<'HELP'
+usage: diagnose-ar0234 [--camera 0|1] [--bus N] [--address 0x10]
+                       [--probe] [--capture] [--frames 120] [--timeout 10]
+                       [--output /userdata/ar0234-report]
+Default: enumerate DT, I2C clients, media graphs and V4L2 nodes.
+--probe: read register 0x3000 at one address; never force or unbind a driver.
+--capture: require a bound AR0234 and matching ISP graph, then capture NV12 720p.
+CSI0 corresponds to DT alias i2c4; CSI1 to i2c3. Adapter numbers are resolved
+from DT rather than assumed. --bus explicitly overrides adapter selection.
+No sensor configuration registers are written by --probe. --capture starts
+streaming and sets ISP output format. Do not run it alongside a sender.
+Exit: 0=success, 1=ID/capture failure, 2=arguments, 3=missing tools/unavailable.
+HELP
+}
+
+camera=0
+bus_override=
+address=0x10
+mode=enumerate
+frames=120
+limit=10
+output=
+while [ "$#" -gt 0 ]; do
+    case "$1" in
+        --help|-h) usage; exit 0 ;;
+        --probe) mode=probe; shift ;;
+        --capture) mode=capture; shift ;;
+        --camera|--bus|--address|--frames|--timeout|--output)
+            key=$1
+            [ "$#" -ge 2 ] || { usage >&2; exit 2; }
+            case "$key" in
+                --camera) camera=$2 ;;
+                --bus) bus_override=$2 ;;
+                --address) address=$2 ;;
+                --frames) frames=$2 ;;
+                --timeout) limit=$2 ;;
+                --output) output=$2 ;;
+            esac
+            shift 2 ;;
+        *) printf 'unknown argument: %s\n' "$1" >&2; usage >&2; exit 2 ;;
+    esac
+done
+case "$camera" in 0) alias_name=i2c4 ;; 1) alias_name=i2c3 ;; *) exit 2 ;; esac
+for number in "$frames" "$limit"; do
+    case "$number" in ''|0|0*|*[!0-9]*) printf 'expected positive decimal number\n' >&2; exit 2 ;; esac
+done
+case "$bus_override" in ''|0) ;; 0*|*[!0-9]*) printf 'invalid bus number\n' >&2; exit 2 ;; esac
+case "$address" in
+    0x[0-9a-fA-F][0-9a-fA-F]) addr=$((address)) ;;
+    *) printf 'address must be a two-digit 7-bit hex address, e.g. 0x10\n' >&2; exit 2 ;;
+esac
+[ "$addr" -ge 8 ] && [ "$addr" -le 119 ] || exit 2
+address=$(printf '0x%02x' "$addr")
+addr4=$(printf '%04x' "$addr")
+
+# Alternate roots allow isolated fixture tests; production uses these defaults.
+sys=${SYS_ROOT:-/sys}
+dev=${DEV_ROOT:-/dev}
+dt=${DT_ROOT:-/proc/device-tree}
+proc=${PROC_ROOT:-/proc}
+[ -n "$output" ] || output=$(mktemp -d /tmp/ar0234-report.XXXXXX) || exit 3
+mkdir -p "$output" || exit 3
+bus=
+client=
+
+resolve_bus() {
+    if [ -n "$bus_override" ]; then bus=$bus_override; return 0; fi
+    [ -r "$dt/aliases/$alias_name" ] || return 3
+    alias_path=$(tr -d '\000' < "$dt/aliases/$alias_name")
+    [ -n "$alias_path" ] || return 3
+    for adapter in "$sys"/class/i2c-adapter/i2c-*; do
+        [ -d "$adapter" ] || continue
+        node=$(readlink -f "$adapter/of_node" 2>/dev/null || true)
+        [ -n "$node" ] || node=$(readlink -f "$adapter/device/of_node" 2>/dev/null || true)
+        case "$node" in
+            *"$alias_path") bus=${adapter##*/i2c-}; return 0 ;;
+        esac
+    done
+    return 3
+}
+
+driver_name() {
+    [ -L "$client/driver" ] || return 0
+    link=$(readlink -f "$client/driver" 2>/dev/null || true)
+    [ -n "$link" ] && printf '%s\n' "${link##*/}"
+}
+
+probe_sensor() {
+    [ -n "$bus" ] || { echo 'UNAVAILABLE: resolve adapter first, or specify --bus'; return 3; }
+    command -v timeout >/dev/null || { echo 'UNAVAILABLE: missing timeout'; return 3; }
+    driver=$(driver_name)
+    if [ "$driver" = ar0234 ]; then
+        if [ ! -r "$client/chip_id" ]; then
+            echo 'UNAVAILABLE: driver owns this address but has no chip_id attribute (older kernel).'
+            return 3
+        fi
+        id=$(timeout "$limit" cat "$client/chip_id") || { echo 'FAIL: driver chip-ID read failed'; return 1; }
+        echo "chip ID via driver/runtime PM: $id"
+    elif [ -n "$driver" ]; then
+        echo "UNAVAILABLE: $bus-$addr4 is owned by $driver; no force/unbind attempted"
+        return 3
+    else
+        for cmd in i2ctransfer timeout; do
+            command -v "$cmd" >/dev/null || { echo "UNAVAILABLE: missing $cmd"; return 3; }
+        done
+        [ -e "$dev/i2c-$bus" ] || { echo "UNAVAILABLE: missing $dev/i2c-$bus (I2C_CHARDEV)"; return 3; }
+        # Two bytes are the register pointer, not a register value write.
+        result=$(timeout "$limit" i2ctransfer -y "$bus" "w2@$address" 0x30 0x00 r2 2>&1)
+        rc=$?
+        if [ "$rc" -ne 0 ]; then
+            echo "FAIL: chip-ID transaction at bus $bus / $address: $result"
+            return 1
+        fi
+        set -f
+        set -- $result
+        set +f
+        if [ "$#" -ne 2 ]; then echo "FAIL: unexpected I2C response: $result"; return 1; fi
+        case "$1:$2" in
+            0x[0-9a-fA-F][0-9a-fA-F]:0x[0-9a-fA-F][0-9a-fA-F])
+                id=$(printf '0x%04x' "$((($1 << 8) | $2))") ;;
+            *) echo "FAIL: invalid I2C bytes: $result"; return 1 ;;
+        esac
+        echo "chip ID via I2C_RDWR: $id"
+    fi
+    id=$(printf '%s' "$id" | tr 'A-F' 'a-f')
+    case "$id" in
+        0x0a56) echo 'PASS: AR0234 Bayer ID' ;;
+        0x1a56) echo 'PASS: AR0234 mono ID' ;;
+        *) echo "FAIL: unexpected chip ID $id"; return 1 ;;
+    esac
+    return 0
+}
+
+capture_sensor() {
+    [ "$(driver_name)" = ar0234 ] || { echo 'UNAVAILABLE: no bound AR0234; capture requires the bring-up DT'; return 3; }
+    for cmd in media-ctl v4l2-ctl timeout; do
+        command -v "$cmd" >/dev/null || { echo "UNAVAILABLE: missing $cmd"; return 3; }
+    done
+    media=
+    for m in "$dev"/media*; do
+        [ -e "$m" ] || continue
+        graph=$(timeout "$limit" media-ctl -d "$m" -p 2>/dev/null) || continue
+        graph_driver=$(printf '%s\n' "$graph" | sed -n 's/^driver[[:space:]]*//p' | head -n 1)
+        [ "$graph_driver" = "rkisp-vir$camera" ] || continue
+        printf '%s\n' "$graph" | grep -q "ar0234 $bus-$addr4" || continue
+        media=$m
+        break
+    done
+    [ -n "$media" ] || { echo 'UNAVAILABLE: no ISP graph linking the selected AR0234'; return 3; }
+    video=$(timeout "$limit" media-ctl -d "$media" -e rkisp_mainpath 2>/dev/null) || return 3
+    case "$video" in "$dev"/video[0-9]*) ;; *) echo "UNAVAILABLE: invalid mainpath node: $video"; return 3 ;; esac
+    echo "capture: $media -> $video, NV12 1280x720, $frames frames"
+    format=$(timeout "$limit" v4l2-ctl -d "$video" \
+        --set-fmt-video=width=1280,height=720,pixelformat=NV12 --get-fmt-video 2>&1)
+    rc=$?
+    printf '%s\n' "$format"
+    [ "$rc" -eq 0 ] || return 1
+    if ! printf '%s\n' "$format" | grep -Eq 'Width/Height[[:space:]]*:[[:space:]]*1280/720([[:space:]]|$)' ||
+       ! printf '%s\n' "$format" | grep -q "'NV12'"; then
+        echo 'FAIL: ISP did not accept NV12 1280x720; no capture started'
+        return 1
+    fi
+    timeout -s INT -k 2 "$limit" v4l2-ctl -d "$video" \
+        --stream-mmap=3 --stream-count="$frames" --stream-to=/dev/null --verbose \
+        > "$output/capture.log" 2>&1
+    rc=$?
+    cat "$output/capture.log"
+    [ "$rc" -eq 0 ] || { echo "FAIL: capture exit $rc (busy device or timeout are possible)"; return 1; }
+    count=$(awk '/^idx:/ { n++ } END { print n+0 }' "$output/capture.log")
+    [ "$count" -eq "$frames" ] || { echo "FAIL: received $count of $frames frames"; return 1; }
+    echo "PASS: captured $count frames; check timestamps for ~10.08ms intervals"
+    return 0
+}
+
+main() {
+    echo "AR0234 diagnostic: camera=$camera, DT alias=$alias_name, candidate=$address, mode=$mode"
+    uname -a
+    echo 'Assumptions: 24MHz module oscillator, internal rails/reset, 2 lanes, continuous clock.'
+    echo 'Candidate address 0x10 is not confirmed by the vendor files.'
+    echo '--- I2C adapters (listing only) ---'
+    command -v i2cdetect >/dev/null && i2cdetect -l
+    for adapter in "$sys"/class/i2c-adapter/i2c-*; do
+        [ -d "$adapter" ] || continue
+        printf '%s: ' "${adapter##*/}"
+        cat "$adapter/name" 2>/dev/null || true
+    done
+    resolve_bus || true
+    if [ -n "$bus" ]; then
+        client="$sys/bus/i2c/devices/$bus-$addr4"
+        echo "selected adapter=$bus, client=$client, driver=$(driver_name)"
+        for c in "$sys"/bus/i2c/devices/"$bus"-*; do
+            [ -d "$c" ] || continue
+            printf 'client %s: ' "${c##*/}"
+            cat "$c/name" 2>/dev/null || true
+        done
+        for prop in compatible status; do
+            [ -r "$client/of_node/$prop" ] || continue
+            printf 'sensor DT %s: ' "$prop"
+            tr '\000' ' ' < "$client/of_node/$prop"
+            echo
+        done
+    else
+        echo 'No matching adapter resolved from DT. --bus N overrides after manual verification.'
+    fi
+    echo '--- V4L2 devices ---'
+    command -v v4l2-ctl >/dev/null && v4l2-ctl --list-devices
+    echo '--- Media graphs ---'
+    if command -v media-ctl >/dev/null && command -v timeout >/dev/null; then
+        for m in "$dev"/media*; do
+            [ -e "$m" ] || continue
+            echo "$m"
+            timeout "$limit" media-ctl -d "$m" -p || true
+        done
+    else echo 'media-ctl/timeout unavailable'; fi
+    echo '--- Video and sensor node names ---'
+    for node in "$sys"/class/video4linux/*; do
+        [ -d "$node" ] || continue
+        printf '%s: ' "${node##*/}"
+        cat "$node/name" 2>/dev/null || true
+    done
+    echo '--- Camera kernel messages ---'
+    dmesg 2>/dev/null | grep -Ei 'ar0234|mia1321|rkcif|rkisp|csi|dphy|i2c.*(error|fail)' | tail -n 100 || true
+    case "$mode" in
+        probe) probe_sensor; return $? ;;
+        capture)
+            probe_sensor || return $?
+            capture_sensor
+            rc=$?
+            dmesg > "$output/dmesg-after.log" 2>/dev/null || true
+            return "$rc" ;;
+        enumerate)
+            [ -n "$bus" ] && command -v media-ctl >/dev/null && command -v v4l2-ctl >/dev/null && return 0
+            return 3 ;;
+    esac
+}
+main > "$output/report.txt" 2>&1
+result=$?
+cat "$output/report.txt"
+printf '\nreport: %s (exit %s)\n' "$output" "$result"
+exit "$result"

@@ -22,6 +22,7 @@ for input in "$kernel/drivers/media/i2c/ar0234.c" "$sdk_objects/.config" "$sdk_o
 done
 "${cross}gcc" --version >/dev/null
 AURA_SDK_ROOT="$sdk" python3 "$root/tests/ar0234/test_vendor_profile.py"
+python3 "$root/tests/ar0234/test_diagnostic.py"
 mkdir -p "$build_dir/kernel" "$build_dir/module"
 cp "$sdk_objects/.config" "$build_dir/kernel/.config"
 "$kernel/scripts/config" --file "$build_dir/kernel/.config" --enable VIDEO_AR0234
@@ -42,5 +43,9 @@ printf 'obj-m += ar0234.o\n' > "$build_dir/module/Makefile"
 make -C "$kernel" O="$build_dir/kernel" ARCH=arm64 CROSS_COMPILE="$cross" \
     W=1 KCFLAGS=-Werror M="$build_dir/module" modules
 "${cross}readelf" -h "$build_dir/module/ar0234.ko"
+make -C "$kernel" O="$build_dir/kernel" ARCH=arm64 CROSS_COMPILE="$cross" \
+    rockchip/rv1126b-luckfox-aura-ar0234.dtb
+python3 "$root/tests/ar0234/test_bringup_dtb.py" \
+    "$build_dir/kernel/arch/arm64/boot/dts/rockchip/rv1126b-luckfox-aura-ar0234.dtb"
 printf '\ncompile/link checks passed: %s\n' "$build_dir/module/ar0234.ko"
 printf '%s\n' 'Hardware capture is not tested by this script.'

@@ -1,5 +1,8 @@
 # DECXIN-3478V1 与 Aura 接线核对
 
+用户已自行处理排线针序。剩余参数的实验配置和只读 ID 测试见
+[板级配置与 SSH 诊断](ar0234-ssh-diagnostics.md)。
+
 ## 已从现有资料确认（2026-10-12）
 
 以 [Luckfox 官方 Aura 原理图](https://github.com/LuckfoxTECH/luckfox-aura-docs/blob/main/Hardware/Schematic/Luckfox-Aura.pdf)

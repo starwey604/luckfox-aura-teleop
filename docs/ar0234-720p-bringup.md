@@ -1,5 +1,9 @@
 # DECXIN-3478V1：720p 两通道模式接入
 
+后续已新增完整的实验 DTS、整板 `vdd-supply`、驱动只读 chip ID 接口和
+SSH 诊断脚本，详见 [板级配置与 SSH 诊断](ar0234-ssh-diagnostics.md)。
+下面保留本轮初始化表接入时的记录。
+
 ## 本轮结果（2026-10-12）
 
 SDK 驱动新增模组专用配置：使用 `compatible = "decxin,3478v1"` 的节点，

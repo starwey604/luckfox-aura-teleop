@@ -2,13 +2,18 @@
 # Select the project-owned Teleop BoardConfig in an Aura SDK checkout.
 set -eu
 
-[ "$#" -eq 1 ] || {
-	printf '%s\n' "usage: $0 <aura-sdk-path>" >&2
+[ "$#" -ge 1 ] && [ "$#" -le 2 ] || {
+	printf '%s\n' "usage: $0 <aura-sdk-path> [mia1321|ar0234]" >&2
 	exit 2
 }
 
 sdk=$1
-board="$sdk/project/cfg/BoardConfig_Aura/BoardConfig-EMMC-RK801-Luckfox_Aura-Teleop-Buildroot.mk"
+case "${2:-mia1321}" in
+	mia1321) suffix=Teleop ;;
+	ar0234) suffix=Teleop-AR0234 ;;
+	*) printf '%s\n' 'error: camera profile must be mia1321 or ar0234' >&2; exit 2 ;;
+esac
+board="$sdk/project/cfg/BoardConfig_Aura/BoardConfig-EMMC-RK801-Luckfox_Aura-$suffix-Buildroot.mk"
 
 [ -f "$board" ] || {
 	printf '%s\n' "error: Teleop BoardConfig is missing: $board" >&2

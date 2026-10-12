@@ -72,6 +72,7 @@ def build_harness():
 #include <stdio.h>
 #include <stdlib.h>
 #include <errno.h>
+#include <string.h>
 typedef uint32_t u32;
 typedef uint16_t u16;
 #define BIT(n) (1U << (n))
@@ -94,6 +95,7 @@ struct ar0234 {
 struct v4l2_subdev { struct ar0234 *ar; };
 static unsigned int fail_at, write_count;
 static bool control_failure;
+static bool id_failure, pm_failure;
 static struct ar0234 *to_ar0234(struct v4l2_subdev *sd) { return sd->ar; }
 static void mutex_lock(int *m) { (void)m; }
 static void mutex_unlock(int *m) { (void)m; }
@@ -103,6 +105,12 @@ static int ar0234_write_reg(struct ar0234 *ar, u32 reg, u16 value) {
     printf("W %u %u\n", reg & 0xffff, value);
     return ++write_count == fail_at ? -EIO : 0;
 }
+static int ar0234_read_reg(struct ar0234 *ar, u32 reg, u16 *id) {
+    (void)ar;
+    printf("R %u\n", reg & 0xffff);
+    *id = 0x0a56;
+    return id_failure ? -EIO : 0;
+}
 static int __v4l2_ctrl_handler_setup(struct handler *handler) {
     (void)handler;
     puts("C");
@@ -111,6 +119,7 @@ static int __v4l2_ctrl_handler_setup(struct handler *handler) {
 static void __v4l2_ctrl_grab(void *ctrl, bool on) { (void)ctrl; printf("G %u\n", on); }
 static int pm_runtime_resume_and_get(void *dev) {
     struct ar0234 *ar = dev;
+    if (pm_failure) { puts("PM_FAIL"); return -EIO; }
     ar->pm_refs++;
     puts("PM+");
     return 0;
@@ -128,14 +137,14 @@ static void pm_runtime_put(void *dev) {
     ])
     # Select the vendor branch; generic source initialization is a separate profile.
     vendor_dispatch = "static int ar0234_start_stream(struct ar0234 *ar) { return ar0234_start_decxin_stream(ar); }\n"
-    stream = function(source, "ar0234_s_stream")
+    stream = function(source, "ar0234_s_stream") + "\n" + function(source, "ar0234_read_chip_id")
     main = r'''
 int main(int argc, char **argv) {
     struct ar0234 ar = { .decxin_profile = true, .cur_mode = &ar0234_decxin_modes[0],
                         .lane_count_id = AR0234_LANE_COUNT_ID_2LANE };
     struct v4l2_subdev sd = { .ar = &ar };
     struct v4l2_fract interval;
-    if (argc > 3) {
+    if (argc > 3 && strcmp(argv[3], "chip")) {
         unsigned int mode = (unsigned int)strtoul(argv[3], NULL, 10);
         if (mode >= ARRAY_SIZE(ar0234_modes)) return 2;
         ar.decxin_profile = false;
@@ -145,6 +154,14 @@ int main(int argc, char **argv) {
     ar.ctrl_handler.ar = &ar;
     fail_at = argc > 1 ? (unsigned int)strtoul(argv[1], NULL, 10) : 0;
     control_failure = argc > 2 ? atoi(argv[2]) : false;
+    if (argc > 3 && !strcmp(argv[3], "chip")) {
+        u16 id = 0;
+        id_failure = argc > 4 ? atoi(argv[4]) : false;
+        pm_failure = argc > 5 ? atoi(argv[5]) : false;
+        int ret = ar0234_read_chip_id(&ar, &id);
+        printf("IDRESULT %d %u %d\n", ret, id, ar.pm_refs);
+        return 0;
+    }
     ar0234_frame_interval(&ar, ar.cur_mode, ar0234_default_vblank(ar.cur_mode), &interval);
     printf("MODE %zu %u %u %u %u %u %u %u\n",
            ar.decxin_profile ? ARRAY_SIZE(ar0234_decxin_modes) : ARRAY_SIZE(ar0234_modes),
@@ -190,6 +207,18 @@ class VendorProfileTests(unittest.TestCase):
             ("C",), ("G", 1), ("G", 1), ("RESULT", 0, 1, 1), ("REPEAT", 0, 1, 1),
             ("W", 0x301a, 0x2058), ("PM-",), ("G", 0), ("G", 0), ("STOP", 0, 0, 0),
         ])
+
+    def test_driver_chip_id_read_balances_runtime_power(self):
+        for id_failure, pm_failure, expected in [
+            (0, 0, "PM+\nR 12288\nPM-\nIDRESULT 0 2646 0\n"),
+            (1, 0, "PM+\nR 12288\nPM-\nIDRESULT -5 2646 0\n"),
+            (0, 1, "PM_FAIL\nIDRESULT -5 0 0\n"),
+        ]:
+            with self.subTest(id_failure=id_failure, pm_failure=pm_failure):
+                output = subprocess.check_output(
+                    [str(BUILD / "profile_harness"), "0", "0", "chip", str(id_failure), str(pm_failure)],
+                    text=True)
+                self.assertEqual(output, expected)
 
     def test_reference_mode_timings_remain_available(self):
         for index, (width, height) in enumerate(((1920, 1200), (1920, 1080),

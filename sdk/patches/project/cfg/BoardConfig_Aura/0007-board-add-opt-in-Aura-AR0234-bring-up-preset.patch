@@ -1,0 +1,23 @@
+From 6158a8eb39ec5ed68b3401e090bc0e518ae06c43 Mon Sep 17 00:00:00 2001
+From: Starwey <moonbite233@gmail.com>
+Date: Mon, 12 Oct 2026 13:16:43 +0800
+Subject: [PATCH] board: add opt-in Aura AR0234 bring-up preset
+
+---
+ ...dConfig-EMMC-RK801-Luckfox_Aura-Teleop-AR0234-Buildroot.mk | 4 ++++
+ 1 file changed, 4 insertions(+)
+ create mode 100644 BoardConfig-EMMC-RK801-Luckfox_Aura-Teleop-AR0234-Buildroot.mk
+
+diff --git a/BoardConfig-EMMC-RK801-Luckfox_Aura-Teleop-AR0234-Buildroot.mk b/BoardConfig-EMMC-RK801-Luckfox_Aura-Teleop-AR0234-Buildroot.mk
+new file mode 100644
+index 0000000..d6df022
+--- /dev/null
++++ b/BoardConfig-EMMC-RK801-Luckfox_Aura-Teleop-AR0234-Buildroot.mk
+@@ -0,0 +1,4 @@
++#!/bin/bash
++# Opt-in DECXIN-3478V1 CSI0 bring-up image; current MIA1321 preset stays available.
++source "$(dirname "$(realpath "${BASH_SOURCE[0]}")")/BoardConfig-EMMC-RK801-Luckfox_Aura-Teleop-Buildroot.mk"
++export RK_KERNEL_DTS=rv1126b-luckfox-aura-ar0234.dts
+-- 
+2.56.0
+
