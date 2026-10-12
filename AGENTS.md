@@ -91,7 +91,10 @@ Order matters: apply the SDK patch stack and `select-teleop-board` before SDK bu
 - `tests/sdk/test_patch_stack.py` checks sequential patches, partial/repeated apply, refusal
   before mutation, manifest mismatches and relative BoardConfig selection. Run in Distrobox.
 - `tests/protocol/` has the real unit test (`ctest` via `test-transport-loopback`).
-- `tests/latency/` is still a placeholder. `tests/h264/` and `tests/usb-camera/` document
+- `tests/latency/test_software_metrics.py` is a native-only dual UDP/VAAPI timing
+  association test. Use `TELEOP_METRICS=1` for opt-in process-local stage histograms;
+  the metrics entrypoints currently assume one application thread per process.
+  `tests/h264/` and `tests/usb-camera/` document
   host-only hardware validation; see their READMEs for acceptance output
   (`hardware_frames == frames`, `presenter: frames=...`, zero malformed/dropped).
 - Keep internal software timestamps separate from screen-to-screen numbers; only `--same-clock`

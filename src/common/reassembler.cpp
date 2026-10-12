@@ -27,13 +27,14 @@ void FrameReassembler::reset()
     buffer_.clear();
 }
 
-bool FrameReassembler::begin_frame(const PacketHeader& header)
+bool FrameReassembler::begin_frame(const PacketHeader& header, std::uint64_t receive_ns)
 {
     if (header.frame_size > maximum_frame_size_) {
         return false;
     }
     active_ = true;
     active_header_ = header;
+    first_receive_ns_ = receive_ns;
     received_packet_count_ = 0U;
     received_packets_.assign(header.packet_count, false);
     buffer_.assign(header.frame_size, std::byte{0});
@@ -41,7 +42,7 @@ bool FrameReassembler::begin_frame(const PacketHeader& header)
 }
 
 std::optional<CompletedFrame> FrameReassembler::accept(
-    std::span<const std::byte> datagram, TransportStatistics& statistics)
+    std::span<const std::byte> datagram, TransportStatistics& statistics, std::uint64_t receive_ns)
 {
     const auto header = parse_header(datagram);
     if (!header.has_value()) {
@@ -61,7 +62,7 @@ std::optional<CompletedFrame> FrameReassembler::accept(
         if (active_) {
             ++statistics.dropped_frames;
         }
-        if (!begin_frame(*header)) {
+        if (!begin_frame(*header, receive_ns)) {
             ++statistics.malformed_datagrams;
             return std::nullopt;
         }
@@ -106,6 +107,7 @@ std::optional<CompletedFrame> FrameReassembler::accept(
         .flags = active_header_.flags,
         .capture_time_ns = active_header_.capture_time_ns,
         .payload = std::move(buffer_),
+        .first_receive_ns = first_receive_ns_,
     };
     reset();
     ++statistics.completed_frames;

@@ -6,6 +6,14 @@ For the current dual AR0234 image, use the frozen-image, optical measurement and
 A/B procedure in [`docs/stereo-latency-baseline-plan.md`](../../docs/stereo-latency-baseline-plan.md).
 The original single-camera instructions below remain a stimulus usage example.
 
+Software-only stage profiling is opt-in with `TELEOP_METRICS=1`. See
+[`docs/software-performance-baseline-2026-10-12.md`](../../docs/software-performance-baseline-2026-10-12.md)
+for stage definitions and the incomplete hardware baseline. The native-only
+`python3 tests/latency/test_software_metrics.py` runs real dual-stream UDP/VAAPI
+tests using `build/host-metrics/bin/host-viewer` (override `TELEOP_TEST_VIEWER`).
+Stage times are process-local; VAAPI frame availability does not prove that GPU
+work or panel scanout has completed.
+
 The first optical stimulus is built on the CachyOS host only:
 
 ```sh

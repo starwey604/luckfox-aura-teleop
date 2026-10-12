@@ -103,15 +103,17 @@ int main()
     }
     teleop::FrameReassembler reordered_reassembler;
     teleop::TransportStatistics reordered_statistics;
-    if (!check(!reordered_reassembler.accept(fragments[1], reordered_statistics).has_value(),
+    if (!check(!reordered_reassembler.accept(fragments[1], reordered_statistics, 100U).has_value(),
                "partial reordered frame completed too early") ||
-        !check(!reordered_reassembler.accept(fragments[0], reordered_statistics).has_value(),
+        !check(!reordered_reassembler.accept(fragments[0], reordered_statistics, 200U).has_value(),
                "partial reordered frame completed too early")) {
         return 1;
     }
     const auto reordered_frame = reordered_reassembler.accept(fragments[2], reordered_statistics);
     if (!check(reordered_frame.has_value(), "reordered frame did not complete") ||
-        !check(reordered_frame->payload == large_payload, "reordered payload changed")) {
+        !check(reordered_frame->payload == large_payload, "reordered payload changed") ||
+        !check(reordered_frame->first_receive_ns == 100U,
+               "frame timing did not start at the first accepted reordered fragment")) {
         return 1;
     }
     return 0;

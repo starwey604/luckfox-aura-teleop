@@ -2,8 +2,10 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <map>
 #include <span>
 #include <string_view>
+#include <string>
 #include <vector>
 
 extern "C" {
@@ -26,13 +28,13 @@ struct DecodeStatistics {
 class H264VaapiDecoder {
 public:
     explicit H264VaapiDecoder(std::string_view vaapi_device, DecodedFrameSink* sink = nullptr,
-                              bool use_vaapi = true);
+                              bool use_vaapi = true, std::uint16_t metrics_stream_id = 0U);
     ~H264VaapiDecoder();
 
     H264VaapiDecoder(const H264VaapiDecoder&) = delete;
     H264VaapiDecoder& operator=(const H264VaapiDecoder&) = delete;
 
-    void submit_access_unit(std::span<const std::byte> access_unit);
+    void submit_access_unit(std::span<const std::byte> access_unit, std::uint64_t ready_ns = 0U);
     void flush();
 
     [[nodiscard]] const DecodeStatistics& statistics() const;
@@ -46,6 +48,8 @@ private:
     DecodedFrameSink* sink_{};
     bool use_vaapi_{true};
     DecodeStatistics statistics_{};
+    std::string metrics_prefix_;
+    std::map<std::int64_t, std::uint64_t> submit_times_;
 };
 
 // Rockit low-delay VENC exposes a bytestream fragment for each slice callback,
@@ -59,11 +63,11 @@ public:
     H264AnnexBParser(const H264AnnexBParser&) = delete;
     H264AnnexBParser& operator=(const H264AnnexBParser&) = delete;
 
-    void submit_chunk(std::span<const std::byte> chunk);
+    void submit_chunk(std::span<const std::byte> chunk, std::uint64_t ready_ns = 0U);
     void flush();
 
 private:
-    void parse_input(const std::uint8_t* input, int input_size);
+    void parse_input(const std::uint8_t* input, int input_size, std::uint64_t ready_ns);
 
     H264VaapiDecoder& decoder_;
     AVCodecParserContext* parser_{};

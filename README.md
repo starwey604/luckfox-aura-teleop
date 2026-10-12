@@ -16,3 +16,6 @@ screen-to-screen 延迟仍待验收。
 [内核/Buildroot 裁剪与编译优化计划](docs/kernel-buildroot-optimization-plan.md)
 及 [双路延迟基线与 A/B 测试](docs/stereo-latency-baseline-plan.md)：先冻结并测量现有镜像，
 再逐项裁剪、调优，保留可以复测的结果。
+
+[软件性能基线首轮](docs/software-performance-baseline-2026-10-12.md)：`TELEOP_METRICS=1`
+启用板端/主机局部阶段统计；本机回放已测出 parser 等待，实机双路编码失联仍待排查。

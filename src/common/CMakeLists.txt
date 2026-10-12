@@ -1,5 +1,6 @@
 add_library(teleop-common STATIC
     packetizer.cpp
+    performance.cpp
     protocol.cpp
     reassembler.cpp
     statistics.cpp

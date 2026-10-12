@@ -4,6 +4,7 @@
 #include <teleop/reassembler.hpp>
 #include <teleop/statistics.hpp>
 #include <teleop/udp_socket.hpp>
+#include <teleop/performance.hpp>
 
 #include <libavcodec/avcodec.h>
 
@@ -68,7 +69,8 @@ void print_usage(const char* program)
         "  --dual-stream          Receive stream IDs 0 and 1, stacked top to bottom\n"
         "  --transport-only       Validate UDP reassembly without opening FFmpeg\n"
         "  --same-clock           Report source-to-receive latency; only valid when\n"
-        "                         sender and viewer share CLOCK_MONOTONIC\n",
+        "                         sender and viewer share CLOCK_MONOTONIC\n"
+        "  TELEOP_METRICS=1       Opt-in local stage timings and socket buffer diagnostics\n",
         program);
 }
 
@@ -282,10 +284,13 @@ int main(int argc, char* argv[])
                         *presenter, static_cast<std::uint16_t>(stream));
                 }
                 decoders[stream].emplace(options.vaapi_device, sinks[stream].get(),
-                                         !options.software_decode);
+                                         !options.software_decode, static_cast<std::uint16_t>(stream));
                 parsers[stream].emplace(*decoders[stream]);
             }
         }
+
+        std::array<std::uint64_t, kMaximumStreams> previous_ready_ns{};
+        std::array<std::string, kMaximumStreams> metric_prefixes{"host.stream0.", "host.stream1."};
 
         while (options.max_frames == 0U || statistics.completed_frames < options.max_frames) {
             pollfd descriptor{.fd = receiver.fd(), .events = POLLIN, .revents = 0};
@@ -300,7 +305,10 @@ int main(int argc, char* argv[])
                 return EXIT_FAILURE;
             }
 
+            const auto recv_begin = teleop::performance_time_ns();
             const ssize_t received = recv(receiver.fd(), datagram.data(), datagram.size(), 0);
+            const auto received_ns = teleop::performance_time_ns();
+            teleop::record_stage("host.recv_syscall", recv_begin, received_ns);
             if (received < 0) {
                 std::perror("host-viewer: recv");
                 return EXIT_FAILURE;
@@ -312,12 +320,23 @@ int main(int argc, char* argv[])
                 ++statistics.malformed_datagrams;
                 continue;
             }
-            const auto frame = reassemblers[header->stream_id].accept(datagram_view, statistics);
+            const auto frame = reassemblers[header->stream_id].accept(datagram_view, statistics, received_ns);
             if (!frame.has_value()) {
                 continue;
             }
+            const auto ready_ns = teleop::performance_time_ns();
+            const auto& prefix = metric_prefixes[frame->stream_id];
+            if (ready_ns != 0U) {
+                teleop::record_stage(prefix + "reassembly", frame->first_receive_ns, ready_ns);
+                teleop::record_stage(prefix + "au_interval", previous_ready_ns[frame->stream_id], ready_ns);
+            }
+            previous_ready_ns[frame->stream_id] = ready_ns;
             if (decoders[frame->stream_id].has_value()) {
-                parsers[frame->stream_id]->submit_chunk(frame->payload);
+                const auto parse_begin = teleop::performance_time_ns();
+                parsers[frame->stream_id]->submit_chunk(frame->payload, ready_ns);
+                if (parse_begin != 0U) {
+                    teleop::record_stage(prefix + "parser_decode_call", parse_begin, teleop::performance_time_ns());
+                }
             }
             if (presenter != nullptr && presenter->close_requested()) {
                 break;
@@ -356,6 +375,7 @@ int main(int argc, char* argv[])
         if (options.same_clock) {
             print_latency(latency);
         }
+        teleop::print_software_metrics();
         return EXIT_SUCCESS;
     } catch (const std::exception& error) {
         std::fprintf(stderr, "host-viewer: %s\n", error.what());

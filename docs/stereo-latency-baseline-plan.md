@@ -4,6 +4,10 @@
 现有 [screen-to-screen 测试图方案](screen-to-screen-latency-test-plan.md) 解释了 `latency-stimulus`；
 本文补充双路 AR0234 的冻结条件、测量误差、统计方式和每次裁剪的验收顺序。
 
+> 最新范围：用户要求先只测软件性能，光学 screen-to-screen 留作最终验收。
+> [软件基线首轮记录](software-performance-baseline-2026-10-12.md) 包含实机采集、编码失联、
+> 新增分段计时和本机 VAAPI 回放结果；本文的光学部分暂不执行。
+
 ## 1. B0 的准确含义与保存位置
 
 B0 是**当前未进行进一步裁剪的双 AR0234 镜像**，不是原厂 defconfig。
@@ -234,7 +238,8 @@ run_id,variant,stream_id,reference_frame,source_code_ms,returned_code_ms,raw_del
 候选全量镜像中的 boot/OEM/modules 必须配套，不能只刷 boot 造成模块 ABI 错配。
 记录每一版镜像的实际选项差异；并非每阶段都必须降延迟，体积/开机收益另报。
 
-当前尚未实现的分段计时下一轮加到程序里：
+分段计时的实际实现和边界见 [软件性能记录](software-performance-baseline-2026-10-12.md)；
+下表仍作为归因目标，GPU 完成时间、跨机网络时间和曝光起点尚未测量：
 
 | 同机区间 | 记录点 | 能回答的问题 |
 |---|---|---|

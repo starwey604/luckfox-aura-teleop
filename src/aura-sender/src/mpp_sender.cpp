@@ -1,6 +1,7 @@
 #include <teleop/protocol.hpp>
 #include <teleop/statistics.hpp>
 #include <teleop/udp_socket.hpp>
+#include <teleop/performance.hpp>
 
 extern "C" {
 #include <rk_defines.h>
@@ -92,7 +93,8 @@ void print_usage(const char* program)
         "  --vi-device ID         VI device (default: 0)\n"
         "  --vi-pipe ID           VI pipe (default: 0)\n"
         "  --vi-channel ID        VI channel (default: 0)\n"
-        "  --venc-channel ID      VENC channel (default: 0)\n",
+        "  --venc-channel ID      VENC channel (default: 0)\n"
+        "  TELEOP_METRICS=1       Opt-in local stage timings and socket buffer diagnostics\n",
         program);
 }
 
@@ -444,6 +446,9 @@ int main(int argc, char* argv[])
         std::uint32_t encoded_frames = 0U;
         std::vector<std::byte> access_unit;
         std::uint64_t access_unit_pts_us = 0U;
+        std::uint64_t first_pack_ns = 0U;
+        std::uint64_t last_pack_ns = 0U;
+        std::uint64_t previous_au_ns = 0U;
         bool access_unit_is_key_frame = false;
         bool access_unit_open = false;
 
@@ -466,6 +471,12 @@ int main(int argc, char* argv[])
             }
             const auto flags = access_unit_is_key_frame ? teleop::PacketFlags::kKeyFrame
                                                          : teleop::PacketFlags::kNone;
+            const auto ready_ns = teleop::performance_time_ns();
+            teleop::record_stage("sender.au_pack_span", first_pack_ns, last_pack_ns);
+            teleop::record_stage("sender.next_pts_wait", last_pack_ns, ready_ns);
+            teleop::record_stage("sender.first_pack_to_send", first_pack_ns, ready_ns);
+            teleop::record_stage("sender.au_interval", previous_au_ns, ready_ns);
+            previous_au_ns = ready_ns;
             if (output.is_open()) {
                 output.write(reinterpret_cast<const char*>(access_unit.data()),
                              static_cast<std::streamsize>(access_unit.size()));
@@ -473,11 +484,13 @@ int main(int argc, char* argv[])
                     throw std::runtime_error("could not write H.264 output file");
                 }
             }
+            const auto send_begin = teleop::performance_time_ns();
             if (!sender.send_frame(options.stream_id, encoded_frames, flags,
                                    pts_us_to_ns(access_unit_pts_us), access_unit, statistics)) {
                 std::fprintf(stderr, "encoded frame %u was not completely queued for UDP transmission\n",
                              encoded_frames);
             }
+            teleop::record_stage("sender.udp_queue", send_begin, teleop::performance_time_ns());
             access_unit.clear();
             access_unit_is_key_frame = false;
             access_unit_open = false;
@@ -490,7 +503,10 @@ int main(int argc, char* argv[])
         while (g_stop_requested == 0 &&
                (options.frame_count == 0U || encoded_frames < options.frame_count)) {
             VENC_STREAM_S stream{};
+            const auto get_begin = teleop::performance_time_ns();
             if (!pipeline.get_stream(stream, packs)) continue;
+            const auto get_end = teleop::performance_time_ns();
+            teleop::record_stage("sender.get_stream_wait", get_begin, get_end);
 
             if (debug_packs) {
                 std::fprintf(stderr, "stream: packs=%u\n", stream.u32PackCount);
@@ -537,7 +553,9 @@ int main(int argc, char* argv[])
                 if (!access_unit_open) {
                     access_unit_pts_us = pack.u64PTS;
                     access_unit_open = true;
+                    first_pack_ns = get_end;
                 }
+                last_pack_ns = get_end;
                 if (packet.size() > teleop::kMaxEncodedAccessUnitSize - access_unit.size()) {
                     pipeline.release_stream(stream);
                     throw std::runtime_error("H.264 access unit exceeds the transport size limit");
@@ -554,6 +572,7 @@ int main(int argc, char* argv[])
         std::printf("aura-sender: encoded-frames=%u datagrams=%llu bytes=%llu\n", encoded_frames,
                     static_cast<unsigned long long>(statistics.datagrams_sent),
                     static_cast<unsigned long long>(statistics.bytes_sent));
+        teleop::print_software_metrics();
         return EXIT_SUCCESS;
     } catch (const std::exception& error) {
         std::fprintf(stderr, "aura-sender: %s\n", error.what());

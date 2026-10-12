@@ -1,4 +1,5 @@
 #include "h264_decoder.hpp"
+#include <teleop/performance.hpp>
 
 #include <libavutil/error.h>
 #include <libavutil/hwcontext.h>
@@ -35,8 +36,9 @@ AVPixelFormat select_vaapi_format(AVCodecContext*, const AVPixelFormat* formats)
 } // namespace
 
 H264VaapiDecoder::H264VaapiDecoder(std::string_view vaapi_device, DecodedFrameSink* sink,
-                                   bool use_vaapi)
-    : sink_(sink), use_vaapi_(use_vaapi)
+                                   bool use_vaapi, std::uint16_t metrics_stream_id)
+    : sink_(sink), use_vaapi_(use_vaapi),
+      metrics_prefix_("host.stream" + std::to_string(metrics_stream_id) + ".")
 {
     try {
         const AVCodec* codec = avcodec_find_decoder(AV_CODEC_ID_H264);
@@ -107,15 +109,28 @@ void H264VaapiDecoder::drain()
         if (frame->format == AV_PIX_FMT_VAAPI) {
             ++statistics_.hardware_frames;
         }
+        const auto decoded_ns = performance_time_ns();
+        if (software_metrics_enabled() && frame->pts > 0) {
+            const auto found = submit_times_.find(frame->pts);
+            if (found != submit_times_.end()) {
+                record_stage(metrics_prefix_ + "submit_to_frame", found->second, decoded_ns);
+                record_stage(metrics_prefix_ + "au_ready_to_frame",
+                             static_cast<std::uint64_t>(frame->pts), decoded_ns);
+                submit_times_.erase(found);
+            }
+        }
         if (sink_ != nullptr) {
             sink_->present(*frame);
+            if (decoded_ns != 0U) {
+                record_stage(metrics_prefix_ + "present_call", decoded_ns, performance_time_ns());
+            }
         }
         av_frame_unref(frame);
     }
     av_frame_free(&frame);
 }
 
-void H264VaapiDecoder::submit_access_unit(std::span<const std::byte> access_unit)
+void H264VaapiDecoder::submit_access_unit(std::span<const std::byte> access_unit, std::uint64_t ready_ns)
 {
     if (access_unit.empty()) {
         return;
@@ -132,6 +147,18 @@ void H264VaapiDecoder::submit_access_unit(std::span<const std::byte> access_unit
                                  ffmpeg_error(allocation_result));
     }
     std::memcpy(packet->data, access_unit.data(), access_unit.size());
+
+    if (software_metrics_enabled() && ready_ns != 0U &&
+        ready_ns <= static_cast<std::uint64_t>(std::numeric_limits<std::int64_t>::max())) {
+        packet->pts = static_cast<std::int64_t>(ready_ns);
+        const auto submit_ns = performance_time_ns();
+        record_stage(metrics_prefix_ + "parser_wait", ready_ns, submit_ns);
+        if (submit_times_.size() >= 256U) {
+            av_packet_free(&packet);
+            throw std::runtime_error("software metrics lost H.264 frame timestamp association");
+        }
+        submit_times_.emplace(packet->pts, submit_ns);
+    }
 
     int send_result = avcodec_send_packet(context_, packet);
     if (send_result == AVERROR(EAGAIN)) {
@@ -181,7 +208,7 @@ H264AnnexBParser::~H264AnnexBParser()
     av_parser_close(parser_);
 }
 
-void H264AnnexBParser::parse_input(const std::uint8_t* input, int input_size)
+void H264AnnexBParser::parse_input(const std::uint8_t* input, int input_size, std::uint64_t ready_ns)
 {
     const std::uint8_t* current = input;
     int remaining = input_size;
@@ -191,7 +218,7 @@ void H264AnnexBParser::parse_input(const std::uint8_t* input, int input_size)
         int access_unit_size = 0;
         const int consumed = av_parser_parse2(
             parser_, decoder_.codec_context(), &access_unit, &access_unit_size, current, remaining,
-            AV_NOPTS_VALUE, AV_NOPTS_VALUE, 0);
+            ready_ns == 0U ? AV_NOPTS_VALUE : static_cast<std::int64_t>(ready_ns), AV_NOPTS_VALUE, 0);
         if (consumed < 0 || (consumed == 0 && access_unit_size == 0)) {
             throw std::runtime_error("could not parse H.264 Annex-B stream: " +
                                      ffmpeg_error(consumed));
@@ -199,7 +226,8 @@ void H264AnnexBParser::parse_input(const std::uint8_t* input, int input_size)
         if (access_unit_size > 0) {
             decoder_.submit_access_unit(
                 std::span<const std::byte>{reinterpret_cast<const std::byte*>(access_unit),
-                                           static_cast<std::size_t>(access_unit_size)});
+                                           static_cast<std::size_t>(access_unit_size)},
+                parser_->pts > 0 ? static_cast<std::uint64_t>(parser_->pts) : 0U);
         }
         if (consumed == 0) {
             // FFmpeg may emit the completed previous picture before consuming
@@ -216,7 +244,7 @@ void H264AnnexBParser::parse_input(const std::uint8_t* input, int input_size)
     }
 }
 
-void H264AnnexBParser::submit_chunk(std::span<const std::byte> chunk)
+void H264AnnexBParser::submit_chunk(std::span<const std::byte> chunk, std::uint64_t ready_ns)
 {
     if (chunk.empty()) {
         return;
@@ -227,7 +255,7 @@ void H264AnnexBParser::submit_chunk(std::span<const std::byte> chunk)
     padded_input_.assign(chunk.size() + AV_INPUT_BUFFER_PADDING_SIZE, std::byte{0});
     std::memcpy(padded_input_.data(), chunk.data(), chunk.size());
     parse_input(reinterpret_cast<const std::uint8_t*>(padded_input_.data()),
-                static_cast<int>(chunk.size()));
+                static_cast<int>(chunk.size()), ready_ns);
 }
 
 void H264AnnexBParser::flush()
@@ -247,7 +275,8 @@ void H264AnnexBParser::flush()
         }
         decoder_.submit_access_unit(
             std::span<const std::byte>{reinterpret_cast<const std::byte*>(access_unit),
-                                       static_cast<std::size_t>(access_unit_size)});
+                                       static_cast<std::size_t>(access_unit_size)},
+            parser_->pts > 0 ? static_cast<std::uint64_t>(parser_->pts) : 0U);
     }
 }
 

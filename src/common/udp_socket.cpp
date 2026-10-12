@@ -1,4 +1,5 @@
 #include <teleop/udp_socket.hpp>
+#include <teleop/performance.hpp>
 
 #include <arpa/inet.h>
 #include <fcntl.h>
@@ -6,6 +7,7 @@
 #include <unistd.h>
 
 #include <cerrno>
+#include <cstdio>
 #include <cstring>
 #include <stdexcept>
 #include <string>
@@ -34,6 +36,15 @@ void configure_socket_buffer(int fd, int option)
     // The effective Linux value may be capped by net.core.{r,w}mem_max.  The
     // default is still usable, so do not make platform-specific caps fatal.
     (void)setsockopt(fd, SOL_SOCKET, option, &kSocketBufferBytes, sizeof(kSocketBufferBytes));
+    if (software_metrics_enabled()) {
+        int effective = 0;
+        socklen_t length = sizeof(effective);
+        if (getsockopt(fd, SOL_SOCKET, option, &effective, &length) == 0) {
+            std::printf("socket-buffer: %s requested=%d effective-linux=%d\n",
+                        option == SO_SNDBUF ? "sndbuf" : "rcvbuf", kSocketBufferBytes, effective);
+            std::fflush(stdout);
+        }
+    }
 }
 
 } // namespace
