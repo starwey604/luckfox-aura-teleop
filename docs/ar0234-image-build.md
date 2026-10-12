@@ -94,3 +94,5 @@ sender runtime 检查、烧录脚本 dry-run 通过，没有自动烧录或重�
 用户复刷后的实机结果已补充到 [实机测试记录](ar0234-hardware-test.md)：
 裁剪错误消失，采集和 MPP→UDP→VAAPI→Vulkan 链路运行成功，
 但用户发现图像右侧约 3/4 黑屏，图像完整性仍需下一轮修复。
+后续 [暗区排查](ar0234-black-region-investigation.md) 已确认该场景欠曝光，
+通过运行时曝光/增益调整恢复可见度，无需新镜像。
