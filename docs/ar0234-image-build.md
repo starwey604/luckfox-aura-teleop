@@ -90,3 +90,7 @@ sender runtime 检查、烧录脚本 dry-run 通过，没有自动烧录或重�
 烧录命令仍为 `./tools/flash-aura-emmc`，覆盖 `/userdata`；烧录后需要
 重新实机采集验证修复效果，尚不能宣称成功出帧或达到 99.23 fps。
 新构建日志：`logs/ar0234-hardware/crop-fix-full-build.log`。
+
+用户复刷后的实机结果已补充到 [实机测试记录](ar0234-hardware-test.md)：
+裁剪错误消失，采集和 MPP→UDP→VAAPI→Vulkan 链路运行成功，
+但用户发现图像右侧约 3/4 黑屏，图像完整性仍需下一轮修复。

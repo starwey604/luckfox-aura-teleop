@@ -1,5 +1,9 @@
 # AR0234 首次 SSH 实机测试
 
+当前状态：复刷 CIF 裁剪修复镜像后，采集、MPP 编码、UDP、VAAPI 和 Vulkan
+显示链路已运行；用户观察到右侧约 3/4 黑屏，**图像完整性尚未通过**。
+详见文末的复刷测试记录。
+
 2026-10-12，用户烧录首次 AR0234 镜像、连接摄像头和网线后，通过
 `root@192.168.1.10` 执行测试。没有自动烧录、重启或解绑传感器驱动。
 
@@ -66,3 +70,76 @@ ssh root@192.168.1.10 \
 本机完整日志保存在忽略目录 `logs/ar0234-hardware/`，板上报告保存在
 `/userdata/ar0234-probe-first`、`/userdata/ar0234-capture-first`、
 `/userdata/ar0234-capture-split-graph`。全量烧录会覆盖这些板上报告。
+
+## 复刷裁剪修复镜像后的测试
+
+用户再次烧录后，SSH 确认运行 `6.1.141 #12 SMP PREEMPT`，构建时间
+2026-10-12 14:16:35。sensor/CIF/ISP 均自动显示 1280×720，裁剪偏移 (0,0)，
+`crop size is bigger than input` 错误消失。
+
+### 实机采集
+
+- 诊断脚本采集 120 帧成功，NV12，每帧 1,382,400 bytes。
+- 进一步采集 1,200 帧成功；初始化阶段 seq 从 2 跳到 26，缺口 23 帧。
+- 略过前 40 个返回帧后的 1,160 帧，实测 99.23244 fps，平均间隔
+  10.07735 ms，最小 10.036 ms、最大 10.122 ms，无后续 seq 缺口。
+- DPHY 日志：900 Mbps/lane。采集期间没有发现 CSI CRC/ECC/ERR1/ERR2 错误。
+- 仍有 online ISP 消隐警告：要求 vblank ≥1,000 µs，当前约 286 µs。
+  本轮保持商家初始化表和默认时序，没有为消除警告改动帧率。
+- 抓取了跳过 40 帧后的 NV12 样本，本机预览为较暗、偏绿的场景。
+  用户随后指出左侧约 1/4 正常，右侧约 3/4 黑屏，需单独排查。
+
+初始化表本身含 stream-on → 200 ms 等待 → stream-off → 50 ms 等待 →
+stream-on → 50 ms 等待；这可能与启流阶段的缺口有关，但本轮没有进一步
+验证因果。不能据此认定初始化期间零丢帧。
+
+### MPP → UDP → VAAPI → Vulkan
+
+sender 已部署到 `/userdata/teleop-sender`。测试使用独立 UDP 端口 5002，
+wrap 256 lines、slice 120 CTUs、H.264 30 Mbps，VENC rate-control 参数为
+100 fps；sensor 实测仍为上述约 99.23 fps。
+
+首次保存有限帧数 H.264 时，发现请求 600 帧却发送 601 帧，FFmpeg 对尾帧
+报告 `corrupt decoded frame`。原因是 sender 通过下一个 PTS 确认前一帧完整，
+停止时却把尚未确认完整的下一帧片段也 flush 了。
+
+本轮修复 sender：达到帧数上限后停止收集下一帧，并在退出时丢弃尚未通过
+下一 PTS 确认完整的片段。不会修改 SDK 或传感器寄存器，无需再刷镜像。
+在 Ubuntu Distrobox 交叉编译和 runtime 检查通过，已重新部署并复测：
+
+```text
+aura-sender: encoded-frames=300 datagrams=474 bytes=369238
+viewer: access_units=300 datagrams=474 bytes=369238 malformed=0 duplicates=0 dropped=0
+viewer stream 0: decoder: frames=300 hardware_frames=300
+presenter: frames=300
+```
+
+- 本机 viewer 在 CachyOS 原生运行，使用 VAAPI 硬件解码、SDL3/Vulkan 显示。
+- 同一份 H.264 文件经 ffprobe 确认为 1280×720、恰好 300 帧；
+  FFmpeg 全文件解码的 warning 日志为空。
+- `--frames 0` 运行后发送 SIGINT 退出，保存 289 个完整帧；
+  ffprobe 帧数一致，FFmpeg 解码 warning 日志为空，验证中断退出不发送残缺尾帧。
+- 测试程序均已退出，板上没有遗留 sender/采集任务。
+
+这证明数据链路及有限帧数/中断退出正常，**不证明图像内容完整**，
+也不是新的 screen-to-screen 延迟测量。右侧黑屏按用户要求留待下一轮修复。
+
+### 手动运行参考
+
+本机：
+
+```sh
+./build/host/bin/host-viewer --port 5000 --frames 0 --timeout-ms 3600000
+```
+
+板上（当前 sender 的默认高度仍是旧 MIA 模组的 1080，AR0234 必须指定 720）：
+
+```sh
+/userdata/teleop-sender --camera 0 --width 1280 --height 720 --fps 100 --frames 0
+```
+
+上述启动命令留供后续验证；本轮没有留下持续运行的进程。
+本机证据：`logs/ar0234-hardware/after-crop-fix-capture.log`、
+`capture-statistics.json`、`mpp-final-viewer.log`、`mpp-final-sender.log`、
+`mpp-final-file-decode.log`、`mpp-interrupt-file-decode.log`。
+采集样本在忽略目录 `captures/ar0234/`。

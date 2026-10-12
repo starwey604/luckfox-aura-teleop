@@ -515,6 +515,9 @@ int main(int argc, char* argv[])
                 // A change of PTS means the previous frame is complete.
                 if (access_unit_open && pack.u64PTS != access_unit_pts_us) {
                     send_access_unit();
+                    if (options.frame_count != 0U && encoded_frames >= options.frame_count) {
+                        break;
+                    }
                 }
                 const auto* base =
                     static_cast<const std::byte*>(RK_MPI_MB_Handle2VirAddr(pack.pMbBlk));
@@ -539,7 +542,8 @@ int main(int argc, char* argv[])
             }
             pipeline.release_stream(stream);
         }
-        send_access_unit();
+        // The pending PTS has no following PTS to confirm that all slices
+        // arrived. Drop it on shutdown instead of sending a truncated frame.
 
         std::printf("aura-sender: encoded-frames=%u datagrams=%llu bytes=%llu\n", encoded_frames,
                     static_cast<unsigned long long>(statistics.datagrams_sent),
