@@ -1,0 +1,193 @@
+From 5a35f50df3c4ac057f8ff992ad308d3fb4771e2e Mon Sep 17 00:00:00 2001
+From: Starwey <moonbite233@gmail.com>
+Date: Mon, 12 Oct 2026 20:51:52 +0800
+Subject: [PATCH] locking: add opt-in Aura hardlock slowpath records
+
+---
+ .../rv1126b_teleop_lifecycle_debug.config     |   5 +-
+ kernel/locking/qspinlock.c                    | 101 +++++++++++++++++-
+ lib/Kconfig.debug                             |  11 ++
+ 3 files changed, 115 insertions(+), 2 deletions(-)
+
+diff --git a/arch/arm64/configs/rv1126b_teleop_lifecycle_debug.config b/arch/arm64/configs/rv1126b_teleop_lifecycle_debug.config
+index 3a34013b3..020d52f4e 100644
+--- a/arch/arm64/configs/rv1126b_teleop_lifecycle_debug.config
++++ b/arch/arm64/configs/rv1126b_teleop_lifecycle_debug.config
+@@ -18,7 +18,7 @@ CONFIG_I2C_CHARDEV=y
+ CONFIG_STACKTRACE=y
+ CONFIG_KALLSYMS_ALL=y
+ CONFIG_DETECT_HUNG_TASK=y
+-CONFIG_DEFAULT_HUNG_TASK_TIMEOUT=10
++CONFIG_DEFAULT_HUNG_TASK_TIMEOUT=0
+ # CONFIG_BOOTPARAM_HUNG_TASK_PANIC is not set
+ # CONFIG_BOOTPARAM_SOFTLOCKUP_PANIC is not set
+ # CONFIG_BOOTPARAM_HARDLOCKUP_PANIC is not set
+@@ -26,3 +26,6 @@ CONFIG_DEFAULT_HUNG_TASK_TIMEOUT=10
+ CONFIG_NETCONSOLE=y
+ CONFIG_NETCONSOLE_DYNAMIC=y
+ CONFIG_CONFIGFS_FS=y
++
++# Rockit idle workers wait in D state; enable hung-task manually when useful.
++CONFIG_TELEOP_QSPINLOCK_DIAG=y
+diff --git a/kernel/locking/qspinlock.c b/kernel/locking/qspinlock.c
+index 2b2337877..3b7cd2a85 100644
+--- a/kernel/locking/qspinlock.c
++++ b/kernel/locking/qspinlock.c
+@@ -24,6 +24,98 @@
+ #include <asm/qspinlock.h>
+ #include <trace/events/lock.h>
+ 
++#ifdef CONFIG_TELEOP_QSPINLOCK_DIAG
++#include <linux/init.h>
++#include <linux/notifier.h>
++#include <linux/sched.h>
++#include <linux/stacktrace.h>
++#include <linux/string.h>
++
++/* Separate storage: never change spinlock_t or vendor module object layouts.
++ * Only capture contested acquisitions. Four slots retain nested IRQ attempts.
++ * Stack walking the current task allocates no memory and takes no locks.
++ */
++#define TELEOP_QSPIN_SLOTS 4
++#define TELEOP_QSPIN_FRAMES 12
++struct teleop_qspin_record {
++	struct qspinlock *lock;
++	u32 initial_val;
++	unsigned int count;
++	unsigned long entries[TELEOP_QSPIN_FRAMES];
++	pid_t pid;
++	char comm[TASK_COMM_LEN];
++	bool irq_off;
++	bool active;
++};
++static DEFINE_PER_CPU(struct teleop_qspin_record[TELEOP_QSPIN_SLOTS], teleop_qspin_records);
++static DEFINE_PER_CPU(unsigned int, teleop_qspin_depth);
++
++static unsigned int teleop_qspin_enter(struct qspinlock *lock, u32 val)
++{
++	unsigned int slot = __this_cpu_inc_return(teleop_qspin_depth) - 1;
++	struct teleop_qspin_record *record;
++
++	if (slot >= TELEOP_QSPIN_SLOTS)
++		return slot;
++	record = &this_cpu_ptr(teleop_qspin_records)[slot];
++	WRITE_ONCE(record->active, false);
++	record->lock = lock;
++	record->initial_val = val;
++	record->pid = current->pid;
++	memcpy(record->comm, current->comm, TASK_COMM_LEN);
++	record->irq_off = irqs_disabled();
++	record->count = stack_trace_save(record->entries, TELEOP_QSPIN_FRAMES, 1);
++	smp_store_release(&record->active, true);
++	return slot;
++}
++
++static void teleop_qspin_exit(unsigned int slot)
++{
++	if (slot < TELEOP_QSPIN_SLOTS)
++		smp_store_release(&this_cpu_ptr(teleop_qspin_records)[slot].active, false);
++	__this_cpu_dec(teleop_qspin_depth);
++}
++
++extern struct atomic_notifier_head hardlock_notifier_list;
++static int teleop_qspin_hardlock(struct notifier_block *nb, unsigned long cpu, void *unused)
++{
++	struct teleop_qspin_record *records;
++	unsigned int slot, frame;
++
++	if (cpu >= nr_cpu_ids)
++		return NOTIFY_DONE;
++	records = per_cpu_ptr(teleop_qspin_records, cpu);
++	pr_emerg("qspin-diag: hardlocked CPU%lu slowpath-depth=%u\n",
++		 cpu, READ_ONCE(per_cpu(teleop_qspin_depth, cpu)));
++	for (slot = 0; slot < TELEOP_QSPIN_SLOTS; slot++) {
++		struct teleop_qspin_record *record = &records[slot];
++
++		if (!smp_load_acquire(&record->active))
++			continue;
++		pr_emerg("qspin-diag: cpu=%lu slot=%u lock=%px initial=0x%x pid=%d comm=%.16s irq-off=%d\n",
++			 cpu, slot, record->lock, record->initial_val, record->pid,
++			 record->comm, record->irq_off);
++		/* Do not dereference the lock in a report: it may itself be bad. */
++		for (frame = 0; frame < min(record->count, (unsigned int)TELEOP_QSPIN_FRAMES); frame++)
++			pr_emerg("qspin-diag: frame=%u %pS\n", frame, (void *)record->entries[frame]);
++	}
++	return NOTIFY_OK;
++}
++static struct notifier_block teleop_qspin_notifier = {
++	.notifier_call = teleop_qspin_hardlock,
++	.priority = 100,
++};
++static int __init teleop_qspin_init(void)
++{
++	pr_info("qspin-diag: contested-lock stack capture enabled (diagnostic only)\n");
++	return atomic_notifier_chain_register(&hardlock_notifier_list, &teleop_qspin_notifier);
++}
++late_initcall(teleop_qspin_init);
++#else
++#define teleop_qspin_enter(lock, val) 0U
++#define teleop_qspin_exit(slot) do { (void)(slot); } while (0)
++#endif
++
+ /*
+  * Include queued spinlock statistics code
+  */
+@@ -318,14 +410,19 @@ void __lockfunc queued_spin_lock_slowpath(struct qspinlock *lock, u32 val)
+ 	struct mcs_spinlock *prev, *next, *node;
+ 	u32 old, tail;
+ 	int idx;
++	unsigned int diag_slot;
+ 
+ 	BUILD_BUG_ON(CONFIG_NR_CPUS >= (1U << _Q_TAIL_CPU_BITS));
+ 
++	diag_slot = teleop_qspin_enter(lock, val);
++
+ 	if (pv_enabled())
+ 		goto pv_queue;
+ 
+-	if (virt_spin_lock(lock))
++	if (virt_spin_lock(lock)) {
++		teleop_qspin_exit(diag_slot);
+ 		return;
++	}
+ 
+ 	/*
+ 	 * Wait for in-progress pending->locked hand-overs with a bounded
+@@ -389,6 +486,7 @@ void __lockfunc queued_spin_lock_slowpath(struct qspinlock *lock, u32 val)
+ 	 */
+ 	clear_pending_set_locked(lock);
+ 	lockevent_inc(lock_pending);
++	teleop_qspin_exit(diag_slot);
+ 	return;
+ 
+ 	/*
+@@ -563,6 +661,7 @@ void __lockfunc queued_spin_lock_slowpath(struct qspinlock *lock, u32 val)
+ 	 * release the node
+ 	 */
+ 	__this_cpu_dec(qnodes[0].mcs.count);
++	teleop_qspin_exit(diag_slot);
+ }
+ EXPORT_SYMBOL(queued_spin_lock_slowpath);
+ 
+diff --git a/lib/Kconfig.debug b/lib/Kconfig.debug
+index ee7a044a6..240c55307 100644
+--- a/lib/Kconfig.debug
++++ b/lib/Kconfig.debug
+@@ -1172,6 +1172,17 @@ config BOOTPARAM_HUNG_TASK_PANIC
+ 
+ 	  Say N if unsure.
+ 
++config TELEOP_QSPINLOCK_DIAG
++	bool "Aura contested-spinlock hardlockup diagnostics"
++	depends on ARM64 && QUEUED_SPINLOCKS && STACKTRACE && HARDLOCKUP_DETECTOR_OTHER_CPU
++	depends on !PARAVIRT_SPINLOCKS
++	default n
++	help
++	  Capture the lock address and current call chain on queued-spinlock
++	  slowpath entry, and report the stalled CPU's records on hardlockup.
++	  Intended for temporary Aura diagnosis, not latency benchmarking.
++	  This uses separate per-CPU storage and preserves spinlock layouts.
++
+ config WQ_WATCHDOG
+ 	bool "Detect Workqueue Stalls"
+ 	depends on DEBUG_KERNEL

@@ -1,0 +1,38 @@
+From 00cef47d228d12ae501b655c32f5167819e97531 Mon Sep 17 00:00:00 2001
+From: Starwey <moonbite233@gmail.com>
+Date: Mon, 12 Oct 2026 20:37:59 +0800
+Subject: [PATCH] netpoll: synchronize pre-existing NAPI polls before enabling
+ console
+
+Backport upstream 2da4def0f487f24bbb0cece3bb2bcdcb918a0b72
+(stable c0e32ec90a9ab3d64268c57ddf631cd0d3eb0e5d).
+The SDK setup function uses the older put/error path and a device tracker;
+retain that code and add the same RCU grace period after rtnl_unlock.
+
+This prevents an existing normal NAPI poll from overlapping the first
+netpoll poll while dev->npinfo becomes visible. It repairs the diagnostic
+netconsole path; it is not claimed to fix the camera/MPP hang.
+
+Link: https://github.com/gregkh/linux/commit/c0e32ec90a9ab3d64268c57ddf631cd0d3eb0e5d
+---
+ net/core/netpoll.c | 7 +++++++
+ 1 file changed, 7 insertions(+)
+
+diff --git a/net/core/netpoll.c b/net/core/netpoll.c
+index 657abbb7d..89f5358d7 100644
+--- a/net/core/netpoll.c
++++ b/net/core/netpoll.c
+@@ -800,6 +800,13 @@ int netpoll_setup(struct netpoll *np)
+ 		goto put;
+ 	netdev_tracker_alloc(ndev, &np->dev_tracker, GFP_KERNEL);
+ 	rtnl_unlock();
++
++	/* Make sure all NAPI polls which started before dev->npinfo
++	 * was visible have exited before we start calling NAPI poll.
++	 * NAPI skips locking if dev->npinfo is NULL.
++	 */
++	synchronize_rcu();
++
+ 	return 0;
+ 
+ put:

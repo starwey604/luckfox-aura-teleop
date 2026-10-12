@@ -79,7 +79,7 @@ Order matters: apply the SDK patch stack and `select-teleop-board` before SDK bu
   `flash-aura-emmc` overwrites `userdata`.
 - The user requests short camera tests while the board has no fan: default 120 frames
   per camera, no automatic long runs. The profiling tool rejects >300 frames without
-  `--allow-long` and a start temperature >=50 C by default. Do not use the override
+  `--allow-long` and a start temperature >=70 C by default (user raised the limit on 2026-10-12). Do not use `--allow-long`
   unless the user later explicitly requests longer tests. Repeated stereo restart
   can lock the board; a manual user reboot is required after loss of connectivity.
 

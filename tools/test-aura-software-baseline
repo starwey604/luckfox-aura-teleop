@@ -28,7 +28,7 @@ echo sample
 cat /proc/uptime /proc/stat /proc/net/snmp
 for p in /sys/class/thermal/thermal_zone*/temp /sys/class/devfreq/*/cur_freq; do echo "$p"; cat "$p"; done
 for p in /proc/[0-9]*/comm; do
-read name < "$p" || continue
+read name 2>/dev/null < "$p" || continue
 case "$name" in teleop-sender*)
 pid=$(dirname "$p")
 cat "$pid/stat" "$pid/status"
@@ -44,7 +44,7 @@ def main():
     parser.add_argument("--camera", choices=("0", "1", "dual"), required=True)
     parser.add_argument("--frames", type=int, default=120, help="Frames per camera; short tests by default")
     parser.add_argument("--allow-long", action="store_true", help="Explicitly allow more than 300 frames after cooling is arranged")
-    parser.add_argument("--start-temp-c", type=int, default=50, help="Refuse camera start at or above this temperature")
+    parser.add_argument("--start-temp-c", type=int, default=70, help="Refuse camera start at or above this temperature")
     parser.add_argument("--vertical-blanking", type=int, help="Optional diagnostic sensor VBLANK; changes capture fps")
     parser.add_argument("--port", type=int, default=5000)
     parser.add_argument("--mode", choices=("decode", "transport"), default="decode")

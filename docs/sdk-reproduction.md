@@ -126,4 +126,7 @@ pull 保证镜像 SHA-256 相同。内核构建时间、构建用户名/主机�
 可选 `./tools/select-teleop-board ../aura-sdk ar0234-stereo-debug`，随后用 Distrobox
 运行 `./build.sh driver`（内核+外部模块）和 `./build.sh firmware`。其余 profile 不变。
 诊断版增加 stacktrace/hung-task/netconsole，关闭 lockup/stall 默认 panic；不作为延迟 baseline。
-详情见 [本轮排查记录](sender-lifecycle-debug-2026-10-12.md)。
+详情见 [初轮排查记录](sender-lifecycle-debug-2026-10-12.md) 和
+[CPU0 hardlock 诊断及 #16 镜像](sender-hardlock-debug-2026-10-12.md)。
+当前 kernel patch 共19条，新增 netpoll 的 RCU 同步修复和仅诊断 profile 启用的
+`CONFIG_TELEOP_QSPINLOCK_DIAG`；hung-task 自动超时改为0，保留按需启用能力。
