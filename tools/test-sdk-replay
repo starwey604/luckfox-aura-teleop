@@ -1,0 +1,46 @@
+#!/usr/bin/env python3
+"""Replay the real series on isolated baseline clones and compare source trees."""
+import argparse
+from pathlib import Path
+import subprocess
+import tempfile
+
+
+def run(*args):
+    subprocess.run(args, check=True)
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("sdk", type=Path)
+    args = parser.parse_args()
+    sdk = args.sdk.resolve()
+    root = Path(__file__).resolve().parent.parent
+    run(str(root / "tools/verify-sdk-baseline"), str(sdk))
+    series = [line.split("|") for line in (root / "sdk/series.tsv").read_text().splitlines()
+              if line and not line.startswith("#")]
+    with tempfile.TemporaryDirectory(prefix="aura-sdk-replay-") as temp:
+        target = Path(temp)
+        (target / ".repo").mkdir()
+        # Parents must exist before cloning their nested independent projects.
+        for path, base, _ in sorted(series, key=lambda item: item[0].count("/")):
+            dest = target / path
+            dest.parent.mkdir(parents=True, exist_ok=True)
+            run("git", "clone", "--quiet", "--shared", "--no-checkout", str(sdk / path), str(dest))
+            run("git", "-C", str(dest), "checkout", "--quiet", "--detach", base)
+        run(str(root / "tools/sdk-patch"), "check", str(target))
+        run(str(root / "tools/sdk-patch"), "apply", str(target))
+        for path, _, _ in series:
+            def tree(directory):
+                return subprocess.check_output(["git", "-C", str(directory), "rev-parse", "HEAD^{tree}"], text=True).strip()
+            expected, actual = tree(sdk / path), tree(target / path)
+            if expected != actual:
+                raise SystemExit(f"FAIL: {path}: live tree {expected} != replayed tree {actual}")
+            print(f"PASS: {path}: source tree {actual}", flush=True)
+        # An up-to-date SDK must not acquire extra commits on repeated apply.
+        run(str(root / "tools/sdk-patch"), "apply", str(target))
+    print("All patch trees reproduced; original SDK worktrees unchanged. This is not a full image build.")
+
+
+if __name__ == "__main__":
+    main()

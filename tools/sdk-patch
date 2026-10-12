@@ -1,6 +1,7 @@
 #!/bin/sh
 # Apply the project-owned patch stack to a clean Aura SDK checkout.
 set -eu
+export LC_ALL=C
 
 usage() {
 	printf '%s\n' "usage: $0 {check|status|apply|export} <aura-sdk-path>"
@@ -47,15 +48,51 @@ check_one() {
 		printf '%s\n' "error: baseline commit unavailable in $project: $base" >&2
 		return 1
 	}
+	head=$(git -C "$path" rev-parse HEAD)
+	git -C "$path" merge-base --is-ancestor "$base" "$head" || {
+		printf '%s\n' "error: $project HEAD is not descended from the pinned baseline: $base" >&2
+		return 1
+	}
+	# Replay dependent patches on an isolated index, never on the SDK worktree.
+	# Checking every patch against the original baseline misses series dependencies.
+	index="$temporary/index"
+	rm -f "$index"
+	GIT_INDEX_FILE="$index" git -C "$path" read-tree "$base"
+	head_tree=$(git -C "$path" rev-parse 'HEAD^{tree}')
+	tree=$(GIT_INDEX_FILE="$index" git -C "$path" write-tree)
+	applied=-1
+	[ "$tree" != "$head_tree" ] || applied=0
+	total=0
 	if has_patches "$patch_dir"; then
-		[ "$(git -C "$path" rev-parse HEAD)" = "$base" ] || {
-			printf '%s\n' "error: $project is not at its baseline; refusing to apply patches" >&2
-			return 1
-		}
 		for patch in "$patch_dir"/*.patch; do
-			git -C "$path" apply --check "$patch" || return 1
+			GIT_INDEX_FILE="$index" git -C "$path" apply --cached "$patch" || {
+				printf '%s\n' "error: cannot replay $project patch: $patch" >&2
+				return 1
+			}
+			total=$((total + 1))
+			tree=$(GIT_INDEX_FILE="$index" git -C "$path" write-tree)
+			[ "$tree" != "$head_tree" ] || applied=$total
 		done
 	fi
+	[ "$applied" -ge 0 ] || {
+		printf '%s\n' "error: $project differs from the baseline and every saved patch prefix; use a separate matching SDK or port the patches" >&2
+		return 1
+	}
+	# Refuse untracked files which git am would have to overwrite.
+	git -C "$path" diff --name-only HEAD "$tree" > "$temporary/changed"
+	git -C "$path" ls-files --others > "$temporary/untracked"
+	python3 - "$temporary/changed" "$temporary/untracked" <<'PY'
+import sys
+from pathlib import Path
+changed = Path(sys.argv[1]).read_text().splitlines()
+untracked = Path(sys.argv[2]).read_text().splitlines()
+for name in untracked:
+    if any(name == target or name.startswith(target + '/') or target.startswith(name + '/')
+           for target in changed):
+        sys.exit('error: untracked file blocks a patch: ' + name)
+PY
+	printf '%s|%s|%s|%s\n' "$project" "$applied" "$total" "$head" >> "$temporary/plan"
+	printf 'checked: %s (%s/%s saved patches already present)\n' "$project" "$applied" "$total"
 }
 
 status_one() {
@@ -102,21 +139,42 @@ case "$command" in
 	*) usage ;;
 esac
 
+temporary=$(mktemp -d)
+trap 'rm -rf "$temporary"' EXIT
+trap 'exit 130' INT
+trap 'exit 143' TERM HUP
+
+# Preflight ALL projects before mutating any of them.
+if [ "$command" = check ] || [ "$command" = apply ]; then
+	while IFS='|' read -r project base branch; do
+		case "$project" in ''|\#*) continue ;; esac
+		check_one "$project" "$base"
+	done < "$series"
+	[ "$command" != check ] || exit 0
+	while IFS='|' read -r project applied total original_head; do
+		[ "$(git -C "$sdk/$project" rev-parse HEAD)" = "$original_head" ] && project_clean "$sdk/$project" || {
+			printf '%s\n' "error: $project changed after preflight" >&2
+			exit 1
+		}
+		if [ "$applied" -eq "$total" ]; then
+			printf '%s\n' "skipped (up to date): $project"
+			continue
+		fi
+		set -- "$root/sdk/patches/$project/"*.patch
+		shift "$applied"
+		git -C "$sdk/$project" am --3way "$@" || {
+			printf '%s\n' "error: git am failed in $project; inspect git status there, then resolve with git am --continue or cancel with git am --abort" >&2
+			exit 1
+		}
+		printf '%s\n' "applied: $project"
+	done < "$temporary/plan"
+	exit 0
+fi
+
 while IFS='|' read -r project base branch; do
 	case "$project" in ''|\#*) continue ;; esac
 	case "$command" in
-		check) check_one "$project" "$base" ;;
 		status) status_one "$project" "$base" ;;
-		apply)
-			check_one "$project" "$base"
-			patch_dir="$root/sdk/patches/$project"
-			if has_patches "$patch_dir"; then
-				git -C "$sdk/$project" am --3way "$patch_dir"/*.patch
-				printf '%s\n' "applied: $project"
-			else
-				printf '%s\n' "skipped (no patches): $project"
-			fi
-			;;
 		export) export_one "$project" "$base" "$branch" ;;
 	esac
 done < "$series"

@@ -1,0 +1,67 @@
+#!/usr/bin/env python3
+"""Verify all vendor project revisions and the saved patch series, without checkout."""
+import argparse
+from pathlib import Path
+import subprocess
+import sys
+import xml.etree.ElementTree as ET
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("sdk", type=Path)
+    args = parser.parse_args()
+    sdk = args.sdk.resolve()
+    root = Path(__file__).resolve().parent.parent
+    if not (sdk / ".repo").is_dir():
+        parser.error("SDK must be a repo checkout (.repo is missing)")
+    patched = {}
+    for line in (root / "sdk/series.tsv").read_text().splitlines():
+        if line and not line.startswith("#"):
+            path, base, _ = line.split("|")
+            patched[path] = base
+    projects = ET.parse(root / "sdk/manifest.lock.xml").findall("project")
+    seen = set()
+    errors = []
+    for project in projects:
+        path = project.get("path", project.get("name"))
+        revision = project.get("revision")
+        seen.add(path)
+        worktree = sdk / path
+        if not (worktree / ".git").exists():
+            errors.append(f"{path}: missing Git project")
+            continue
+        if path in patched and patched[path] != revision:
+            errors.append(f"{path}: series baseline differs from manifest lock")
+        try:
+            head = subprocess.check_output(
+                ["git", "-C", str(worktree), "rev-parse", "HEAD"], text=True
+            ).strip()
+            dirty = subprocess.check_output(
+                ["git", "-C", str(worktree), "status", "--porcelain", "--untracked-files=no"],
+                text=True,
+            ).strip()
+        except subprocess.CalledProcessError:
+            errors.append(f"{path}: cannot inspect Git state")
+            continue
+        if path not in patched and head != revision:
+            errors.append(f"{path}: expected {revision}, found {head}")
+        if dirty:
+            errors.append(f"{path}: tracked changes are not saved in the patch stack")
+    for path in patched.keys() - seen:
+        errors.append(f"{path}: patch project missing from manifest lock")
+    if errors:
+        print("SDK does not match the locked source baseline:", file=sys.stderr)
+        for error in errors:
+            print("  " + error, file=sys.stderr)
+        return 1
+    result = subprocess.run([str(root / "tools/sdk-patch"), "check", str(sdk)])
+    if result.returncode:
+        return result.returncode
+    print(f"Verified {len(projects)} vendor projects; patched projects match saved series prefixes.")
+    print("This checks source revisions, not installed build packages or byte-identical images.")
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

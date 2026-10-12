@@ -7,7 +7,7 @@ set -eu
 	exit 2
 }
 
-sdk=$1
+sdk=$(CDPATH= cd -- "$1" && pwd)
 case "${2:-mia1321}" in
 	mia1321) suffix=Teleop ;;
 	ar0234) suffix=Teleop-AR0234 ;;

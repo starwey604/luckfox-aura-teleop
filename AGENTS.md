@@ -18,13 +18,15 @@ Docs in `docs/` are Chinese planning/records; treat config and scripts as the so
   Their CMake scripts hard-fail if `/run/.containerenv` or `/.dockerenv` exists, so never
   configure them inside Distrobox. `./tools/build-host` also builds `transport-test-sender`.
 
-There is no CI and no git remote; all build/test steps are run manually.
+There is no CI; all build/test steps are run manually. The origin remote is GitHub.
 
 ## Commands
 
 ```sh
 ./tools/select-teleop-board <sdk>      # symlink .BoardConfig.mk to the teleop BoardConfig
 ./tools/sdk-patch {check|status|apply|export} <sdk>   # patch stack management
+./tools/verify-sdk-baseline <sdk>     # all 63 locked vendor revisions + saved patch prefixes
+./tools/test-sdk-replay <sdk>         # isolated clean-baseline clones, compare patched trees
 ./tools/build-aura                     # cross-compile sender (in Distrobox)
 ./tools/check-aura-runtime             # verify AArch64 ELF, RPATH, SDK staging + images
 ./tools/deploy-aura                    # scp sender to /userdata, print --help on board
@@ -43,8 +45,10 @@ Order matters: apply the SDK patch stack and `select-teleop-board` before SDK bu
 
 - `sdk/series.tsv` (pipe-delimited `repo-path|baseline-commit|branch`) is authoritative;
   the `series.toml` name in `docs/` is stale. Patch dirs mirror SDK repo paths.
-- `tools/sdk-patch` requires a real `.repo` checkout. `apply` refuses dirty worktrees or a
-  HEAD that is not the pinned baseline, uses `git am --3way`, and never runs `reset`/`clean`.
+- `tools/sdk-patch` requires a real `.repo` checkout. `check` replays the series on a temporary
+  index; `apply` preflights all projects, accepts the baseline or an exact saved patch prefix,
+  applies only missing patches with `git am --3way`, and never runs `reset`/`clean`.
+  Other vendor SDK versions need a separate matching checkout or an explicit port.
   Only `export` pulls from the listed `teleop/*` branches; don't commit one-off SDK experiments.
 - After changing SDK config, prefer editing the source locations under `sysdrv/tools/...` /
   the BoardConfig patch. Do not edit `sysdrv/source/buildroot/buildroot-2025.02.6`, which is
@@ -84,6 +88,8 @@ Order matters: apply the SDK patch stack and `select-teleop-board` before SDK bu
 
 ## Tests
 
+- `tests/sdk/test_patch_stack.py` checks sequential patches, partial/repeated apply, refusal
+  before mutation, manifest mismatches and relative BoardConfig selection. Run in Distrobox.
 - `tests/protocol/` has the real unit test (`ctest` via `test-transport-loopback`).
 - `tests/latency/` is still a placeholder. `tests/h264/` and `tests/usb-camera/` document
   host-only hardware validation; see their READMEs for acceptance output

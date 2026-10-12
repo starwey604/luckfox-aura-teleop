@@ -1,10 +1,14 @@
 # Luckfox Aura Teleop 工作区与 SDK 开发方案
 
+本文保留早期设计过程。当前双 AR0234 的实际复现命令、基线限制、应用单独部署
+和镜像可复现范围，优先参见 [SDK 复现步骤](sdk-reproduction.md)。
+补丁清单实际为 `sdk/series.tsv`；本机 viewer 在 CachyOS 原生构建。
+
 ## 1. 目标
 
 本项目在不直接维护整套厂商 SDK fork 的前提下，为 Luckfox Aura（RV1126B）建立可重复、可审查、可升级的开发工作区。`luckfox-aura-teleop` 是配置、补丁、应用源码、构建说明和测试结果的唯一来源；`aura-sdk` 是可以重新同步和重新应用补丁的厂商工作树。
 
-所有构建在 Ubuntu 22.04 Distrobox 容器中执行。宿主机与容器共享 `/home/ww/codings`，因此项目仓库和 SDK 不需要在容器里重复克隆。
+SDK 和板端程序在 Ubuntu 22.04 Distrobox 容器中构建；本机 viewer 在 CachyOS 原生构建。宿主机与容器共享 `/home/ww/codings`，因此项目仓库和 SDK 不需要在容器里重复克隆。
 
 ## 2. 为什么使用跨子仓库 patch stack
 
@@ -37,7 +41,7 @@ luckfox-aura-teleop/
 ├── sdk/
 │   ├── manifest.lock.xml
 │   ├── baseline.toml
-│   ├── series.toml
+│   ├── series.tsv
 │   └── patches/
 │       ├── sysdrv/source/kernel/
 │       ├── sysdrv/
@@ -155,7 +159,7 @@ sdk-patch export <sdk-path>
 
 `apply` 必须：
 
-- 按 `series.toml` 的确定顺序运行；
+- 按 `series.tsv` 的确定顺序运行；
 - 每个项目使用 `git am --3way`；
 - 任一项目失败时停止并显示恢复命令；
 - 已经应用的 patch 不重复应用；
