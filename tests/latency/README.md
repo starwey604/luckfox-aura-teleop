@@ -2,6 +2,10 @@
 
 The primary procedure is in [`docs/screen-to-screen-latency-test-plan.md`](../../docs/screen-to-screen-latency-test-plan.md).
 
+For the current dual AR0234 image, use the frozen-image, optical measurement and
+A/B procedure in [`docs/stereo-latency-baseline-plan.md`](../../docs/stereo-latency-baseline-plan.md).
+The original single-camera instructions below remain a stimulus usage example.
+
 The first optical stimulus is built on the CachyOS host only:
 
 ```sh

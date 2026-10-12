@@ -12,3 +12,7 @@ SDK/板端程序在 Ubuntu 22.04 Distrobox 编译，本机 viewer 在 CachyOS �
 [双 AR0234 实机结果与启动方式](docs/ar0234-stereo-bringup.md)：两路 1280×720
 约 99.23 fps，目前双路默认关闭 wrap 并错开初始化；长时间稳定性与新的
 screen-to-screen 延迟仍待验收。
+
+[内核/Buildroot 裁剪与编译优化计划](docs/kernel-buildroot-optimization-plan.md)
+及 [双路延迟基线与 A/B 测试](docs/stereo-latency-baseline-plan.md)：先冻结并测量现有镜像，
+再逐项裁剪、调优，保留可以复测的结果。

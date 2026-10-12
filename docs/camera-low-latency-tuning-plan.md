@@ -1,5 +1,10 @@
 # Luckfox Aura 双目摄像头低延迟调优方案
 
+> 本文保留 MIA1321 bring-up 阶段的历史规划。2026-10-12 的双 AR0234 有效配置与下一阶段方案见
+> [内核/Buildroot 优化计划](kernel-buildroot-optimization-plan.md) 和
+> [双路延迟基线计划](stereo-latency-baseline-plan.md)。当前已经启用 PREEMPT/1000 Hz/O2；
+> 双路 wrap 仍关闭，不能直接套用本文的早期延迟估算或逐 slice 发送设想。
+
 ## 1. 实验目标
 
 本项目使用 Luckfox Aura（RV1126B）和全局快门 MIPI 摄像头，先跑通单路、随后扩展到双路，用直接网线连接 CachyOS 接收机，测量机械臂双目遥操作场景的 screen-to-screen 延迟。

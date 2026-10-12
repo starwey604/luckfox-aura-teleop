@@ -1,0 +1,123 @@
+{
+  "workspace_commit": "b4bd5e7f31bb341d91270d7e031512ee10fb19ee",
+  "board_config": "project/cfg/BoardConfig_Aura/BoardConfig-EMMC-RK801-Luckfox_Aura-Teleop-AR0234-Stereo-Buildroot.mk",
+  "kernel_config_sha256": "fd4648a27f07b5ec34da49196683a08809e464bf0ef57806e355e23b173b6e0e",
+  "buildroot_config_sha256": "ef7afa31c5d0981b618b113971437cbd26bab1a1b922bfc86cbefcd0cac623b7",
+  "images": {
+    "env.img": {
+      "sha256": "b328c39b437d60a7d21f005efebc0624c5d9fb8b4ad65da45bbdeeb143922b04",
+      "size_bytes": 32768
+    },
+    "idblock.img": {
+      "sha256": "f91ad48bb4d6925a71c30b2fdaa9d3bc1b24bfdf5a1d3da927882575007e22a3",
+      "size_bytes": 311296
+    },
+    "uboot.img": {
+      "sha256": "c766c45355c7b33477167b2be21bd5bfdcd734f15a25004fb65eaa35c251b323",
+      "size_bytes": 524288
+    },
+    "boot.img": {
+      "sha256": "57b4c2ae0654ab1eb7128f7faa3f0d944826ef0d2e468da325861d8fcc9dd3d5",
+      "size_bytes": 10949632
+    },
+    "userdata.img": {
+      "sha256": "975598950b287b7cfb350c4668dc2323f853e868f266455c3ae9f728d8c9c37b",
+      "size_bytes": 36192256
+    },
+    "oem.img": {
+      "sha256": "181d86d22229ca7fe239590e4b92845217bf04ef277d1c421f734768eb71f03d",
+      "size_bytes": 263872512
+    },
+    "rootfs.img": {
+      "sha256": "f9f4270edc908031c739d247a0533883f8c92cf82310fe935bdadfb8271ffaa0",
+      "size_bytes": 397290496
+    }
+  },
+  "projects": {
+    "sysdrv": "ad25269c183618ffb9e0c0ed1976dd45d229dca4",
+    "sysdrv/source/kernel": "b17875fb33551460cecd0169a9f41bd63dfd8106",
+    "project": "31992a6ab2a5387f718e33653df56fd3df2e3f38",
+    "project/cfg/BoardConfig_Aura": "83389e1add23bfcfa9bca5c6f41f5b1fe29f340c",
+    "media": "fb94466e2a3227eada0e9ce1b02db58ec4b3b33e"
+  },
+  "host-viewer_sha256": "d798ff3e143b6d91d040ca2bd0a32b40b1c680b6dc8411ae2e953b3c9a13d6ac",
+  "latency-stimulus_sha256": "a672b6b49050be69414c451d001d53a276ef3c26197e29ba8a65b69eb74b859d",
+  "kernel_enabled_count": 1292,
+  "buildroot_package_enabled_count": 410,
+  "teleop-sender_sha256": "306db20a9a7cb96a13af071f9015600b388f0a1ff077291cd72f6ae5e308536c",
+  "kernel_options": {
+    "CONFIG_CC_VERSION_TEXT": "\"aarch64-rockchip1240-linux-gnu-gcc (v2.38) 12.4.0\"",
+    "CONFIG_PREEMPT": "y",
+    "CONFIG_HZ": "1000",
+    "CONFIG_NO_HZ_IDLE": "y",
+    "CONFIG_HIGH_RES_TIMERS": "y",
+    "CONFIG_CC_OPTIMIZE_FOR_PERFORMANCE": "y",
+    "CONFIG_LTO_NONE": "y",
+    "CONFIG_ARCH_SUPPORTS_LTO_CLANG": "y",
+    "CONFIG_ARCH_SUPPORTS_LTO_CLANG_THIN": "y",
+    "CONFIG_DEVFREQ_GOV_PERFORMANCE": "n",
+    "CONFIG_CPU_FREQ_DEFAULT_GOV_INTERACTIVE": "y",
+    "CONFIG_CPU_FREQ_GOV_PERFORMANCE": "y",
+    "CONFIG_ARM_ROCKCHIP_DMC_DEVFREQ": "y",
+    "CONFIG_CPU_IDLE": "y",
+    "CONFIG_NET_RX_BUSY_POLL": "y",
+    "CONFIG_RPS": "y",
+    "CONFIG_XPS": "y",
+    "CONFIG_BQL": "y",
+    "CONFIG_NET_SCHED": "n",
+    "CONFIG_NETFILTER": "y",
+    "CONFIG_IPV6": "y",
+    "CONFIG_SOUND": "y",
+    "CONFIG_DRM": "y",
+    "CONFIG_FB": "y",
+    "CONFIG_USB_SUPPORT": "y",
+    "CONFIG_WLAN": "y",
+    "CONFIG_BT": "y",
+    "CONFIG_ROCKCHIP_RKNPU": "y",
+    "CONFIG_VIDEO_AR0234": "y",
+    "CONFIG_VIDEO_MIA1321": "y",
+    "CONFIG_VIDEO_ROCKCHIP_CIF": "y",
+    "CONFIG_VIDEO_ROCKCHIP_ISP": "y",
+    "CONFIG_VIDEO_ROCKCHIP_VPSS": "y",
+    "CONFIG_VIDEO_ROCKCHIP_AIISP": "y",
+    "CONFIG_ROCKCHIP_MULTI_RGA": "y",
+    "CONFIG_ROCKCHIP_MPP_SERVICE": "n",
+    "CONFIG_ROCKCHIP_MPP_OSAL": "y",
+    "CONFIG_ROCKCHIP_DVBM": "y",
+    "CONFIG_DMABUF_HEAPS_ROCKCHIP_CMA_HEAP": "y",
+    "CONFIG_MODULES": "y",
+    "CONFIG_MODVERSIONS": "n",
+    "CONFIG_SECCOMP": "y",
+    "CONFIG_IKCONFIG_PROC": "y",
+    "CONFIG_DEBUG_FS": "y",
+    "CONFIG_DEBUG_INFO": "y",
+    "CONFIG_FTRACE": "n",
+    "CONFIG_FUNCTION_TRACER": "n",
+    "CONFIG_GCOV_KERNEL": "n",
+    "CONFIG_STMMAC_ETH": "y",
+    "CONFIG_DWMAC_ROCKCHIP": "y"
+  },
+  "buildroot_options": {
+    "BR2_OPTIMIZE_S": "y",
+    "BR2_ENABLE_LTO": "n",
+    "BR2_GCC_VERSION": "\"12.4.0\"",
+    "BR2_TOOLCHAIN_BUILDROOT_GLIBC": "y",
+    "BR2_PACKAGE_ALSA_UTILS": "y",
+    "BR2_PACKAGE_ALSA_LIB": "y",
+    "BR2_PACKAGE_FFMPEG": "y",
+    "BR2_PACKAGE_GSTREAMER1": "y",
+    "BR2_PACKAGE_PYTHON3": "y",
+    "BR2_PACKAGE_OPENSSH": "y",
+    "BR2_PACKAGE_ETHTOOL": "y",
+    "BR2_PACKAGE_IPERF3": "y",
+    "BR2_PACKAGE_IPROUTE2": "y",
+    "BR2_PACKAGE_TCPDUMP": "y",
+    "BR2_PACKAGE_LIBV4L_UTILS": "y",
+    "BR2_PACKAGE_I2C_TOOLS": "n",
+    "BR2_PACKAGE_ANDROID_TOOLS": "y",
+    "BR2_PACKAGE_BLUEZ5_UTILS": "y",
+    "BR2_PACKAGE_HOSTAPD": "y",
+    "BR2_PACKAGE_IPTABLES": "y"
+  },
+  "note": "Source and local artifact audit only. Board SSH closed connections during this audit; no fresh runtime governor or optical latency measurement. BR2_PACKAGE_ enabled count includes feature symbols, not installed package count. I2C tools are installed by the SDK supplemental build despite BR2_PACKAGE_I2C_TOOLS=n in this generated baseline config."
+}
