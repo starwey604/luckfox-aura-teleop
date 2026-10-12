@@ -19,3 +19,6 @@ screen-to-screen 延迟仍待验收。
 
 [软件性能基线首轮](docs/software-performance-baseline-2026-10-12.md)：`TELEOP_METRICS=1`
 启用板端/主机局部阶段统计；本机回放已测出 parser 等待，实机双路编码失联仍待排查。
+
+[重启后实机数据与温度核对](docs/software-performance-baseline-reboot-2026-10-12.md)：
+`tools/test-aura-software-baseline` 自动配对 SSH sender 与本机 headless viewer，默认短测并检查启动温度。

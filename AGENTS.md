@@ -34,6 +34,7 @@ There is no CI; all build/test steps are run manually. The origin remote is GitH
 ./tools/test-transport-loopback        # build, run ctest protocol suite, host UDP round-trip
 ./tools/test-vaapi-decoder             # generate H.264 via ffmpeg, prove VAAPI hw decode
 ./tools/test-vulkan-presenter          # VAAPI -> DRM PRIME -> Vulkan/SDL3 window
+./tools/test-aura-software-baseline --camera {0|1|dual} --output <new-dir>  # bounded SSH/native profiling
 ./tools/test-usb-camera-loopback       # /dev/video0 -> UDP -> VAAPI/Vulkan (needs real camera)
 ./tools/flash-aura-emmc [--dry-run]    # full eMMC flash via Rockchip upgrade_tool
 ```
@@ -76,6 +77,11 @@ Order matters: apply the SDK patch stack and `select-teleop-board` before SDK bu
   reset: `sudo ./upgrade_tool wl 0x607C40 ../../../output/image/rootfs.img && sudo ./upgrade_tool rd`
   (the `0x607C40` offset is tied to the current teleop `env.img`; don't reuse across layouts).
   `flash-aura-emmc` overwrites `userdata`.
+- The user requests short camera tests while the board has no fan: default 120 frames
+  per camera, no automatic long runs. The profiling tool rejects >300 frames without
+  `--allow-long` and a start temperature >=50 C by default. Do not use the override
+  unless the user later explicitly requests longer tests. Repeated stereo restart
+  can lock the board; a manual user reboot is required after loss of connectivity.
 
 ## Camera notes
 

@@ -1,0 +1,202 @@
+#!/usr/bin/env python3
+"""Bounded SSH sender + native VAAPI/transport test; preserves baseline binaries."""
+import argparse
+import json
+import os
+from pathlib import Path
+import re
+import shlex
+import socket
+import subprocess
+import sys
+import time
+
+ROOT = Path(__file__).resolve().parents[1]
+SNAPSHOT = """cat /proc/uptime /proc/stat /proc/meminfo /proc/net/snmp /proc/net/softnet_stat
+cat /proc/interrupts
+for p in /sys/class/thermal/thermal_zone*/temp /sys/class/devfreq/*/cur_freq; do echo "$p"; cat "$p"; done
+ethtool -S eth0
+ps
+dmesg | tail -80
+"""
+MONITOR = """echo monitor_pid=$$
+trap 'exit 0' TERM INT HUP
+while :; do
+echo sample
+cat /proc/uptime /proc/stat /proc/net/snmp
+for p in /sys/class/thermal/thermal_zone*/temp /sys/class/devfreq/*/cur_freq; do echo "$p"; cat "$p"; done
+for p in /proc/[0-9]*/comm; do
+read name < "$p" || continue
+case "$name" in teleop-sender*)
+pid=$(dirname "$p")
+cat "$pid/stat" "$pid/status"
+for t in "$pid"/task/*/stat; do cat "$t"; done
+;; esac
+done
+sleep 1
+done
+"""
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--camera", choices=("0", "1", "dual"), required=True)
+    parser.add_argument("--frames", type=int, default=120, help="Frames per camera; short tests by default")
+    parser.add_argument("--allow-long", action="store_true", help="Explicitly allow more than 300 frames after cooling is arranged")
+    parser.add_argument("--start-temp-c", type=int, default=50, help="Refuse camera start at or above this temperature")
+    parser.add_argument("--port", type=int, default=5000)
+    parser.add_argument("--mode", choices=("decode", "transport"), default="decode")
+    parser.add_argument("--host", default="root@192.168.1.10")
+    parser.add_argument("--sender", default="/userdata/teleop-sender-metrics")
+    parser.add_argument("--viewer", type=Path, default=ROOT / "build/host-metrics/bin/host-viewer")
+    parser.add_argument("--output", type=Path, required=True)
+    args = parser.parse_args()
+    if args.frames <= 0 or not 0 < args.port < 65536:
+        parser.error("Invalid frame count/port")
+    if args.frames > 300 and not args.allow_long:
+        parser.error("Short-test policy: use <=300 frames; longer runs require --allow-long")
+    if not 1 <= args.start_temp_c <= 100:
+        parser.error("Invalid start temperature")
+    if Path("/run/.containerenv").exists() or Path("/.dockerenv").exists():
+        parser.error("Run natively, not in Distrobox")
+    args.output.mkdir(parents=True, exist_ok=False)
+    ssh = ["ssh", "-o", "ConnectTimeout=5", "-o", "ServerAliveInterval=3",
+           "-o", "ServerAliveCountMax=3", "-o", "StrictHostKeyChecking=accept-new", args.host]
+    if "SSHPASS" in os.environ:
+        ssh = ["sshpass", "-e"] + ssh
+    def remote(command, timeout=20):
+        return subprocess.run(ssh + [command], text=True, stdout=subprocess.PIPE,
+                              stderr=subprocess.STDOUT, timeout=timeout)
+    before = remote(SNAPSHOT)
+    (args.output / "board-before.txt").write_text(before.stdout)
+    if before.returncode != 0:
+        raise RuntimeError("Board preflight failed")
+    temperatures = [int(value) for value in re.findall(
+        r"/sys/class/thermal/thermal_zone\d+/temp\n(\d+)", before.stdout)]
+    if not temperatures:
+        raise RuntimeError("No thermal reading; camera test was not started")
+    if max(temperatures) >= args.start_temp_c * 1000:
+        raise RuntimeError("Board is too warm for short-test policy; let it cool before retrying")
+    for line in before.stdout.splitlines():
+        if re.search(r"^\s*\d+\s+\S+\s+\S+\s+(?:/\S*/)?(?:teleop-sender\S*|v4l2-ctl|rkipc)(?:\s|$)", line):
+            raise RuntimeError("Existing camera application: " + line)
+    with socket.socket(socket.AF_INET6, socket.SOCK_DGRAM) as check:
+        check.bind(("::", args.port))
+    result = {"camera": args.camera, "frames_per_camera": args.frames,
+              "mode": args.mode, "port": args.port, "success": False}
+    limit = max(20, args.frames // 90 + 20)
+    directory = "/userdata/latency-" + args.output.name
+    if args.camera == "dual":
+        # Preserve directory metadata even if the board locks before ext4's
+        # periodic journal commit. Stream log contents to the host as well.
+        prepared = remote("mkdir -p " + shlex.quote(directory) + " && sync")
+        if prepared.returncode != 0: raise RuntimeError("Could not prepare board report directory")
+    logs = {name: (args.output / (name + ".txt")).open("w")
+            for name in ("monitor", "viewer", "sender")}
+    monitor = viewer = sender = mirror = None
+    mirror_log = (args.output / "board-live-logs.txt").open("w")
+    started = time.monotonic()
+    try:
+        monitor = subprocess.Popen(ssh + ["sh -c " + shlex.quote(MONITOR) + " aura-metrics-monitor"],
+                                   stdout=logs["monitor"], stderr=subprocess.STDOUT)
+        if args.camera == "dual":
+            command = ["timeout", "-s", "TERM", "-k", "2", str(limit + 20), "tail", "-n", "+1", "-F",
+                       directory + "/camera0.log", directory + "/camera1.log"]
+            mirror = subprocess.Popen(ssh + [shlex.join(command)], stdout=mirror_log,
+                                      stderr=subprocess.STDOUT)
+        streams = 2 if args.camera == "dual" else 1
+        command = [str(args.viewer), "--port", str(args.port), "--headless",
+                   "--frames", str(args.frames * streams), "--timeout-ms", "60000"]
+        if args.camera != "0": command += ["--dual-stream"]
+        if args.mode == "transport": command += ["--transport-only"]
+        result["viewer_command"] = command
+        viewer = subprocess.Popen(command, env=dict(os.environ, TELEOP_METRICS="1"),
+                                  stdout=logs["viewer"], stderr=subprocess.STDOUT)
+        deadline = time.monotonic() + 10
+        while True:
+            if viewer.poll() is not None: raise RuntimeError("Viewer exited before binding")
+            with socket.socket(socket.AF_INET6, socket.SOCK_DGRAM) as check:
+                try: check.bind(("::", args.port))
+                except OSError: break
+            if time.monotonic() > deadline: raise RuntimeError("Viewer bind timeout")
+            time.sleep(0.01)
+        print("Receiver bound; starting board test", flush=True)
+        if args.camera == "dual":
+            command = ["env", "TELEOP_METRICS=1", "SENDER=" + args.sender,
+                       "PORT=" + str(args.port), "WRAP_LINES=0",
+                       "REPORT_DIR=/userdata/latency-" + args.output.name,
+                       "/userdata/run-ar0234-stereo", "--frames", str(args.frames)]
+            controls = ""
+        else:
+            bus = "4" if args.camera == "0" else "3"
+            controls = f"""for p in /sys/class/video4linux/v4l-subdev*; do
+case "$(cat "$p/name")" in *"ar0234 {bus}-0010")
+node=$(basename "$p")
+v4l2-ctl -d "/dev/$node" --set-ctrl=exposure=735,analogue_gain=32,digital_gain=512,test_pattern=0 || exit
+;; esac
+done
+"""
+            command = ["env", "TELEOP_METRICS=1", args.sender, "--camera", args.camera,
+                       "--width", "1280", "--height", "720", "--fps", "100",
+                       "--wrap-lines", "0", "--port", str(args.port), "--frames", str(args.frames)]
+        command = controls + "timeout -s INT -k 5 " + str(limit) + " " + shlex.join(command)
+        result["sender_command"] = command
+        sender = subprocess.Popen(ssh + [command], stdout=logs["sender"], stderr=subprocess.STDOUT)
+        result["sender_exit"] = sender.wait(timeout=limit + 15)
+        if result["sender_exit"] in (130, 143):
+            result["interrupted"] = True
+            raise RuntimeError("Test interrupted; partial run, not automatically classified as a crash")
+        if result["sender_exit"] != 0: raise RuntimeError("Sender/SSH failed")
+        result["viewer_exit"] = viewer.wait(timeout=15)
+        if result["viewer_exit"] != 0: raise RuntimeError("Viewer failed")
+        if args.camera == "dual":
+            reports = remote("cat " + shlex.quote(directory + "/camera0.log") + " " +
+                             shlex.quote(directory + "/camera1.log"))
+            (args.output / "board-senders.txt").write_text(reports.stdout)
+        logs["viewer"].flush()
+        text = (args.output / "viewer.txt").read_text()
+        if f"access_units={args.frames * streams} " not in text or "malformed=0 duplicates=0 dropped=0" not in text:
+            raise RuntimeError("Incomplete/corrupt transport statistics")
+        if args.mode == "decode":
+            if text.count(f"decoder: frames={args.frames} hardware_frames={args.frames}") != streams:
+                raise RuntimeError("Incomplete hardware decode")
+            if re.search(r"\[h264 @|host-viewer:", text): raise RuntimeError("Decoder warnings/errors")
+        result["success"] = True
+    except (RuntimeError, subprocess.TimeoutExpired) as error:
+        result["error"] = str(error)
+        print("FAIL:", error, flush=True)
+    finally:
+        for process in (sender, viewer, mirror):
+            if process is not None and process.poll() is None:
+                process.terminate()
+                try: process.wait(timeout=5)
+                except subprocess.TimeoutExpired: process.kill(); process.wait()
+        if monitor is not None:
+            logs["monitor"].flush()
+            match = re.search(r"^monitor_pid=(\d+)$", (args.output / "monitor.txt").read_text(), re.M)
+            if match:
+                pid = match[1]
+                try:
+                    remote(f"grep -q aura-metrics-monitor /proc/{pid}/cmdline && kill -TERM {pid}", timeout=10)
+                except subprocess.TimeoutExpired: pass
+            if monitor.poll() is None:
+                monitor.terminate()
+                try: monitor.wait(timeout=5)
+                except subprocess.TimeoutExpired: monitor.kill(); monitor.wait()
+        for log in logs.values(): log.close()
+        mirror_log.close()
+        try:
+            after = remote(SNAPSHOT, timeout=12)
+            (args.output / "board-after.txt").write_text(after.stdout)
+            result["board_responds_after"] = after.returncode == 0
+        except subprocess.TimeoutExpired: result["board_responds_after"] = False
+        result["elapsed_seconds"] = time.monotonic() - started
+        (args.output / "result.json").write_text(json.dumps(result, indent=2) + "\n")
+    print(json.dumps(result, indent=2), flush=True)
+    return 0 if result["success"] and result.get("board_responds_after") else 1
+
+if __name__ == "__main__":
+    try:
+        sys.exit(main())
+    except (RuntimeError, OSError, subprocess.TimeoutExpired) as error:
+        print("test-aura-software-baseline:", error, file=sys.stderr)
+        sys.exit(1)
