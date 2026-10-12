@@ -104,8 +104,10 @@ cat /sys/bus/i2c/devices/4-0010/chip_id
 
 ## 三：选择实验板配置并构建
 
-本轮创建了配置，但没有切换当前 `.BoardConfig.mk`，也没有生成或烧录新镜像。
-准备验证 AR0234 时可选择：
+2026-10-12 已切换 `.BoardConfig.mk` 到 AR0234，并在 Ubuntu Distrobox 完成
+`./build.sh all`，生成整套分区镜像；尚未烧录或验证真实摄像头。
+镜像内容检查与烧录注意事项见 [镜像构建记录](ar0234-image-build.md)。
+重新选择和构建可执行：
 
 ```sh
 ./tools/select-teleop-board ../aura-sdk ar0234
@@ -160,3 +162,4 @@ distrobox enter aura-sdk -- bash -lc \
 ```
 
 以上未执行真实 AR0234 I²C 事务或采集，也没有部署/烧录。
+后续完整镜像构建已完成，状态以 [镜像构建记录](ar0234-image-build.md) 为准。
