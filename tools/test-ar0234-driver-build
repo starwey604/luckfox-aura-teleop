@@ -21,6 +21,7 @@ for input in "$kernel/drivers/media/i2c/ar0234.c" "$sdk_objects/.config" "$sdk_o
     }
 done
 "${cross}gcc" --version >/dev/null
+AURA_SDK_ROOT="$sdk" python3 "$root/tests/ar0234/test_vendor_profile.py"
 mkdir -p "$build_dir/kernel" "$build_dir/module"
 cp "$sdk_objects/.config" "$build_dir/kernel/.config"
 "$kernel/scripts/config" --file "$build_dir/kernel/.config" --enable VIDEO_AR0234
@@ -36,6 +37,7 @@ make -C "$kernel" O="$build_dir/kernel" ARCH=arm64 CROSS_COMPILE="$cross" \
 # differently configured kernel currently running on the board.
 cp "$sdk_objects/Module.symvers" "$build_dir/kernel/Module.symvers"
 ln -sfn "$kernel/drivers/media/i2c/ar0234.c" "$build_dir/module/ar0234.c"
+ln -sfn "$kernel/drivers/media/i2c/ar0234-decxin-3478v1.h" "$build_dir/module/ar0234-decxin-3478v1.h"
 printf 'obj-m += ar0234.o\n' > "$build_dir/module/Makefile"
 make -C "$kernel" O="$build_dir/kernel" ARCH=arm64 CROSS_COMPILE="$cross" \
     W=1 KCFLAGS=-Werror M="$build_dir/module" modules

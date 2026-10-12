@@ -1,0 +1,629 @@
+From c6351e57b2077dc63d463e00bbd830f88562a784 Mon Sep 17 00:00:00 2001
+From: Starwey <moonbite233@gmail.com>
+Date: Mon, 12 Oct 2026 11:30:29 +0800
+Subject: [PATCH] media: ar0234: add DECXIN 720p two-lane vendor profile
+
+Select the exact vendor RAW10 initialization with decxin,3478v1. Preserve ordered register writes and startup delays, constrain its endpoint to two lanes and continuous clock, and expose its 1280x720 timing and control defaults.
+---
+ drivers/media/i2c/ar0234-decxin-3478v1.h | 184 ++++++++++++++++++++++
+ drivers/media/i2c/ar0234.c               | 187 +++++++++++++++++------
+ 2 files changed, 328 insertions(+), 43 deletions(-)
+ create mode 100644 drivers/media/i2c/ar0234-decxin-3478v1.h
+
+diff --git a/drivers/media/i2c/ar0234-decxin-3478v1.h b/drivers/media/i2c/ar0234-decxin-3478v1.h
+new file mode 100644
+index 000000000..fb2c5ec3c
+--- /dev/null
++++ b/drivers/media/i2c/ar0234-decxin-3478v1.h
+@@ -0,0 +1,184 @@
++/* SPDX-License-Identifier: GPL-2.0 */
++/*
++ * DECXIN-3478V1: vendor [720P 99.2fps] register sequence, 24 MHz,
++ * 2-lane RAW10. Register values supplied by Shenzhen Decxin Image Technology.
++ * Source INI SHA256:
++ * 44d53241ba30554f58308f0f9ea2d72e074892cffdc5750fbc7d50cf38ea6fb8
++ * Keep repeated writes and startup delays in their original order.
++ * DELAY is interpreted as milliseconds; hardware validation is pending.
++ */
++#ifndef AR0234_DECXIN_3478V1_H
++#define AR0234_DECXIN_3478V1_H
++
++#define AR0234_DELAY_MS 0
++
++static const struct ar0234_regval ar0234_decxin_720p_regs[] = {
++	{ AR0234_DELAY_MS, 20 },
++	{ AR0234_DELAY_MS, 600 },
++	{ AR0234_REG16(0x301a), 0x2058 },
++	{ AR0234_REG16(0x302a), 0x0005 },
++	{ AR0234_REG16(0x302c), 0x0001 },
++	{ AR0234_REG16(0x302e), 0x0008 },
++	{ AR0234_REG16(0x3030), 0x0096 },
++	{ AR0234_REG16(0x3036), 0x000a },
++	{ AR0234_REG16(0x3038), 0x0001 },
++	{ AR0234_REG16(0x30b0), 0x0028 },
++	{ AR0234_REG16(0x31b0), 0x0082 },
++	{ AR0234_REG16(0x31b2), 0x005c },
++	{ AR0234_REG16(0x31b4), 0x4248 },
++	{ AR0234_REG16(0x31b6), 0x4258 },
++	{ AR0234_REG16(0x31b8), 0x904b },
++	{ AR0234_REG16(0x31ba), 0x030b },
++	{ AR0234_REG16(0x31bc), 0x8d89 },
++	{ AR0234_REG16(0x3354), 0x002b },
++	{ AR0234_REG16(0x31ae), 0x0202 },
++	{ AR0234_REG16(0x3002), 0x00f8 },
++	{ AR0234_REG16(0x3004), 0x0148 },
++	{ AR0234_REG16(0x3006), 0x03c7 },
++	{ AR0234_REG16(0x3008), 0x0647 },
++	{ AR0234_REG16(0x300a), 0x02e0 },
++	{ AR0234_REG16(0x300c), 0x0264 },
++	{ AR0234_REG16(0x3012), 0x0202 },
++	{ AR0234_REG16(0x31ac), 0x0a0a },
++	{ AR0234_REG16(0x306e), 0x9010 },
++	{ AR0234_REG16(0x30a2), 0x0001 },
++	{ AR0234_REG16(0x30a6), 0x0001 },
++	{ AR0234_REG16(0x3082), 0x0003 },
++	{ AR0234_REG16(0x3040), 0x0000 },
++	{ AR0234_REG16(0x31d0), 0x0000 },
++	{ AR0234_REG16(0x31ae), 0x0202 },
++	{ AR0234_REG16(0x3088), 0x8050 },
++	{ AR0234_REG16(0x3086), 0x9237 },
++	{ AR0234_REG16(0x3096), 0x0280 },
++	{ AR0234_REG16(0x31e0), 0x0003 },
++	{ AR0234_REG16(0x30b0), 0x0028 },
++	{ AR0234_REG16(0x3f4c), 0x121f },
++	{ AR0234_REG16(0x3f4e), 0x121f },
++	{ AR0234_REG16(0x3f50), 0x0b81 },
++	{ AR0234_REG16(0x3780), 0x0000 },
++	{ AR0234_REG16(0x3600), 0x00d0 },
++	{ AR0234_REG16(0x3602), 0xee6a },
++	{ AR0234_REG16(0x3604), 0x5d71 },
++	{ AR0234_REG16(0x3606), 0x584b },
++	{ AR0234_REG16(0x3608), 0x30ef },
++	{ AR0234_REG16(0x360a), 0x00b0 },
++	{ AR0234_REG16(0x360c), 0xf00a },
++	{ AR0234_REG16(0x360e), 0x5db1 },
++	{ AR0234_REG16(0x3610), 0x24ab },
++	{ AR0234_REG16(0x3612), 0x284f },
++	{ AR0234_REG16(0x3614), 0x00b0 },
++	{ AR0234_REG16(0x3616), 0x91aa },
++	{ AR0234_REG16(0x3618), 0x6611 },
++	{ AR0234_REG16(0x361a), 0xa76d },
++	{ AR0234_REG16(0x361c), 0x730f },
++	{ AR0234_REG16(0x361e), 0x00d0 },
++	{ AR0234_REG16(0x3620), 0xc16a },
++	{ AR0234_REG16(0x3622), 0x65b1 },
++	{ AR0234_REG16(0x3624), 0xab2d },
++	{ AR0234_REG16(0x3626), 0x7eef },
++	{ AR0234_REG16(0x3640), 0x4669 },
++	{ AR0234_REG16(0x3642), 0x11ec },
++	{ AR0234_REG16(0x3644), 0xa48f },
++	{ AR0234_REG16(0x3646), 0x192d },
++	{ AR0234_REG16(0x3648), 0x7910 },
++	{ AR0234_REG16(0x364a), 0x4ce9 },
++	{ AR0234_REG16(0x364c), 0x07ec },
++	{ AR0234_REG16(0x364e), 0x9b2f },
++	{ AR0234_REG16(0x3650), 0x490d },
++	{ AR0234_REG16(0x3652), 0x6290 },
++	{ AR0234_REG16(0x3654), 0x1b48 },
++	{ AR0234_REG16(0x3656), 0x88ad },
++	{ AR0234_REG16(0x3658), 0x9d8f },
++	{ AR0234_REG16(0x365a), 0x4b6b },
++	{ AR0234_REG16(0x365c), 0x0331 },
++	{ AR0234_REG16(0x365e), 0x7328 },
++	{ AR0234_REG16(0x3660), 0x894d },
++	{ AR0234_REG16(0x3662), 0xb2af },
++	{ AR0234_REG16(0x3664), 0x27eb },
++	{ AR0234_REG16(0x3666), 0x18f1 },
++	{ AR0234_REG16(0x3680), 0x3cf1 },
++	{ AR0234_REG16(0x3682), 0xc790 },
++	{ AR0234_REG16(0x3684), 0x22f1 },
++	{ AR0234_REG16(0x3686), 0x226f },
++	{ AR0234_REG16(0x3688), 0xc213 },
++	{ AR0234_REG16(0x368a), 0x3df1 },
++	{ AR0234_REG16(0x368c), 0xc170 },
++	{ AR0234_REG16(0x368e), 0x0e71 },
++	{ AR0234_REG16(0x3690), 0x7bce },
++	{ AR0234_REG16(0x3692), 0xad33 },
++	{ AR0234_REG16(0x3694), 0x3df1 },
++	{ AR0234_REG16(0x3696), 0xdc2f },
++	{ AR0234_REG16(0x3698), 0x29b1 },
++	{ AR0234_REG16(0x369a), 0xa66f },
++	{ AR0234_REG16(0x369c), 0xcfb3 },
++	{ AR0234_REG16(0x369e), 0x3db1 },
++	{ AR0234_REG16(0x36a0), 0xd40f },
++	{ AR0234_REG16(0x36a2), 0x3531 },
++	{ AR0234_REG16(0x36a4), 0xf2af },
++	{ AR0234_REG16(0x36a6), 0xe393 },
++	{ AR0234_REG16(0x36c0), 0xcacd },
++	{ AR0234_REG16(0x36c2), 0xed8e },
++	{ AR0234_REG16(0x36c4), 0x7392 },
++	{ AR0234_REG16(0x36c6), 0x5d30 },
++	{ AR0234_REG16(0x36c8), 0xf994 },
++	{ AR0234_REG16(0x36ca), 0xd16d },
++	{ AR0234_REG16(0x36cc), 0xabee },
++	{ AR0234_REG16(0x36ce), 0x6a72 },
++	{ AR0234_REG16(0x36d0), 0x240f },
++	{ AR0234_REG16(0x36d2), 0xf234 },
++	{ AR0234_REG16(0x36d4), 0x886e },
++	{ AR0234_REG16(0x36d6), 0xadce },
++	{ AR0234_REG16(0x36d8), 0x25d2 },
++	{ AR0234_REG16(0x36da), 0x7010 },
++	{ AR0234_REG16(0x36dc), 0xba14 },
++	{ AR0234_REG16(0x36de), 0xacee },
++	{ AR0234_REG16(0x36e0), 0xdbee },
++	{ AR0234_REG16(0x36e2), 0x6a12 },
++	{ AR0234_REG16(0x36e4), 0x3ad1 },
++	{ AR0234_REG16(0x36e6), 0x8095 },
++	{ AR0234_REG16(0x3700), 0x0271 },
++	{ AR0234_REG16(0x3702), 0x786e },
++	{ AR0234_REG16(0x3704), 0x2053 },
++	{ AR0234_REG16(0x3706), 0x0d54 },
++	{ AR0234_REG16(0x3708), 0xf3b7 },
++	{ AR0234_REG16(0x370a), 0x6810 },
++	{ AR0234_REG16(0x370c), 0xba2e },
++	{ AR0234_REG16(0x370e), 0x5913 },
++	{ AR0234_REG16(0x3710), 0x21d4 },
++	{ AR0234_REG16(0x3712), 0x8198 },
++	{ AR0234_REG16(0x3714), 0x7dd0 },
++	{ AR0234_REG16(0x3716), 0x8bd1 },
++	{ AR0234_REG16(0x3718), 0x4093 },
++	{ AR0234_REG16(0x371a), 0x64b4 },
++	{ AR0234_REG16(0x371c), 0xfb17 },
++	{ AR0234_REG16(0x371e), 0x7c10 },
++	{ AR0234_REG16(0x3720), 0xa5d1 },
++	{ AR0234_REG16(0x3722), 0x4433 },
++	{ AR0234_REG16(0x3724), 0x7a54 },
++	{ AR0234_REG16(0x3726), 0xfdf7 },
++	{ AR0234_REG16(0x3782), 0x03d8 },
++	{ AR0234_REG16(0x3784), 0x0250 },
++	{ AR0234_REG16(0x37c0), 0x1686 },
++	{ AR0234_REG16(0x37c2), 0x2588 },
++	{ AR0234_REG16(0x37c4), 0x7408 },
++	{ AR0234_REG16(0x37c6), 0x41c8 },
++	{ AR0234_REG16(0x3780), 0x8000 },
++	{ AR0234_REG16(0x3088), 0x81ba },
++	{ AR0234_REG16(0x3086), 0x3d02 },
++	{ AR0234_REG16(0x3ed2), 0xfa86 },
++	{ AR0234_REG16(0x3180), 0x824f },
++	{ AR0234_REG16(0x3ecc), 0x0c42 },
++	{ AR0234_REG16(0x3ecc), 0x0c42 },
++	{ AR0234_REG16(0x30f0), 0x2283 },
++	{ AR0234_REG16(0x3102), 0x5000 },
++	{ AR0234_REG16(0x3060), 0x000d },
++	{ AR0234_REG16(0x30ba), 0x7626 },
++	{ AR0234_REG16(0x301a), 0x205c },
++	{ AR0234_DELAY_MS, 200 },
++	{ AR0234_REG16(0x301a), 0x2058 },
++	{ AR0234_DELAY_MS, 50 },
++	{ AR0234_REG16(0x301a), 0x205c },
++	{ AR0234_DELAY_MS, 50 },
++};
++
++#endif /* AR0234_DECXIN_3478V1_H */
+diff --git a/drivers/media/i2c/ar0234.c b/drivers/media/i2c/ar0234.c
+index 5fc3e6877..fc2b555c8 100644
+--- a/drivers/media/i2c/ar0234.c
++++ b/drivers/media/i2c/ar0234.c
+@@ -42,6 +42,8 @@ struct ar0234_regval {
+ 	u16 val;
+ };
+ 
++#include "ar0234-decxin-3478v1.h"
++
+ /* Registers */
+ #define AR0234_REG_CHIP_ID AR0234_REG16(0x3000)
+ #define AR0234_REG_Y_ADDR_START AR0234_REG16(0x3002)
+@@ -186,6 +188,9 @@ struct ar0234_mode {
+ 	unsigned int height;
+ 	/* Analog crop rectangle. */
+ 	struct v4l2_rect crop;
++	u32 line_length;
++	u32 vts_def;
++	u32 exposure_def;
+ 
+ 	struct ar0234_reg_sequence reg_sequence;
+ };
+@@ -334,6 +339,9 @@ static const struct ar0234_mode ar0234_modes[] = {
+ 	{
+ 		.width = 1920,
+ 		.height = 1200,
++		.line_length = AR0234_LINE_LENGTH_PCK_DEF,
++		.vts_def = 1200 + AR0234_VBLANK_MIN - AR0234_FLL_OVERHEAD,
++		.exposure_def = 100,
+ 		.crop = {
+ 			.left = AR0234_PIXEL_ARRAY_LEFT,
+ 			.top = AR0234_PIXEL_ARRAY_TOP,
+@@ -348,6 +356,9 @@ static const struct ar0234_mode ar0234_modes[] = {
+ 	{
+ 		.width = 1920,
+ 		.height = 1080,
++		.line_length = AR0234_LINE_LENGTH_PCK_DEF,
++		.vts_def = 1080 + AR0234_VBLANK_MIN - AR0234_FLL_OVERHEAD,
++		.exposure_def = 100,
+ 		.crop = {
+ 			.left = AR0234_PIXEL_ARRAY_LEFT,
+ 			.top = AR0234_PIXEL_ARRAY_TOP + 60,
+@@ -362,6 +373,9 @@ static const struct ar0234_mode ar0234_modes[] = {
+ 	{
+ 		.width = 1280,
+ 		.height = 720,
++		.line_length = AR0234_LINE_LENGTH_PCK_DEF,
++		.vts_def = 720 + AR0234_VBLANK_MIN - AR0234_FLL_OVERHEAD,
++		.exposure_def = 100,
+ 		.crop = {
+ 			.left = AR0234_PIXEL_ARRAY_LEFT + 320,
+ 			.top = AR0234_PIXEL_ARRAY_TOP + 240,
+@@ -376,6 +390,9 @@ static const struct ar0234_mode ar0234_modes[] = {
+ 	{
+ 		.width = 960,
+ 		.height = 600,
++		.line_length = AR0234_LINE_LENGTH_PCK_DEF,
++		.vts_def = 600 + AR0234_VBLANK_MIN - AR0234_FLL_OVERHEAD,
++		.exposure_def = 100,
+ 		.crop = {
+ 			.left = AR0234_PIXEL_ARRAY_LEFT,
+ 			.top = AR0234_PIXEL_ARRAY_TOP,
+@@ -389,6 +406,27 @@ static const struct ar0234_mode ar0234_modes[] = {
+ 	},
+ };
+ 
++/* The vendor profile exposes only the supplied two-lane 720p mode. */
++static const struct ar0234_mode ar0234_decxin_modes[] = {
++	{
++		.width = 1280,
++		.height = 720,
++		.line_length = 0x0264,
++		.vts_def = 0x02e0,
++		.exposure_def = 0x0202,
++		.crop = {
++			.left = 0x0148,
++			.top = 0x00f8,
++			.width = 1280,
++			.height = 720,
++		},
++		.reg_sequence = {
++			.regs = ar0234_decxin_720p_regs,
++			.num_regs = ARRAY_SIZE(ar0234_decxin_720p_regs),
++		},
++	},
++};
++
+ struct ar0234_pll_config {
+ 	s64 freq_link;
+ 	u32 freq_extclk;
+@@ -422,7 +460,6 @@ static const u32 ar0234_freq_pixclk[] = {
+ 
+ /* Report nonnegative HBLANK and CSI pixel rate to Rockchip. */
+ #define AR0234_TIMING_SCALE 4
+-#define AR0234_HTS (AR0234_LINE_LENGTH_PCK_DEF * AR0234_TIMING_SCALE)
+ 
+ struct ar0234 {
+ 	struct device *dev;
+@@ -435,6 +472,9 @@ struct ar0234 {
+ 	const struct ar0234_pll_config *pll_config;
+ 	enum ar0234_lane_count_id lane_count_id;
+ 	const struct ar0234_mode *cur_mode;
++	const struct ar0234_mode *modes;
++	unsigned int num_modes;
++	bool decxin_profile;
+ 	struct mutex mutex;
+ 	struct v4l2_subdev sd;
+ 	struct media_pad pad;
+@@ -501,6 +541,10 @@ static int ar0234_write_array(struct ar0234 *ar,
+ 	int ret;
+ 
+ 	for (i = 0; i < n; i++) {
++		if (regs[i].reg == AR0234_DELAY_MS) {
++			msleep(regs[i].val);
++			continue;
++		}
+ 		ret = ar0234_write_reg(ar, regs[i].reg, regs[i].val);
+ 		if (ret)
+ 			return ret;
+@@ -514,6 +558,16 @@ static int ar0234_write_sequence(struct ar0234 *ar,
+ 	return ar0234_write_array(ar, seq->regs, seq->num_regs);
+ }
+ 
++static u32 ar0234_hts(const struct ar0234_mode *mode)
++{
++	return mode->line_length * AR0234_TIMING_SCALE;
++}
++
++static u32 ar0234_default_vblank(const struct ar0234_mode *mode)
++{
++	return mode->vts_def + AR0234_FLL_OVERHEAD - mode->height;
++}
++
+ static u32 ar0234_pixel_rate(struct ar0234 *ar)
+ {
+ 	return ar0234_freq_pixclk[ar->lane_count_id] * AR0234_TIMING_SCALE;
+@@ -554,7 +608,7 @@ static void ar0234_frame_interval(struct ar0234 *ar,
+ 				const struct ar0234_mode *mode, u32 vblank,
+ 				struct v4l2_fract *interval)
+ {
+-	interval->numerator = AR0234_HTS * (mode->height + vblank);
++	interval->numerator = ar0234_hts(mode) * (mode->height + vblank);
+ 	interval->denominator = ar0234_pixel_rate(ar);
+ }
+ 
+@@ -594,7 +648,7 @@ static int ar0234_set_ctrl(struct v4l2_ctrl *ctrl)
+ 	if (ctrl->id == V4L2_CID_VBLANK) {
+ 		max_exp = ar->cur_mode->height + ctrl->val - AR0234_FLL_OVERHEAD - 1;
+ 		__v4l2_ctrl_modify_range(ar->exposure, AR0234_EXPOSURE_MIN,
+-					 max_exp, 1, min(max_exp, 100));
++					 max_exp, 1, min_t(u32, max_exp, ar->cur_mode->exposure_def));
+ 	}
+ 	ret = pm_runtime_get_if_in_use(ar->dev);
+ 	if (ret <= 0)
+@@ -639,8 +693,9 @@ static int ar0234_init_controls(struct ar0234 *ar)
+ 	struct v4l2_ctrl_handler *hdl = &ar->ctrl_handler;
+ 	const struct ar0234_mode *mode = ar->cur_mode;
+ 	struct v4l2_ctrl *ctrl;
+-	int hblank = AR0234_HTS - mode->width;
+-	int max_exp = mode->height + AR0234_VBLANK_MIN - AR0234_FLL_OVERHEAD - 1;
++	int hblank = ar0234_hts(mode) - mode->width;
++	int max_exp = mode->vts_def - 1;
++	u32 vblank = ar0234_default_vblank(mode);
+ 	int ret;
+ 
+ 	ret = v4l2_ctrl_handler_init(hdl, 10);
+@@ -661,12 +716,12 @@ static int ar0234_init_controls(struct ar0234 *ar)
+ 	if (ar->hblank)
+ 		ar->hblank->flags |= V4L2_CTRL_FLAG_READ_ONLY;
+ 	ar->vblank = v4l2_ctrl_new_std(hdl, &ar0234_ctrl_ops, V4L2_CID_VBLANK,
+-				      AR0234_VBLANK_MIN, AR0234_FLL_MAX - mode->height,
+-				      1, AR0234_VBLANK_MIN);
++				      vblank, AR0234_FLL_MAX - mode->height, 1, vblank);
+ 	ar->exposure = v4l2_ctrl_new_std(hdl, &ar0234_ctrl_ops, V4L2_CID_EXPOSURE,
+-					AR0234_EXPOSURE_MIN, max_exp, 1, min(max_exp, 100));
++					AR0234_EXPOSURE_MIN, max_exp, 1, mode->exposure_def);
+ 	v4l2_ctrl_new_std(hdl, &ar0234_ctrl_ops, V4L2_CID_ANALOGUE_GAIN,
+-			 AR0234_ANA_GAIN_MIN, AR0234_ANA_GAIN_MAX, 1, AR0234_ANA_GAIN_DEFAULT);
++			 AR0234_ANA_GAIN_MIN, AR0234_ANA_GAIN_MAX, 1,
++			 ar->decxin_profile ? 0x000d : AR0234_ANA_GAIN_DEFAULT);
+ 	v4l2_ctrl_new_std(hdl, &ar0234_ctrl_ops, V4L2_CID_DIGITAL_GAIN,
+ 			 AR0234_DGTL_GAIN_MIN, AR0234_DGTL_GAIN_MAX, 1, AR0234_DGTL_GAIN_DEFAULT);
+ 	ar->hflip = v4l2_ctrl_new_std(hdl, &ar0234_ctrl_ops, V4L2_CID_HFLIP, 0, 1, 1, 0);
+@@ -709,13 +764,13 @@ static int ar0234_enum_frame_size(struct v4l2_subdev *sd,
+ 	int ret = 0;
+ 
+ 	mutex_lock(&ar->mutex);
+-	if (fse->pad || fse->index >= ARRAY_SIZE(ar0234_modes) ||
++	if (fse->pad || fse->index >= ar->num_modes ||
+ 	    fse->code != ar0234_get_format_code(ar)) {
+ 		ret = -EINVAL;
+ 	} else {
+-		fse->min_width = ar0234_modes[fse->index].width;
++		fse->min_width = ar->modes[fse->index].width;
+ 		fse->max_width = fse->min_width;
+-		fse->min_height = ar0234_modes[fse->index].height;
++		fse->min_height = ar->modes[fse->index].height;
+ 		fse->max_height = fse->min_height;
+ 	}
+ 	mutex_unlock(&ar->mutex);
+@@ -733,10 +788,11 @@ static int ar0234_enum_frame_interval(struct v4l2_subdev *sd,
+ 	mutex_lock(&ar->mutex);
+ 	if (fie->pad || fie->index || fie->code != ar0234_get_format_code(ar))
+ 		goto out;
+-	for (i = 0; i < ARRAY_SIZE(ar0234_modes); i++) {
+-		if (fie->width == ar0234_modes[i].width &&
+-		    fie->height == ar0234_modes[i].height) {
+-			ar0234_frame_interval(ar, &ar0234_modes[i], AR0234_VBLANK_MIN,
++	for (i = 0; i < ar->num_modes; i++) {
++		if (fie->width == ar->modes[i].width &&
++		    fie->height == ar->modes[i].height) {
++			ar0234_frame_interval(ar, &ar->modes[i],
++					     ar0234_default_vblank(&ar->modes[i]),
+ 					     &fie->interval);
+ 			fie->reserved[0] = NO_HDR;
+ 			ret = 0;
+@@ -776,7 +832,7 @@ static int ar0234_set_fmt(struct v4l2_subdev *sd,
+ 	if (fmt->pad)
+ 		return -EINVAL;
+ 	mutex_lock(&ar->mutex);
+-	mode = v4l2_find_nearest_size(ar0234_modes, ARRAY_SIZE(ar0234_modes),
++	mode = v4l2_find_nearest_size(ar->modes, ar->num_modes,
+ 				     width, height, fmt->format.width, fmt->format.height);
+ 	ar0234_fill_format(ar, mode, &fmt->format);
+ 	if (fmt->which == V4L2_SUBDEV_FORMAT_TRY) {
+@@ -785,15 +841,15 @@ static int ar0234_set_fmt(struct v4l2_subdev *sd,
+ 		ret = -EBUSY;
+ 	} else {
+ 		ar->cur_mode = mode;
+-		hblank = AR0234_HTS - mode->width;
++		hblank = ar0234_hts(mode) - mode->width;
+ 		__v4l2_ctrl_modify_range(ar->hblank, hblank, hblank, 1, hblank);
+-		__v4l2_ctrl_modify_range(ar->vblank, AR0234_VBLANK_MIN,
+-					AR0234_FLL_MAX - mode->height, 1, AR0234_VBLANK_MIN);
++		__v4l2_ctrl_modify_range(ar->vblank, ar0234_default_vblank(mode),
++					AR0234_FLL_MAX - mode->height, 1,
++					ar0234_default_vblank(mode));
+ 		/* Equal VBLANK values do not invoke s_ctrl after a mode change. */
+ 		__v4l2_ctrl_modify_range(ar->exposure, AR0234_EXPOSURE_MIN,
+-					mode->height + AR0234_VBLANK_MIN - AR0234_FLL_OVERHEAD - 1,
+-					1, 100);
+-		ret = __v4l2_ctrl_s_ctrl(ar->vblank, AR0234_VBLANK_MIN);
++					mode->vts_def - 1, 1, mode->exposure_def);
++		ret = __v4l2_ctrl_s_ctrl(ar->vblank, ar0234_default_vblank(mode));
+ 	}
+ 	mutex_unlock(&ar->mutex);
+ 	return ret;
+@@ -814,7 +870,7 @@ static int ar0234_get_selection(struct v4l2_subdev *sd,
+ 	if (sel->which == V4L2_SUBDEV_FORMAT_TRY) {
+ 		struct v4l2_mbus_framefmt *fmt = v4l2_subdev_get_try_format(sd, state, 0);
+ 
+-		mode = v4l2_find_nearest_size(ar0234_modes, ARRAY_SIZE(ar0234_modes),
++		mode = v4l2_find_nearest_size(ar->modes, ar->num_modes,
+ 					     width, height, fmt->width, fmt->height);
+ 	}
+ 	switch (sel->target) {
+@@ -872,20 +928,47 @@ static int ar0234_s_frame_interval(struct v4l2_subdev *sd,
+ 		return -EINVAL;
+ 	mutex_lock(&ar->mutex);
+ 	/* g_frame_interval returns an unreduced fraction with a large denominator. */
+-	divisor = (u64)AR0234_HTS * fi->interval.denominator;
++	divisor = (u64)ar0234_hts(ar->cur_mode) * fi->interval.denominator;
+ 	fll = div64_u64((u64)ar0234_pixel_rate(ar) * fi->interval.numerator +
+ 			divisor - 1, divisor);
+-	fll = clamp_t(u64, fll, ar->cur_mode->height + AR0234_VBLANK_MIN, AR0234_FLL_MAX);
++	fll = clamp_t(u64, fll, ar->cur_mode->height + ar0234_default_vblank(ar->cur_mode), AR0234_FLL_MAX);
+ 	ret = __v4l2_ctrl_s_ctrl(ar->vblank, fll - ar->cur_mode->height);
+ 	ar0234_frame_interval(ar, ar->cur_mode, ar->vblank->val, &fi->interval);
+ 	mutex_unlock(&ar->mutex);
+ 	return ret;
+ }
+ 
++static int ar0234_set_stream_state(struct ar0234 *ar, bool on)
++{
++	if (ar->decxin_profile)
++		return ar0234_write_reg(ar, AR0234_REG_RESET,
++				      AR0234_RESET_DEFAULT | (on ? AR0234_RESET_STREAM : 0));
++	return ar0234_write_reg(ar, AR0234_REG_MODE_SELECT, on);
++}
++
++static int ar0234_start_decxin_stream(struct ar0234 *ar)
++{
++	int ret;
++
++	/* One RAW pad: suppress embedded data before the INI's first stream-on. */
++	ret = ar0234_write_reg(ar, AR0234_REG_SMIA_TEST, 0x1802);
++	if (ret)
++		return ret;
++	ret = ar0234_write_sequence(ar, &ar->cur_mode->reg_sequence);
++	if (ret)
++		return ret;
++	ar->mfr_30ba = AR0234_MFR_30BA_GAIN_BITS(6);
++	/* Retain the vendor defaults unless users have changed V4L2 controls. */
++	return __v4l2_ctrl_handler_setup(&ar->ctrl_handler);
++}
++
+ static int ar0234_start_stream(struct ar0234 *ar)
+ {
+ 	int ret;
+ 
++	if (ar->decxin_profile)
++		return ar0234_start_decxin_stream(ar);
++
+ 	ret = ar0234_write_reg(ar, AR0234_REG_RESET, 0x0001);
+ 	if (ret)
+ 		return ret;
+@@ -920,13 +1003,13 @@ static int ar0234_start_stream(struct ar0234 *ar)
+ 	ret = ar0234_write_sequence(ar, &ar->cur_mode->reg_sequence);
+ 	if (ret)
+ 		return ret;
+-	ret = ar0234_write_reg(ar, AR0234_REG_LINE_LENGTH_PCK, AR0234_LINE_LENGTH_PCK_DEF);
++	ret = ar0234_write_reg(ar, AR0234_REG_LINE_LENGTH_PCK, ar->cur_mode->line_length);
+ 	if (ret)
+ 		return ret;
+ 	ret = __v4l2_ctrl_handler_setup(&ar->ctrl_handler);
+ 	if (ret)
+ 		return ret;
+-	return ar0234_write_reg(ar, AR0234_REG_MODE_SELECT, 1);
++	return ar0234_set_stream_state(ar, true);
+ }
+ 
+ static int ar0234_s_stream(struct v4l2_subdev *sd, int on)
+@@ -944,12 +1027,12 @@ static int ar0234_s_stream(struct v4l2_subdev *sd, int on)
+ 			goto out;
+ 		ret = ar0234_start_stream(ar);
+ 		if (ret) {
+-			ar0234_write_reg(ar, AR0234_REG_MODE_SELECT, 0);
++			ar0234_set_stream_state(ar, false);
+ 			pm_runtime_put(ar->dev);
+ 			goto out;
+ 		}
+ 	} else {
+-		ret = ar0234_write_reg(ar, AR0234_REG_MODE_SELECT, 0);
++		ret = ar0234_set_stream_state(ar, false);
+ 		if (ret)
+ 			goto out;
+ 		pm_runtime_put(ar->dev);
+@@ -1215,7 +1298,14 @@ static int ar0234_parse_hw_config(struct ar0234 *ar)
+ 			goto out;
+ 		}
+ 	}
+-	if (!(ep.bus.mipi_csi2.flags & V4L2_MBUS_CSI2_NONCONTINUOUS_CLOCK)) {
++	if (ar->decxin_profile) {
++		if (ep.bus.mipi_csi2.num_data_lanes != 2 ||
++		    ep.bus.mipi_csi2.flags & V4L2_MBUS_CSI2_NONCONTINUOUS_CLOCK) {
++			ret = dev_err_probe(dev, -EINVAL,
++					    "DECXIN profile requires 2 lanes and continuous clock\n");
++			goto out;
++		}
++	} else if (!(ep.bus.mipi_csi2.flags & V4L2_MBUS_CSI2_NONCONTINUOUS_CLOCK)) {
+ 		ret = dev_err_probe(dev, -EINVAL, "reference PLL requires clock-noncontinuous\n");
+ 		goto out;
+ 	}
+@@ -1225,6 +1315,10 @@ static int ar0234_parse_hw_config(struct ar0234 *ar)
+ 		goto out;
+ 	}
+ 	frequency = ep.link_frequencies[0];
++	if (ar->decxin_profile && frequency != AR0234_FREQ_LINK_10BIT) {
++		ret = dev_err_probe(dev, -EINVAL, "DECXIN profile requires RAW10/450 MHz link\n");
++		goto out;
++	}
+ 	for (i = 0; i < ARRAY_SIZE(ar0234_pll_configs); i++) {
+ 		if (ar0234_pll_configs[i].freq_link == frequency) {
+ 			ar->pll_config = &ar0234_pll_configs[i];
+@@ -1243,8 +1337,9 @@ static int ar0234_parse_hw_config(struct ar0234 *ar)
+ 		ret = dev_err_probe(dev, -EINVAL, "trigger/flash not implemented in this port\n");
+ 		goto out;
+ 	}
+-	dev_info(dev, "%u lanes, %llu Hz link, 24 MHz input (unvalidated module)\n",
+-		 ar->bus.num_data_lanes, frequency);
++	dev_info(dev, "%s profile: %ux%u, %u lanes, %llu Hz link, 24 MHz input\n",
++		 ar->decxin_profile ? "DECXIN-3478V1" : "reference",
++		 ar->cur_mode->width, ar->cur_mode->height, ar->bus.num_data_lanes, frequency);
+ 	ret = 0;
+ out:
+ 	v4l2_fwnode_endpoint_free(&ep);
+@@ -1263,7 +1358,10 @@ static int ar0234_probe(struct i2c_client *client)
+ 		return -ENOMEM;
+ 	ar->dev = dev;
+ 	ar->client = client;
+-	ar->cur_mode = &ar0234_modes[0];
++	ar->decxin_profile = of_device_is_compatible(dev->of_node, "decxin,3478v1");
++	ar->modes = ar->decxin_profile ? ar0234_decxin_modes : ar0234_modes;
++	ar->num_modes = ar->decxin_profile ? ARRAY_SIZE(ar0234_decxin_modes) : ARRAY_SIZE(ar0234_modes);
++	ar->cur_mode = &ar->modes[0];
+ 	mutex_init(&ar->mutex);
+ 	v4l2_i2c_subdev_init(&ar->sd, client, &ar0234_subdev_ops);
+ 	ret = ar0234_parse_hw_config(ar);
+@@ -1281,15 +1379,17 @@ static int ar0234_probe(struct i2c_client *client)
+ 	}
+ 	ar->monochrome = id == AR0234_CHIP_ID_MONO;
+ 	dev_info(dev, "AR0234 chip ID 0x%04x (%s)\n", id, ar->monochrome ? "mono" : "Bayer");
+-	/* Enter LP-11 as in the reference driver. */
+-	ret = ar0234_write_reg(ar, AR0234_REG_MODE_SELECT, 1);
+-	if (ret)
+-		goto err_power;
+-	usleep_range(100, 110);
+-	ret = ar0234_write_reg(ar, AR0234_REG_MODE_SELECT, 0);
+-	if (ret)
+-		goto err_power;
+-	usleep_range(100, 110);
++	/* The vendor startup sequence is deferred to s_stream, never run in probe. */
++	if (!ar->decxin_profile) {
++		ret = ar0234_set_stream_state(ar, true);
++		if (ret)
++			goto err_power;
++		usleep_range(100, 110);
++		ret = ar0234_set_stream_state(ar, false);
++		if (ret)
++			goto err_power;
++		usleep_range(100, 110);
++	}
+ 	ret = ar0234_init_controls(ar);
+ 	if (ret)
+ 		goto err_power;
+@@ -1340,6 +1440,7 @@ static void ar0234_remove(struct i2c_client *client)
+ }
+ 
+ static const struct of_device_id ar0234_of_match[] = {
++	{ .compatible = "decxin,3478v1" },
+ 	{ .compatible = "onnn,ar0234cs" },
+ 	{ }
+ };
+-- 
+2.56.0
+
