@@ -20,6 +20,8 @@ def main():
     parser.add_argument('--local-ip', default='192.168.1.2')
     parser.add_argument('--board-ip', default='192.168.1.10')
     parser.add_argument('--port', type=int, default=6666)
+    parser.add_argument('--console-level', type=int, choices=range(1, 9), default=1,
+                        help='Kernel console threshold; 1 sends emergency diagnostics only (default)')
     parser.add_argument('--output', type=Path, required=True)
     parser.add_argument('--dry-run', action='store_true')
     args = parser.parse_args()
@@ -42,7 +44,7 @@ awk '{print "old_loglevel=" $1}' /proc/sys/kernel/printk
                         ('remote_mac', mac), ('extended', '1'), ('enabled', '1')]:
         command += 'printf "%s\\n" ' + shlex.quote(value) + ' > ' + shlex.quote(target + '/' + name) + '\n'
     marker = 'teleop-netconsole-ready-' + str(os.getpid())
-    command += 'dmesg -n 8\nprintf "%s\\n" ' + shlex.quote('<6>' + marker) + ' > /dev/kmsg\n'
+    command += 'dmesg -n ' + str(args.console_level) + '\nprintf "%s\\n" ' + shlex.quote('<0>' + marker) + ' > /dev/kmsg\n'
     if args.dry_run:
         print(command); return 0
     ssh = ['ssh', '-o', 'ConnectTimeout=5', '-o', 'ServerAliveInterval=2', '-o', 'ServerAliveCountMax=2', args.host]
@@ -51,7 +53,8 @@ awk '{print "old_loglevel=" $1}' /proc/sys/kernel/printk
         parser.error('Output already exists; choose a new capture path')
     args.output.parent.mkdir(parents=True, exist_ok=True)
     metadata = {'interface': args.interface, 'host_ip': args.local_ip, 'board_ip': args.board_ip,
-                'remote_mac': mac, 'port': args.port, 'target': target, 'marker_received': False}
+                'remote_mac': mac, 'port': args.port, 'console_level': args.console_level,
+                'target': target, 'marker_received': False}
     stop = False
     def stop_signal(*_):
         nonlocal stop

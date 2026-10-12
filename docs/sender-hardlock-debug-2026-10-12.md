@@ -1,5 +1,9 @@
 # 双 AR0234：CPU0 hardlock 排查与下一版诊断镜像
 
+#16 后续实机结果见 [运行记录](sender-debug16-runtime-2026-10-12.md)：无netconsole
+整套生命周期及10次双路短测通过；verbose netconsole对照在单路SYS_Exit阶段失联。
+下文保留构建交付时的证据和计划。
+
 目前仍未解决重复双路启动导致整板失联。#14 诊断内核已实测；这轮抓到了 CPU0
 停在 `queued_spin_lock_slowpath` 的硬件 PC，尚缺具体锁地址和调用者。
 准备了 #16 诊断镜像，等待用户烧写；没有自动烧录或重启。

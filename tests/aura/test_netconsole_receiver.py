@@ -12,6 +12,12 @@ ROOT = Path(__file__).resolve().parents[2]
 
 class NetconsoleReceiverTest(unittest.TestCase):
     def test_packet_capture_and_target_cleanup(self):
+        self.capture_and_cleanup(1, [])
+
+    def test_verbose_console_is_explicit(self):
+        self.capture_and_cleanup(8, ['--console-level', '8'])
+
+    def capture_and_cleanup(self, console_level, extra_args):
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
             bindir = root / 'bin'; bindir.mkdir()
@@ -31,7 +37,7 @@ if 'target_created=1' in command:
  marker=re.search(r'teleop-netconsole-ready-\\d+',command)[0]
  port=int(re.search(r'printf "%s\\\\n" (\\d+) > [^\\n]+/remote_port',command)[1])
  with socket.socket(socket.AF_INET,socket.SOCK_DGRAM) as s:
-  s.sendto(('6,1,123,-;'+marker+'\\n').encode(),('127.0.0.1',port))
+  s.sendto(('0,1,123,-;'+marker+'\\n').encode(),('127.0.0.1',port))
 '''); ssh.chmod(0o755)
             # Reserve an ephemeral port briefly to avoid hardcoded port clashes.
             import socket
@@ -43,7 +49,7 @@ if 'target_created=1' in command:
             env.pop('SSHPASS', None)
             with stdout.open('w') as log:
                 child = subprocess.Popen([str(ROOT/'tools/capture-aura-kernel-log'), '--local-ip','127.0.0.1',
-                         '--board-ip','127.0.0.1','--port',str(port),'--output',str(output)],
+                         '--board-ip','127.0.0.1','--port',str(port),'--output',str(output)] + extra_args,
                          env=env, stdout=log, stderr=subprocess.STDOUT)
                 try:
                     deadline = time.monotonic()+10
@@ -57,9 +63,12 @@ if 'target_created=1' in command:
                     if child.poll() is None: child.kill(); child.wait()
             metadata = json.loads(output.with_suffix('.txt.json').read_text())
             self.assertTrue(metadata['marker_received'])
+            self.assertEqual(metadata['console_level'], console_level)
             self.assertEqual(metadata['cleanup_exit'],0)
             self.assertIn(b'teleop-netconsole-ready-',output.read_bytes())
             self.assertIn('rmdir /sys/kernel/config/netconsole/teleop_', (root/'calls').read_text())
             self.assertIn('dmesg -n 4', (root/'calls').read_text())
+            self.assertIn('dmesg -n ' + str(console_level) + '\n', (root/'calls').read_text())
+            self.assertIn('<0>teleop-netconsole-ready-', (root/'calls').read_text())
 
 if __name__ == '__main__': unittest.main(verbosity=2)
