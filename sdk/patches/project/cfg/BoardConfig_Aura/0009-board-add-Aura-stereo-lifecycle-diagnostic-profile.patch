@@ -1,0 +1,20 @@
+From cd2f4a386c19706243e7fea0d578e2aa41d98937 Mon Sep 17 00:00:00 2001
+From: Starwey <moonbite233@gmail.com>
+Date: Mon, 12 Oct 2026 18:48:20 +0800
+Subject: [PATCH] board: add Aura stereo lifecycle diagnostic profile
+
+---
+ ...RK801-Luckfox_Aura-Teleop-AR0234-Stereo-Debug-Buildroot.mk | 4 ++++
+ 1 file changed, 4 insertions(+)
+ create mode 100644 BoardConfig-EMMC-RK801-Luckfox_Aura-Teleop-AR0234-Stereo-Debug-Buildroot.mk
+
+diff --git a/BoardConfig-EMMC-RK801-Luckfox_Aura-Teleop-AR0234-Stereo-Debug-Buildroot.mk b/BoardConfig-EMMC-RK801-Luckfox_Aura-Teleop-AR0234-Stereo-Debug-Buildroot.mk
+new file mode 100644
+index 0000000..c785eb3
+--- /dev/null
++++ b/BoardConfig-EMMC-RK801-Luckfox_Aura-Teleop-AR0234-Stereo-Debug-Buildroot.mk
+@@ -0,0 +1,4 @@
++#!/bin/bash
++# Diagnostic image; not a latency baseline. Preserve stereo sensor timings.
++source "$(dirname "$(realpath "${BASH_SOURCE[0]}")")/BoardConfig-EMMC-RK801-Luckfox_Aura-Teleop-AR0234-Stereo-Buildroot.mk"
++export RK_KERNEL_DEFCONFIG_FRAGMENT=rv1126b_teleop_lifecycle_debug.config

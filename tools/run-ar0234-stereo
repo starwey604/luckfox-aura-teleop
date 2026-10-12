@@ -7,8 +7,9 @@ usage() {
     echo 'Environment: DESTINATION=192.168.1.2 PORT=5000 FPS=100 BITRATE_KBPS=30000'
     echo '             EXPOSURE=735 ANALOGUE_GAIN=32 DIGITAL_GAIN=512 REPORT_DIR=/path'
     echo '             WRAP_LINES=0 (full-frame path for stereo; mono sender defaults to 256)'
+    echo '             VERTICAL_BLANKING=N (optional sensor timing diagnostic; changes capture fps)'
     echo '             H264_DIR=/path (optional per-camera Annex-B recordings)'
-    echo '             STARTUP_TIMEOUT=15 (wait for each sender to finish initialization)'
+    echo '             STARTUP_TIMEOUT=15 (wait for the shared sender to finish initialization)'
 }
 
 mode=sender
@@ -55,7 +56,7 @@ for process in "${PROC_ROOT:-/proc}"/[0-9]*/comm; do
     [ -r "$process" ] || continue
     name=$(cat "$process" 2>/dev/null) || continue
     case "$name" in
-        teleop-sender|rkipc|rkisp_demo|v4l2-ctl)
+        teleop-sender*|aura-sender*|rkipc|rkisp_demo|v4l2-ctl)
             echo "camera application already running: $name ($process)" >&2
             exit 3 ;;
     esac
@@ -107,69 +108,66 @@ trap 'exit 130' INT
 trap 'exit 143' TERM
 trap 'exit 129' HUP
 
+if [ -n "${VERTICAL_BLANKING:-}" ]; then
+    case "$VERTICAL_BLANKING" in *[!0-9]*) echo 'invalid VERTICAL_BLANKING' >&2; exit 2;; esac
+fi
 for camera in 0 1; do
     sensor=$(cat "$report/camera$camera-sensor")
+    if [ -n "${VERTICAL_BLANKING:-}" ]; then
+        v4l2-ctl -d "$sensor" --set-ctrl="vertical_blanking=$VERTICAL_BLANKING"
+    fi
     v4l2-ctl -d "$sensor" \
         --set-ctrl="exposure=$exposure,analogue_gain=$analogue,digital_gain=$digital,test_pattern=0"
 done
 
-start_camera() {
+start_capture() {
     camera=$1
-    if [ "$mode" = capture ]; then
-        exec "$diagnostic" --camera "$camera" --capture --frames "$frames" \
-            --timeout "$((frames / 20 + 20))" --output "$report/camera$camera-capture"
-    else
-        if [ -n "${H264_DIR:-}" ]; then
-            mkdir -p "$H264_DIR"
-            set -- --output-h264 "$H264_DIR/camera$camera.h264"
-        else
-            set --
-        fi
-        exec "$sender" --camera "$camera" --width 1280 --height 720 --fps "$fps" \
-            --destination "$destination" --port "$port" --bitrate-kbps "$bitrate" \
-            --wrap-lines "$wrap_lines" --slice-ctus 120 --frames "$frames" "$@"
-    fi
+    exec "$diagnostic" --camera "$camera" --capture --frames "$frames" \
+        --timeout "$((frames / 20 + 20))" --output "$report/camera$camera-capture"
 }
-( start_camera 0 ) > "$report/camera0.log" 2>&1 & pid0=$!
-wait_ready() {
-    pid=$1
-    log=$2
+# MPI owns global resources: run both encoders in a single process/SYS session.
+if [ "$mode" = sender ]; then
+    if [ -n "${H264_DIR:-}" ]; then
+        mkdir -p "$H264_DIR"
+        set -- --output-h264 "$H264_DIR/camera{camera}.h264"
+    else
+        set --
+    fi
+    "$sender" --dual --width 1280 --height 720 --fps "$fps" \
+        --destination "$destination" --port "$port" --bitrate-kbps "$bitrate" \
+        --wrap-lines "$wrap_lines" --slice-ctus 120 --frames "$frames" "$@" \
+        > "$report/stereo.log" 2>&1 & pid0=$!
     deadline=$(( $(date +%s) + startup_timeout ))
-    while ! grep -q 'aura-sender: VI ' "$log"; do
-        if ! kill -0 "$pid" 2>/dev/null; then
-            result=0
-            wait "$pid" || result=$?
-            cat "$log" >&2
-            [ "$result" -ne 0 ] || result=1
-            return "$result"
+    while ! grep -q 'aura-sender: VI 1/1/0' "$report/stereo.log"; do
+        if ! kill -0 "$pid0" 2>/dev/null; then
+            rc=0
+            wait "$pid0" || rc=$?
+            pid0=
+            cat "$report/stereo.log" >&2
+            [ "$rc" -ne 0 ] || rc=1
+            exit "$rc"
         fi
         if [ "$(date +%s)" -ge "$deadline" ]; then
-            echo "sender startup timeout; see $log" >&2
-            return 1
+            echo "sender startup timeout; see $report/stereo.log" >&2
+            exit 1
         fi
         sleep 0.05
     done
-}
-# Keep both streams concurrent, but finish the first SDK initialization before
-# starting the second. This also identifies which camera failed to initialize.
-if [ "$mode" = sender ]; then wait_ready "$pid0" "$report/camera0.log"; fi
-( start_camera 1 ) > "$report/camera1.log" 2>&1 & pid1=$!
-if [ "$mode" = sender ]; then wait_ready "$pid1" "$report/camera1.log"; fi
-echo "camera processes: $pid0 $pid1; Ctrl+C stops both."
-
-# Detect failure in either process even when its sibling runs indefinitely.
-while kill -0 "$pid0" 2>/dev/null && kill -0 "$pid1" 2>/dev/null; do sleep 0.2; done
-rc=0
-if ! kill -0 "$pid0" 2>/dev/null; then
+    echo "stereo sender: $pid0; Ctrl+C stops both streams."
+    rc=0
     wait "$pid0" || rc=$?
     pid0=
-else
-    wait "$pid1" || rc=$?
-    pid1=
+    echo "stereo exit=$rc; log: $report/stereo.log"
+    exit "$rc"
 fi
-if [ "$rc" -eq 0 ] && [ "$frames" -ne 0 ]; then
-    if [ -n "$pid0" ]; then wait "$pid0" || rc=$?; pid0=; fi
-    if [ -n "$pid1" ]; then wait "$pid1" || rc=$?; pid1=; fi
-fi
-echo "stereo exit=$rc; logs: $report/camera0.log $report/camera1.log"
+
+# Raw capture diagnostics remain independent V4L2 processes (no MPI SYS).
+( start_capture 0 ) > "$report/camera0.log" 2>&1 & pid0=$!
+( start_capture 1 ) > "$report/camera1.log" 2>&1 & pid1=$!
+rc=0
+wait "$pid0" || rc=$?
+pid0=
+if [ "$rc" -ne 0 ]; then exit "$rc"; fi
+wait "$pid1" || rc=$?
+pid1=
 exit "$rc"

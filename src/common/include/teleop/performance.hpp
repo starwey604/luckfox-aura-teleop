@@ -28,10 +28,10 @@ private:
 };
 
 // Opt-in, process-local instrumentation; never subtract board and host clocks.
-// Current sender/viewer call this from one application thread.
+// Histograms belong to the calling thread; print from each worker before joining.
 [[nodiscard]] bool software_metrics_enabled();
 [[nodiscard]] std::uint64_t performance_time_ns(); // zero while disabled
 void record_stage(std::string_view name, std::uint64_t begin, std::uint64_t end);
-void print_software_metrics();
+void print_software_metrics(std::string_view prefix = {});
 
 } // namespace teleop

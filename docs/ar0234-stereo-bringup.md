@@ -62,10 +62,12 @@ f9f4270edc908031c739d247a0533883f8c92cf82310fe935bdadfb8271ffaa0  rootfs.img
 - 拒绝已有摄像头程序占用节点的情况；只管理自己启动的进程。
 - 在改控制参数前，先检查两颗芯片 ID、驱动绑定和 sensor node。
 - 两路应用 exposure=735、analogue_gain=32、digital_gain=512、test_pattern=0。
-- 第一颗 sender 完成初始化并输出 ready 日志后，再启动第二颗；之后两路并发。
+- 使用一个 `sender --dual` 进程、一次 SYS 初始化；先配置两路 VI/VENC，再绑定并启动各自工作线程。
 - 分配独立的 camera/VI/VENC/stream ID，固定输出 1280×720。
-- 默认 `WRAP_LINES=0`，保存每路日志；Ctrl+C/TERM/HUP 清理自己启动的 sender。
-- 有限帧数时等待两路完成；任一路失败会停止其余子进程。
+- 默认 `WRAP_LINES=0`，保存 `stereo.log`；Ctrl+C/TERM/HUP 清理自己启动的 sender。
+- 有限帧数时等待两路完成；先完成的一路继续释放码流，直到另一路结束，然后统一回收。
+
+2026-10-12 起替换两进程方案；最新验证状态见 [初始化与回收排查](sender-lifecycle-debug-2026-10-12.md)。
 
 本机 viewer（CachyOS 原生运行）：
 
@@ -94,9 +96,9 @@ SSH 到板上启动：
 先做两路同时采集，再做有限帧数编码：
 
 ```sh
-/userdata/run-ar0234-stereo --capture-only --frames 600
-# 本机 viewer 此时使用 --dual-stream --frames 1200。
-/userdata/run-ar0234-stereo --frames 600
+/userdata/run-ar0234-stereo --capture-only --frames 120
+# 本机 viewer 此时使用 --dual-stream --frames 240。
+/userdata/run-ar0234-stereo --frames 120
 ```
 
 可选环境变量：DESTINATION、PORT、FPS、BITRATE_KBPS、EXPOSURE、ANALOGUE_GAIN、

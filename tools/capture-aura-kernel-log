@@ -1,0 +1,96 @@
+#!/usr/bin/env python3
+"""Native UDP netconsole receiver; configure one temporary target over SSH."""
+import argparse
+import ipaddress
+import json
+import os
+from pathlib import Path
+import re
+import shlex
+import signal
+import socket
+import subprocess
+import time
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('--host', default='root@192.168.1.10')
+    parser.add_argument('--interface', default='enp195s0', help='Host direct-link Ethernet interface')
+    parser.add_argument('--local-ip', default='192.168.1.2')
+    parser.add_argument('--board-ip', default='192.168.1.10')
+    parser.add_argument('--port', type=int, default=6666)
+    parser.add_argument('--output', type=Path, required=True)
+    parser.add_argument('--dry-run', action='store_true')
+    args = parser.parse_args()
+    ipaddress.IPv4Address(args.local_ip); ipaddress.IPv4Address(args.board_ip)
+    if not 1 <= args.port <= 65535: parser.error('Invalid UDP port')
+    network = json.loads(subprocess.check_output(['ip', '-j', 'addr', 'show', 'dev', args.interface], text=True))
+    if not network or not any(a.get('local') == args.local_ip for a in network[0]['addr_info']):
+        parser.error('Host interface does not have the direct-link IP')
+    mac = network[0]['address']
+    if not re.fullmatch(r'(?:[0-9a-fA-F]{2}:){5}[0-9a-fA-F]{2}', mac): parser.error('Invalid interface MAC')
+    target = '/sys/kernel/config/netconsole/teleop_' + str(os.getpid())
+    command = '''set -e
+test -d /sys/kernel/config/netconsole || { echo 'netconsole unavailable; use ar0234-stereo-debug image' >&2; exit 3; }
+mkdir ''' + shlex.quote(target) + '''
+echo target_created=1
+awk '{print "old_loglevel=" $1}' /proc/sys/kernel/printk
+'''
+    for name, value in [('dev_name', 'eth0'), ('local_ip', args.board_ip), ('local_port', '6665'),
+                        ('remote_ip', args.local_ip), ('remote_port', str(args.port)),
+                        ('remote_mac', mac), ('extended', '1'), ('enabled', '1')]:
+        command += 'printf "%s\\n" ' + shlex.quote(value) + ' > ' + shlex.quote(target + '/' + name) + '\n'
+    marker = 'teleop-netconsole-ready-' + str(os.getpid())
+    command += 'dmesg -n 8\nprintf "%s\\n" ' + shlex.quote('<6>' + marker) + ' > /dev/kmsg\n'
+    if args.dry_run:
+        print(command); return 0
+    ssh = ['ssh', '-o', 'ConnectTimeout=5', '-o', 'ServerAliveInterval=2', '-o', 'ServerAliveCountMax=2', args.host]
+    if 'SSHPASS' in os.environ: ssh = ['sshpass', '-e'] + ssh
+    if args.output.exists() or args.output.with_suffix(args.output.suffix + '.json').exists():
+        parser.error('Output already exists; choose a new capture path')
+    args.output.parent.mkdir(parents=True, exist_ok=True)
+    metadata = {'interface': args.interface, 'host_ip': args.local_ip, 'board_ip': args.board_ip,
+                'remote_mac': mac, 'port': args.port, 'target': target, 'marker_received': False}
+    stop = False
+    def stop_signal(*_):
+        nonlocal stop
+        stop = True
+    signal.signal(signal.SIGINT, stop_signal); signal.signal(signal.SIGTERM, stop_signal)
+    setup = ''
+    try:
+        with args.output.open('xb') as log, socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as receiver:
+            receiver.bind((args.local_ip, args.port)); receiver.settimeout(1)
+            result = subprocess.run(ssh + [command], text=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, timeout=15)
+            setup = result.stdout; metadata['setup'] = setup
+            if result.returncode: raise RuntimeError('Netconsole setup failed: ' + setup)
+            deadline = time.monotonic() + 10
+            print('Listening for board kernel messages; Ctrl+C removes this temporary target.', flush=True)
+            while not stop:
+                try: packet, address = receiver.recvfrom(65535)
+                except socket.timeout:
+                    if not metadata['marker_received'] and time.monotonic() >= deadline:
+                        raise RuntimeError('No netconsole test packet; check host firewall/interface before camera tests')
+                    continue
+                if address[0] != args.board_ip: continue
+                log.write(packet); log.flush()
+                if marker.encode() in packet:
+                    metadata['marker_received'] = True
+                    print('Netconsole test packet received; kernel capture is ready.', flush=True)
+    except (RuntimeError, OSError, subprocess.TimeoutExpired) as error:
+        metadata['error'] = str(error); print(error, flush=True)
+    finally:
+        if 'target_created=1' in setup:
+            old = re.search(r'^old_loglevel=(\d+)$', setup, re.M)
+            cleanup = 'if [ -d ' + shlex.quote(target) + ' ]; then echo 0 > ' + shlex.quote(target + '/enabled') + '; rmdir ' + shlex.quote(target) + '; fi'
+            if old: cleanup += '; dmesg -n ' + old[1]
+            try:
+                result = subprocess.run(ssh + [cleanup], text=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, timeout=10)
+                metadata['cleanup_exit'] = result.returncode
+                metadata['cleanup_output'] = result.stdout
+            except subprocess.TimeoutExpired: metadata['cleanup_error'] = 'Board unavailable; target disappears on reboot'
+        args.output.with_suffix(args.output.suffix + '.json').write_text(json.dumps(metadata, indent=2) + '\n')
+    return 1 if 'error' in metadata else 0
+
+if __name__ == '__main__':
+    raise SystemExit(main())

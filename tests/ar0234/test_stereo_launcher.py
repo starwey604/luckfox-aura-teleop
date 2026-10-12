@@ -40,12 +40,12 @@ printf 'selected adapter=%s, client=/sys/... driver=ar0234\n' "$((camera + 7))" 
         self.write('sender', '''#!/usr/bin/env python3
 import os, signal, sys, time
 from pathlib import Path
-camera = sys.argv[sys.argv.index('--camera') + 1]
+camera = 'stereo'
 Path(os.environ['REPORT_DIR'], 'pid' + camera).write_text(str(os.getpid()))
 with open(os.environ['CALLS'], 'a') as f: f.write('sender ' + ' '.join(sys.argv[1:]) + '\\n')
 signal.signal(signal.SIGINT, lambda *_: sys.exit(0))
-print('aura-sender: VI ' + camera, flush=True)
-if os.environ.get('FAIL_CAMERA') == camera:
+print('aura-sender: VI 1/1/0', flush=True)
+if os.environ.get('FAIL_CAMERA') == '1':
     time.sleep(0.2)
     sys.exit(4)
 if sys.argv[sys.argv.index('--frames') + 1] == '0':
@@ -82,29 +82,38 @@ time.sleep(0.3)
         self.assertNotIn('control', self.calls.read_text())
         self.assertNotIn('sender', self.calls.read_text())
 
-    def test_both_senders_use_distinct_presets_and_720p(self):
+    def test_one_sender_uses_dual_and_720p(self):
         result = self.run_launcher('--frames', '3')
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
         calls = self.calls.read_text()
         for index in (0, 1):
             self.assertIn(f'control -d {self.base}/dev/v4l-subdev{index}', calls)
-            self.assertIn(f'sender --camera {index} --width 1280 --height 720', calls)
-        self.assertEqual(calls.count('--wrap-lines 0'), 2)
+        self.assertIn('sender --dual --width 1280 --height 720', calls)
+        self.assertEqual(calls.count('--wrap-lines 0'), 1)
         self.assertEqual(calls.count('exposure=735,analogue_gain=32,digital_gain=512,test_pattern=0'), 2)
 
     def test_recordings_use_independent_paths(self):
         directory = str(self.base / 'h264')
         result = self.run_launcher('--frames', '3', H264_DIR=directory)
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
-        for index in (0, 1):
-            self.assertIn(f'--output-h264 {directory}/camera{index}.h264', self.calls.read_text())
+        self.assertIn(f'--output-h264 {directory}/camera{{camera}}.h264', self.calls.read_text())
 
-    def test_second_sender_failure_stops_infinite_sibling(self):
+    def test_sender_failure_is_returned(self):
         result = self.run_launcher(FAIL_CAMERA='1')
         self.assertEqual(result.returncode, 4, result.stdout + result.stderr)
-        pid = int((self.base / 'report/pid0').read_text())
+        pid = int((self.base / 'report/pidstereo').read_text())
         with self.assertRaises(ProcessLookupError):
             os.kill(pid, 0)
+
+    def test_optional_sensor_timing_is_applied_before_exposure(self):
+        result = self.run_launcher('--frames', '3', VERTICAL_BLANKING='80')
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        lines = self.calls.read_text().splitlines()
+        for index in (0, 1):
+            prefix = f'control -d {self.base}/dev/v4l-subdev{index}'
+            blank = next(n for n, line in enumerate(lines) if prefix in line and 'vertical_blanking=80' in line)
+            expose = next(n for n, line in enumerate(lines) if prefix in line and 'exposure=735' in line)
+            self.assertLess(blank, expose)
 
     def test_capture_only_runs_both_diagnostics(self):
         result = self.run_launcher('--capture-only', '--frames', '3')

@@ -44,9 +44,13 @@ UDP 重组器、Annex-B parser 和 VAAPI decoder；显示器只保留每路最�
 
 当前 Aura stereo 镜像的程序预设为：`--camera 0` 对应 `m00_b_mia1321`、`rkisp-vir0`、
 `VI 0/0/0`、`VENC 0`、`stream_id 0`；`--camera 1` 对应 `m01_b_mia1321`、`rkisp-vir1`、
-`VI 1/1/0`、`VENC 1`、`stream_id 1`。先分别启动两个 sender 进程验证硬件资源可并发工作；
+`VI 1/1/0`、`VENC 1`、`stream_id 1`。双路使用一个 `sender --dual` 进程，统一 SYS 初始化和退出；
 无需在命令行重复填写 VI/VENC 编号。sender 默认编码基线为 1280×1080、100 fps、30 Mbit/s
 CBR、GOP 15、wrap 256 行、slice 120。
+
+当前 AR0234 双摄用 `/userdata/run-ar0234-stereo` 应用曝光控制并传入 1280×720、wrap=0。
+两路配置完成后统一绑定，工作线程全部退出并释放码流后才销毁资源和 SYS_Exit。
+详见 [生命周期排查](sender-lifecycle-debug-2026-10-12.md)。
 
 发送端优先复用 SDK 已有的 RK MPI sample、VENC 配置和内存管理代码。VI、VPSS 和 VENC 尽可能通过 `RK_MPI_SYS_Bind()` 连接，使图像留在 DMA buffer 中。应用只获取编码后的 packet，不把原始帧复制到用户态。
 

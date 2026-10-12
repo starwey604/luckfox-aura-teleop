@@ -7,6 +7,7 @@ option(TELEOP_BUILD_TRANSPORT_TEST_SENDER "Build the host synthetic transport se
 option(TELEOP_BUILD_HOST_VIEWER "Build the host viewer executable" OFF)
 option(TELEOP_BUILD_USB_CAMERA_SENDER "Build the CachyOS USB-camera sender" OFF)
 option(TELEOP_BUILD_LATENCY_STIMULUS "Build the CachyOS optical latency test pattern" OFF)
+option(TELEOP_BUILD_MPI_LIFECYCLE_TESTS "Build MPI ownership tests against SDK headers and fake API" OFF)
 option(TELEOP_BUILD_TESTS "Build transport protocol tests" OFF)
 
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin")
@@ -39,4 +40,9 @@ endif()
 if(TELEOP_BUILD_TESTS)
     enable_testing()
     add_subdirectory(tests/protocol)
+endif()
+
+if(TELEOP_BUILD_MPI_LIFECYCLE_TESTS)
+    enable_testing()
+    add_subdirectory(tests/aura)
 endif()

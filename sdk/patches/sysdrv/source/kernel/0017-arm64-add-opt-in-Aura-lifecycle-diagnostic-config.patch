@@ -1,0 +1,44 @@
+From e86d03211805b0bcc974f72c8c1bd42ef07881d4 Mon Sep 17 00:00:00 2001
+From: Starwey <moonbite233@gmail.com>
+Date: Mon, 12 Oct 2026 18:48:20 +0800
+Subject: [PATCH] arm64: add opt-in Aura lifecycle diagnostic config
+
+---
+ .../rv1126b_teleop_lifecycle_debug.config     | 28 +++++++++++++++++++
+ 1 file changed, 28 insertions(+)
+ create mode 100644 arch/arm64/configs/rv1126b_teleop_lifecycle_debug.config
+
+diff --git a/arch/arm64/configs/rv1126b_teleop_lifecycle_debug.config b/arch/arm64/configs/rv1126b_teleop_lifecycle_debug.config
+new file mode 100644
+index 000000000..3a34013b3
+--- /dev/null
++++ b/arch/arm64/configs/rv1126b_teleop_lifecycle_debug.config
+@@ -0,0 +1,28 @@
++# Luckfox Aura teleoperation latency baseline.
++# This is deliberately a small fragment over rv1126b_luckfox_defconfig.
++
++# CONFIG_PREEMPT_NONE is not set
++CONFIG_PREEMPT=y
++
++# CONFIG_HZ_250 is not set
++CONFIG_HZ_1000=y
++
++# CONFIG_CC_OPTIMIZE_FOR_SIZE is not set
++CONFIG_CC_OPTIMIZE_FOR_PERFORMANCE=y
++
++# Compile the experimental AR0234 port; no camera DT node is enabled yet.
++CONFIG_VIDEO_AR0234=y
++CONFIG_I2C_CHARDEV=y
++
++# Temporary lifecycle diagnosis: keep locking layouts unchanged (no lockdep).
++CONFIG_STACKTRACE=y
++CONFIG_KALLSYMS_ALL=y
++CONFIG_DETECT_HUNG_TASK=y
++CONFIG_DEFAULT_HUNG_TASK_TIMEOUT=10
++# CONFIG_BOOTPARAM_HUNG_TASK_PANIC is not set
++# CONFIG_BOOTPARAM_SOFTLOCKUP_PANIC is not set
++# CONFIG_BOOTPARAM_HARDLOCKUP_PANIC is not set
++# CONFIG_BOOTPARAM_RCU_STALL_PANIC is not set
++CONFIG_NETCONSOLE=y
++CONFIG_NETCONSOLE_DYNAMIC=y
++CONFIG_CONFIGFS_FS=y

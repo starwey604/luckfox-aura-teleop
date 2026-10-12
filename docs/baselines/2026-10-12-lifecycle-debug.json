@@ -1,0 +1,46 @@
+{
+  "aura-sender": {
+    "bytes": 157640,
+    "sha256": "36468d1e7192db7274718b181fb20d631ee27fbeed367d9c96f0f1f706cf07aa"
+  },
+  "image/boot.img": {
+    "bytes": 11389440,
+    "sha256": "dcb60408653a38395f8daed4f3de535c22fe31bb733e23d78ec3cb4675868d4d"
+  },
+  "image/download.bin": {
+    "bytes": 448960,
+    "sha256": "f8c0118ed361448e83d7bef12f6d4983d8891f1d9e130219a7ce325fa4251642"
+  },
+  "image/env.img": {
+    "bytes": 32768,
+    "sha256": "b328c39b437d60a7d21f005efebc0624c5d9fb8b4ad65da45bbdeeb143922b04"
+  },
+  "image/idblock.img": {
+    "bytes": 311296,
+    "sha256": "f91ad48bb4d6925a71c30b2fdaa9d3bc1b24bfdf5a1d3da927882575007e22a3"
+  },
+  "image/oem.img": {
+    "bytes": 263884800,
+    "sha256": "712ec973a322ff917db4c13c74c58aa6c129af11f25e2d7823e4160f8b149e25"
+  },
+  "image/rootfs.img": {
+    "bytes": 397291520,
+    "sha256": "dbc3cb62f664ac3cbebabebbe069f3d9cf3a8c792a6923e4fc393cfa1e3dd9df"
+  },
+  "image/uboot.img": {
+    "bytes": 524288,
+    "sha256": "c766c45355c7b33477167b2be21bd5bfdcd734f15a25004fb65eaa35c251b323"
+  },
+  "image/update.img": {
+    "bytes": 313240138,
+    "sha256": "5c3616f274a0d26b92eb016796f6563b44c4c50f8f8ed5cc02167e5790a2e443"
+  },
+  "image/userdata.img": {
+    "bytes": 36192256,
+    "sha256": "f8d2d52ec64f279ee1315998fedd883f2581e9da60e5cf1d75c26538659add06"
+  },
+  "kernel.config": {
+    "bytes": 172123,
+    "sha256": "a8c5b2a6981cdd9deb5f50ab010b0d95d3e3dd449b20dc070b978a4111bf8337"
+  }
+}

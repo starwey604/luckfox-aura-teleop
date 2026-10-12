@@ -35,7 +35,7 @@ std::uint64_t bin_upper(std::size_t index)
 
 auto& stages()
 {
-    static std::map<std::string, DurationHistogram, std::less<>> result;
+    thread_local std::map<std::string, DurationHistogram, std::less<>> result;
     return result;
 }
 
@@ -100,13 +100,14 @@ void record_stage(std::string_view name, std::uint64_t begin, std::uint64_t end)
     found->second.add(end - begin);
 }
 
-void print_software_metrics()
+void print_software_metrics(std::string_view prefix)
 {
     if (!software_metrics_enabled()) return;
     std::puts("software-metrics: CLOCK_MONOTONIC local-only; ms; quantiles=upper-bin-bounds (width<=1.563%)");
     for (const auto& [name, histogram] : stages()) {
-        std::printf("metric: stage=%s samples=%llu min=%.6f mean=%.6f p50=%.6f p95=%.6f p99=%.6f max=%.6f\n",
-            name.c_str(), static_cast<unsigned long long>(histogram.count()),
+        std::printf("metric: stage=%.*s%s samples=%llu min=%.6f mean=%.6f p50=%.6f p95=%.6f p99=%.6f max=%.6f\n",
+            static_cast<int>(prefix.size()), prefix.data() ? prefix.data() : "", name.c_str(),
+            static_cast<unsigned long long>(histogram.count()),
             static_cast<double>(histogram.minimum()) / 1'000'000.0,
             histogram.mean_ns() / 1'000'000.0,
             static_cast<double>(*histogram.percentile(0.50)) / 1'000'000.0,

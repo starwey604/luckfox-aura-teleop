@@ -120,3 +120,10 @@ Ubuntu Distrobox 中，SDK 工具 8 项回归与实际补丁重放/重复应用�
 pull 保证镜像 SHA-256 相同。内核构建时间、构建用户名/主机名、git am 生成的
 提交时间、ext4 UUID/时间戳等未全部固定，目前还不是逐字节可复现构建。
 同事环境仍应验证打包的 DTB、PREEMPT 模块匹配、SSH、两路采集和回传。
+
+## 生命周期诊断 profile（2026-10-12）
+
+可选 `./tools/select-teleop-board ../aura-sdk ar0234-stereo-debug`，随后用 Distrobox
+运行 `./build.sh driver`（内核+外部模块）和 `./build.sh firmware`。其余 profile 不变。
+诊断版增加 stacktrace/hung-task/netconsole，关闭 lockup/stall 默认 panic；不作为延迟 baseline。
+详情见 [本轮排查记录](sender-lifecycle-debug-2026-10-12.md)。

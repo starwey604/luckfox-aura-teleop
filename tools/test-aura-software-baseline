@@ -17,10 +17,12 @@ cat /proc/interrupts
 for p in /sys/class/thermal/thermal_zone*/temp /sys/class/devfreq/*/cur_freq; do echo "$p"; cat "$p"; done
 ethtool -S eth0
 ps
+for p in /proc/mpp_service/sessions-summary /proc/mpp_service/rkvenc0/sessions-info /proc/kmpp/sys/mem_pool_info /proc/kmpp/sys/shm_pool_info; do echo "$p"; cat "$p"; done
 dmesg | tail -80
 """
 MONITOR = """echo monitor_pid=$$
-trap 'exit 0' TERM INT HUP
+cat /dev/kmsg & kmsg_pid=$!
+trap 'kill "$kmsg_pid" 2>/dev/null || true; wait "$kmsg_pid" 2>/dev/null || true; exit 0' TERM INT HUP
 while :; do
 echo sample
 cat /proc/uptime /proc/stat /proc/net/snmp
@@ -30,7 +32,7 @@ read name < "$p" || continue
 case "$name" in teleop-sender*)
 pid=$(dirname "$p")
 cat "$pid/stat" "$pid/status"
-for t in "$pid"/task/*/stat; do cat "$t"; done
+for t in "$pid"/task/*; do echo "$t"; cat "$t/stat" "$t/wchan" "$t/stack"; done
 ;; esac
 done
 sleep 1
@@ -43,13 +45,17 @@ def main():
     parser.add_argument("--frames", type=int, default=120, help="Frames per camera; short tests by default")
     parser.add_argument("--allow-long", action="store_true", help="Explicitly allow more than 300 frames after cooling is arranged")
     parser.add_argument("--start-temp-c", type=int, default=50, help="Refuse camera start at or above this temperature")
+    parser.add_argument("--vertical-blanking", type=int, help="Optional diagnostic sensor VBLANK; changes capture fps")
     parser.add_argument("--port", type=int, default=5000)
     parser.add_argument("--mode", choices=("decode", "transport"), default="decode")
     parser.add_argument("--host", default="root@192.168.1.10")
-    parser.add_argument("--sender", default="/userdata/teleop-sender-metrics")
+    parser.add_argument("--sender", default="/userdata/teleop-sender")
+    parser.add_argument("--launcher", default="/userdata/run-ar0234-stereo", help="Board stereo launcher path")
     parser.add_argument("--viewer", type=Path, default=ROOT / "build/host-metrics/bin/host-viewer")
     parser.add_argument("--output", type=Path, required=True)
     args = parser.parse_args()
+    if args.vertical_blanking is not None and args.vertical_blanking < 21:
+        parser.error("AR0234 VBLANK must be >=21")
     if args.frames <= 0 or not 0 < args.port < 65536:
         parser.error("Invalid frame count/port")
     if args.frames > 300 and not args.allow_long:
@@ -82,9 +88,9 @@ def main():
     with socket.socket(socket.AF_INET6, socket.SOCK_DGRAM) as check:
         check.bind(("::", args.port))
     result = {"camera": args.camera, "frames_per_camera": args.frames,
-              "mode": args.mode, "port": args.port, "success": False}
+              "mode": args.mode, "port": args.port, "vertical_blanking": args.vertical_blanking, "success": False}
     limit = max(20, args.frames // 90 + 20)
-    directory = "/userdata/latency-" + args.output.name
+    directory = "/userdata/latency-" + args.output.parent.name + "-" + args.output.name
     if args.camera == "dual":
         # Preserve directory metadata even if the board locks before ext4's
         # periodic journal commit. Stream log contents to the host as well.
@@ -100,7 +106,7 @@ def main():
                                    stdout=logs["monitor"], stderr=subprocess.STDOUT)
         if args.camera == "dual":
             command = ["timeout", "-s", "TERM", "-k", "2", str(limit + 20), "tail", "-n", "+1", "-F",
-                       directory + "/camera0.log", directory + "/camera1.log"]
+                       directory + "/stereo.log"]
             mirror = subprocess.Popen(ssh + [shlex.join(command)], stdout=mirror_log,
                                       stderr=subprocess.STDOUT)
         streams = 2 if args.camera == "dual" else 1
@@ -121,10 +127,11 @@ def main():
             time.sleep(0.01)
         print("Receiver bound; starting board test", flush=True)
         if args.camera == "dual":
-            command = ["env", "TELEOP_METRICS=1", "SENDER=" + args.sender,
+            command = ["env", "TELEOP_METRICS=1", "AURA_LIFECYCLE_TRACE=1", "SENDER=" + args.sender,
                        "PORT=" + str(args.port), "WRAP_LINES=0",
-                       "REPORT_DIR=/userdata/latency-" + args.output.name,
-                       "/userdata/run-ar0234-stereo", "--frames", str(args.frames)]
+                       "REPORT_DIR=" + directory,
+                       args.launcher, "--frames", str(args.frames)]
+            if args.vertical_blanking is not None: command.insert(2, "VERTICAL_BLANKING=" + str(args.vertical_blanking))
             controls = ""
         else:
             bus = "4" if args.camera == "0" else "3"
@@ -135,7 +142,9 @@ v4l2-ctl -d "/dev/$node" --set-ctrl=exposure=735,analogue_gain=32,digital_gain=5
 ;; esac
 done
 """
-            command = ["env", "TELEOP_METRICS=1", args.sender, "--camera", args.camera,
+            if args.vertical_blanking is not None:
+                controls = controls.replace('node=$(basename "$p")', 'node=$(basename "$p")\nv4l2-ctl -d "/dev/$node" --set-ctrl=vertical_blanking=' + str(args.vertical_blanking) + ' || exit')
+            command = ["env", "TELEOP_METRICS=1", "AURA_LIFECYCLE_TRACE=1", args.sender, "--camera", args.camera,
                        "--width", "1280", "--height", "720", "--fps", "100",
                        "--wrap-lines", "0", "--port", str(args.port), "--frames", str(args.frames)]
         command = controls + "timeout -s INT -k 5 " + str(limit) + " " + shlex.join(command)
@@ -149,8 +158,7 @@ done
         result["viewer_exit"] = viewer.wait(timeout=15)
         if result["viewer_exit"] != 0: raise RuntimeError("Viewer failed")
         if args.camera == "dual":
-            reports = remote("cat " + shlex.quote(directory + "/camera0.log") + " " +
-                             shlex.quote(directory + "/camera1.log"))
+            reports = remote("cat " + shlex.quote(directory + "/stereo.log"))
             (args.output / "board-senders.txt").write_text(reports.stdout)
         logs["viewer"].flush()
         text = (args.output / "viewer.txt").read_text()

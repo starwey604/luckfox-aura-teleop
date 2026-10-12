@@ -23,7 +23,7 @@ There is no CI; all build/test steps are run manually. The origin remote is GitH
 ## Commands
 
 ```sh
-./tools/select-teleop-board <sdk>      # symlink .BoardConfig.mk to the teleop BoardConfig
+./tools/select-teleop-board <sdk> [profile]  # ar0234-stereo-debug is diagnostic only; symlink .BoardConfig.mk to the teleop BoardConfig
 ./tools/sdk-patch {check|status|apply|export} <sdk>   # patch stack management
 ./tools/verify-sdk-baseline <sdk>     # all 63 locked vendor revisions + saved patch prefixes
 ./tools/test-sdk-replay <sdk>         # isolated clean-baseline clones, compare patched trees
@@ -96,10 +96,14 @@ Order matters: apply the SDK patch stack and `select-teleop-board` before SDK bu
 
 - `tests/sdk/test_patch_stack.py` checks sequential patches, partial/repeated apply, refusal
   before mutation, manifest mismatches and relative BoardConfig selection. Run in Distrobox.
+- `tests/aura/` exercises the production sender with a stateful fake MPI backend in Distrobox
+  (`TELEOP_BUILD_MPI_LIFECYCLE_TESTS=ON`, SDK headers required). `tools/test-aura-lifecycle`
+  runs bounded real-board restart, fault-injection, process-lock and signal tests.
+  Stereo uses one `aura-sender --dual` process/SYS session; do not launch two MPI sender processes.
 - `tests/protocol/` has the real unit test (`ctest` via `test-transport-loopback`).
 - `tests/latency/test_software_metrics.py` is a native-only dual UDP/VAAPI timing
   association test. Use `TELEOP_METRICS=1` for opt-in process-local stage histograms;
-  the metrics entrypoints currently assume one application thread per process.
+  histograms belong to each application thread; each sender worker prints its own stream prefix.
   `tests/h264/` and `tests/usb-camera/` document
   host-only hardware validation; see their READMEs for acceptance output
   (`hardware_frames == frames`, `presenter: frames=...`, zero malformed/dropped).

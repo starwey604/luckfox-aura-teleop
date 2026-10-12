@@ -1,0 +1,159 @@
+#!/usr/bin/env python3
+"""Short restart/rollback/signal tests, on the current image; never flashes/reboots."""
+import argparse
+import json
+import os
+from pathlib import Path
+import re
+import shlex
+import subprocess
+import time
+
+ROOT = Path(__file__).resolve().parents[1]
+RESOURCE_PROBE = '''cat /proc/uptime /sys/class/thermal/thermal_zone0/temp
+cat /proc/meminfo
+for p in /proc/mpp_service/sessions-summary /proc/mpp_service/rkvenc0/sessions-info /proc/kmpp/sys/mem_pool_info; do echo "$p"; cat "$p"; done
+echo active_senders
+for p in /proc/[0-9]*/comm; do read name < "$p" || continue; case "$name" in teleop-sender*|aura-sender*) echo "$p $name";; esac; done
+dmesg | tail -80
+'''
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('--host', default='root@192.168.1.10')
+    parser.add_argument('--sender', default='/userdata/teleop-sender')
+    parser.add_argument('--launcher', default='/userdata/run-ar0234-stereo')
+    parser.add_argument('--viewer', type=Path, default=ROOT / 'build/host-metrics/bin/host-viewer')
+    parser.add_argument('--output', type=Path, required=True)
+    parser.add_argument('--skip-stream-tests', action='store_true', help='Only rollback, locking, signals; no VAAPI receiver')
+    args = parser.parse_args()
+    args.output.mkdir(parents=True, exist_ok=False)
+    ssh = ['ssh', '-o', 'ConnectTimeout=5', '-o', 'ServerAliveInterval=3', '-o', 'ServerAliveCountMax=3', args.host]
+    if 'SSHPASS' in os.environ: ssh = ['sshpass', '-e'] + ssh
+    results = []
+    def remote(command, timeout=15):
+        return subprocess.run(ssh + [command], text=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, timeout=timeout)
+    def preflight():
+        deadline = time.monotonic() + 60
+        while True:
+            r = remote('cat /sys/class/thermal/thermal_zone0/temp; for p in /proc/[0-9]*/comm; do read n < "$p" || continue; case "$n" in teleop-sender*|aura-sender*|v4l2-ctl|rkipc) echo "busy $p $n";; esac; done')
+            if r.returncode or 'busy ' in r.stdout: raise RuntimeError('Board unavailable/busy: ' + r.stdout)
+            temperature = int(r.stdout.strip())
+            if temperature < 50000: return
+            if time.monotonic() >= deadline: raise RuntimeError('Temperature >=50C after cooling wait; stopped without starting camera')
+            print(f'Cooling at {temperature / 1000:.2f}C; cameras remain stopped', flush=True)
+            time.sleep(10)
+    def instrumented(command, directory):
+        # An independent SSH stream keeps kernel messages on the host even if
+        # the primary MPI call blocks and the board stops responding later.
+        with (directory / 'kernel-live.txt').open('w') as kernel, (directory / 'sender.txt').open('w') as log:
+            watcher = subprocess.Popen(ssh + ['timeout -s TERM -k 2 15 cat /dev/kmsg'],
+                                       stdout=kernel, stderr=subprocess.STDOUT)
+            try:
+                return subprocess.run(ssh + [command], stdout=log, stderr=subprocess.STDOUT, timeout=20)
+            finally:
+                if watcher.poll() is None:
+                    watcher.terminate()
+                    try: watcher.wait(timeout=3)
+                    except subprocess.TimeoutExpired: watcher.kill(); watcher.wait()
+
+    def verify_cleanup(text):
+        if 'END RK_MPI_SYS_WaitFreeMB() rc=0' not in text or 'END RK_MPI_SYS_Exit() rc=0' not in text:
+            raise RuntimeError('Missing successful SYS cleanup')
+        if re.search(r'cleanup .* failed:', text): raise RuntimeError('MPI cleanup error')
+    def snapshot(directory):
+        r = remote(RESOURCE_PROBE)
+        (directory / 'board-after.txt').write_text(r.stdout)
+        if r.returncode: raise RuntimeError('Board no longer responds')
+        active = r.stdout.split('active_senders\n')[-1].splitlines()[0:1]
+        if active and active[0].startswith('/proc/'): raise RuntimeError('Sender process remained after test')
+    try:
+        if not args.skip_stream_tests:
+            for name, camera in [('dual-start', 'dual'), ('mono0', '0'), ('mono1', '1'), ('dual-after-mono', 'dual')]:
+                preflight()
+                command = [str(ROOT / 'tools/test-aura-software-baseline'), '--host', args.host,
+                           '--sender', args.sender, '--launcher', args.launcher, '--viewer', str(args.viewer),
+                           '--frames', '120', '--camera', camera, '--output', str(args.output / name)]
+                print('Running', name, flush=True)
+                r = subprocess.run(command, timeout=60)
+                results.append({'name': name, 'exit': r.returncode})
+                if r.returncode: raise RuntimeError(name + ' failed; stopped remaining tests')
+                time.sleep(2)
+        base = [args.sender, '--dual', '--width', '1280', '--height', '720', '--wrap-lines', '0', '--frames', '120']
+        for phase in ['camera1.vi.enabled', 'camera1.venc.created', 'camera0.stream.acquired']:
+            preflight()
+            name = 'fail-' + phase
+            directory = args.output / name; directory.mkdir()
+            print('Running', name, flush=True)
+            command = ['timeout', '-s', 'INT', '-k', '3', '12', 'env', 'AURA_LIFECYCLE_TRACE=1', 'AURA_FAIL_AFTER=' + phase]
+            if phase.endswith('stream.acquired'): command += ['AURA_TRACE_STREAM=1']
+            command += base
+            r = instrumented(shlex.join(command), directory)
+            text = (directory / 'sender.txt').read_text()
+            results.append({'name': name, 'exit': r.returncode})
+            if r.returncode != 1 or 'injected failure after ' + phase not in text: raise RuntimeError(name + ' unexpected result')
+            verify_cleanup(text)
+            if phase.endswith('stream.acquired') and 'END RK_MPI_VENC_ReleaseStream' not in text:
+                raise RuntimeError('Acquired stream was not released')
+            snapshot(directory)
+            time.sleep(2)
+        # Both scenarios have a finite 120-frame limit even if signal delivery
+        # fails. The second-process test happens before any second SYS_Init.
+        for kind in ['TERM-during-init', 'INT-after-ready']:
+            preflight()
+            directory = args.output / kind; directory.mkdir()
+            name = str(directory / 'sender.txt')
+            print('Running', kind, flush=True)
+            env = ['env', 'AURA_LIFECYCLE_TRACE=1']
+            marker = 'camera=1 BEGIN RK_MPI_VI_EnableChn' if kind.startswith('TERM') else 'aura-sender: VI 1/1/0'
+            # The shell forwards only to its own child and records the wait status.
+            script = '''log=$(mktemp /tmp/teleop-lifecycle.XXXXXX)
+''' + shlex.join(env + base) + ''' > "$log" 2>&1 & pid=$!
+trap 'kill -TERM "$pid" 2>/dev/null || true; wait "$pid" 2>/dev/null || true; cat "$log"; rm -f "$log"' EXIT
+for n in $(seq 1 200); do
+  grep -Fq ''' + shlex.quote(marker) + ''' "$log" && break
+  kill -0 "$pid" || exit 2
+  sleep 0.02
+done
+grep -Fq ''' + shlex.quote(marker) + ''' "$log" || exit 3
+'''
+            if kind.startswith('INT'):
+                script += shlex.join(env + [args.sender, '--camera', '1', '--frames', '1']) + ''' > "$log.lock" 2>&1
+lock_rc=$?
+echo lock_exit=$lock_rc
+cat "$log.lock"; rm -f "$log.lock"
+[ "$lock_rc" -eq 1 ] || exit 4
+'''
+            signal = 'TERM' if kind.startswith('TERM') else 'INT'
+            script += 'kill -' + signal + ''' "$pid" || exit 5
+wait "$pid"; rc=$?
+echo sender_exit=$rc
+exit "$rc"
+'''
+            r = instrumented('timeout -s TERM -k 3 12 sh -c ' + shlex.quote(script), directory)
+            text = Path(name).read_text()
+            results.append({'name': kind, 'exit': r.returncode})
+            if r.returncode: raise RuntimeError(kind + ' failed')
+            verify_cleanup(text)
+            if kind.startswith('INT') and 'another MPI sender is running' not in text: raise RuntimeError('Process lock did not reject peer')
+            snapshot(directory)
+            time.sleep(2)
+        print('Recovery: repeat dual VAAPI test after all injected failures/signals', flush=True)
+        preflight()
+        command = [str(ROOT / 'tools/test-aura-software-baseline'), '--host', args.host, '--sender', args.sender,
+                   '--launcher', args.launcher, '--viewer', str(args.viewer), '--camera', 'dual',
+                   '--output', str(args.output / 'dual-recovery')]
+        r = subprocess.run(command, timeout=60)
+        results.append({'name': 'dual-recovery', 'exit': r.returncode})
+        if r.returncode: raise RuntimeError('Recovery failed')
+    except (RuntimeError, OSError, subprocess.TimeoutExpired) as error:
+        results.append({'error': str(error)})
+        print('FAIL:', error, flush=True)
+        return 1
+    finally:
+        (args.output / 'results.json').write_text(json.dumps(results, indent=2) + '\n')
+    print('PASS: bounded lifecycle suite', flush=True)
+    return 0
+
+if __name__ == '__main__':
+    raise SystemExit(main())
