@@ -87,12 +87,31 @@ struct handler { struct ar0234 *ar; };
 struct ar0234 {
     bool decxin_profile, streaming;
     const struct ar0234_mode *cur_mode;
+    const struct ar0234_mode *modes;
+    unsigned int num_modes;
     int lane_count_id, mutex, pm_refs;
     void *dev, *hflip, *vflip;
     struct handler ctrl_handler;
     u16 mfr_30ba;
 };
 struct v4l2_subdev { struct ar0234 *ar; };
+struct v4l2_mbus_framefmt { u32 width, height; };
+struct v4l2_subdev_state { struct v4l2_mbus_framefmt fmt; };
+struct v4l2_subdev_selection { u32 pad, which, target; struct v4l2_rect r; };
+enum { V4L2_SUBDEV_FORMAT_ACTIVE, V4L2_SUBDEV_FORMAT_TRY };
+enum { V4L2_SEL_TGT_CROP, V4L2_SEL_TGT_NATIVE_SIZE,
+       V4L2_SEL_TGT_CROP_DEFAULT, V4L2_SEL_TGT_CROP_BOUNDS };
+static const struct ar0234_mode *nearest(const struct ar0234_mode *modes,
+    unsigned int count, u32 width, u32 height) {
+    for (unsigned int i = 0; i < count; i++)
+        if (modes[i].width == width && modes[i].height == height) return &modes[i];
+    return &modes[0];
+}
+#define v4l2_find_nearest_size(modes, count, wf, hf, w, h) nearest(modes, count, w, h)
+static struct v4l2_mbus_framefmt *v4l2_subdev_get_try_format(
+    struct v4l2_subdev *sd, struct v4l2_subdev_state *state, int pad) {
+    (void)sd; (void)pad; return &state->fmt;
+}
 static unsigned int fail_at, write_count;
 static bool control_failure;
 static bool id_failure, pm_failure;
@@ -133,7 +152,7 @@ static void pm_runtime_put(void *dev) {
     functions = "\n".join(function(source, name) for name in [
         "ar0234_write_array", "ar0234_write_sequence", "ar0234_hts",
         "ar0234_default_vblank", "ar0234_pixel_rate", "ar0234_frame_interval",
-        "ar0234_set_stream_state", "ar0234_start_decxin_stream",
+        "ar0234_set_stream_state", "ar0234_start_decxin_stream", "ar0234_get_selection",
     ])
     # Select the vendor branch; generic source initialization is a separate profile.
     vendor_dispatch = "static int ar0234_start_stream(struct ar0234 *ar) { return ar0234_start_decxin_stream(ar); }\n"
@@ -144,7 +163,7 @@ int main(int argc, char **argv) {
                         .lane_count_id = AR0234_LANE_COUNT_ID_2LANE };
     struct v4l2_subdev sd = { .ar = &ar };
     struct v4l2_fract interval;
-    if (argc > 3 && strcmp(argv[3], "chip")) {
+    if (argc > 3 && strcmp(argv[3], "chip") && strcmp(argv[3], "selection")) {
         unsigned int mode = (unsigned int)strtoul(argv[3], NULL, 10);
         if (mode >= ARRAY_SIZE(ar0234_modes)) return 2;
         ar.decxin_profile = false;
@@ -154,6 +173,20 @@ int main(int argc, char **argv) {
     ar.ctrl_handler.ar = &ar;
     fail_at = argc > 1 ? (unsigned int)strtoul(argv[1], NULL, 10) : 0;
     control_failure = argc > 2 ? atoi(argv[2]) : false;
+    if (argc > 3 && !strcmp(argv[3], "selection")) {
+        for (unsigned int i = 0; i < ARRAY_SIZE(ar0234_modes) + 1; i++) {
+            ar.cur_mode = i ? &ar0234_modes[i - 1] : &ar0234_decxin_modes[0];
+            struct v4l2_subdev_selection sel = {
+                .which = V4L2_SUBDEV_FORMAT_ACTIVE, .target = V4L2_SEL_TGT_CROP_BOUNDS
+            };
+            int ret = ar0234_get_selection(&sd, NULL, &sel);
+            printf("BOUNDS %d %d %d %u %u\n", ret, sel.r.left, sel.r.top, sel.r.width, sel.r.height);
+            sel.target = V4L2_SEL_TGT_CROP;
+            ret = ar0234_get_selection(&sd, NULL, &sel);
+            printf("CROP %d %d %d %u %u\n", ret, sel.r.left, sel.r.top, sel.r.width, sel.r.height);
+        }
+        return 0;
+    }
     if (argc > 3 && !strcmp(argv[3], "chip")) {
         u16 id = 0;
         id_failure = argc > 4 ? atoi(argv[4]) : false;
@@ -229,6 +262,21 @@ class VendorProfileTests(unittest.TestCase):
                 values = tuple(int(x) for x in output.split()[1:])
                 self.assertEqual(values, (4, width, height, 612, height + 16, 100,
                                           2448 * (height + 21), 180000000))
+
+    def test_cif_bounds_use_output_coordinates_without_changing_native_crop(self):
+        output = subprocess.check_output(
+            [str(BUILD / "profile_harness"), "0", "0", "selection"], text=True)
+        rows = [line.split() for line in output.splitlines()]
+        sizes = ((1280, 720), (1920, 1200), (1920, 1080), (1280, 720), (960, 600))
+        for index, (width, height) in enumerate(sizes):
+            with self.subTest(mode=index):
+                self.assertEqual(rows[index * 2], ["BOUNDS", "0", "0", "0", str(width), str(height)])
+                crop = rows[index * 2 + 1]
+                self.assertEqual(crop[0:2], ["CROP", "0"])
+                native_width, native_height = (1920, 1200) if index == 4 else (width, height)
+                self.assertEqual(crop[4:], [str(native_width), str(native_height)])
+                self.assertGreaterEqual(int(crop[2]), 8)
+                self.assertGreaterEqual(int(crop[3]), 8)
 
     def test_i2c_failure_aborts_and_releases_power(self):
         # Cover metadata, initial standby, calibration and final stream-on writes.

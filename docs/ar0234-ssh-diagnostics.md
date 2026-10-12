@@ -134,8 +134,10 @@ ssh root@192.168.1.10 \
 ```
 
 `--capture` 会启流、设置 ISP 输出格式，属于显式采集动作。
-它先验证 chip ID，再找包含所选 sensor 的 `rkisp-vir0` media graph，动态查询
-`rkisp_mainpath` 节点，不写死 video13/video24。随后验证 ISP 确实接受
+它先验证 chip ID，再找与所选 sensor 相连的 `rkisp-vir0` media graph，动态查询
+`rkisp_mainpath` 节点，不写死 video13/video24。若 sensor/CIF 与 ISP 分属两个
+media graph，则检查启用的 CIF→ISP bridge 和实际设备树中互指的 endpoint。
+随后验证 ISP 确实接受
 NV12 1280×720，再以 MMAP 采集到 `/dev/null`。不停止其它程序，不自动解绑驱动。
 
 成功表示收到 120 帧；实际 fps、约 10.08ms 帧间隔、CSI 错误和图像质量仍要检查。
@@ -147,9 +149,11 @@ NV12 1280×720，再以 MMAP 采集到 `/dev/null`。不停止其它程序，不
 
 Ubuntu 22.04 Distrobox 内：
 
-- 驱动 5 项测试：INI 顺序、模式时序、启停/错误清理、chip-ID runtime PM 平衡。
-- 脚本 10 项隔离测试：枚举无 I²C 事务、alias 映射、两类 ID、驱动占用保护、
-  错误响应、自动节点解析、短流及格式不符拒绝、参数验证。
+- 驱动 6 项测试：INI 顺序、模式时序、启停/错误清理、chip-ID runtime PM 平衡、
+  CIF 裁剪边界使用输出坐标且保留原生阵列裁剪。
+- 脚本 12 项隔离测试：枚举无 I²C 事务、alias 映射、两类 ID、驱动占用保护、
+  错误响应、自动节点解析、短流及格式不符拒绝、参数验证；分离 CIF/ISP graph
+  连接验证及错误 bridge 拒绝。
 - 编译后的 DTB 4 项检查：供电/时钟/地址、两条 lane 与互指 endpoint、旧 sensor
   删除/第二路禁用、主 Ethernet 和 eMMC 保持启用。
 - AArch64 `.o/.ko` 编译与链接通过，`W=1 + -Werror`，DTB 编译通过。
@@ -161,5 +165,7 @@ distrobox enter aura-sdk -- bash -lc \
   'cd /home/ww/codings/luckfox-aura-teleop && ./tools/test-ar0234-driver-build'
 ```
 
-以上未执行真实 AR0234 I²C 事务或采集，也没有部署/烧录。
-后续完整镜像构建已完成，状态以 [镜像构建记录](ar0234-image-build.md) 为准。
+上述自动化测试不执行真实 I²C 事务或采集。
+2026-10-12 已通过 SSH 实机确认 `4-0010`、Bayer ID `0x0a56` 和 media 枚举，
+并发现 CIF 裁剪边界兼容问题；详见 [实机测试记录](ar0234-hardware-test.md)。
+构建状态见 [镜像构建记录](ar0234-image-build.md)。

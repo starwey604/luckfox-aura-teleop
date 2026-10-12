@@ -1,5 +1,8 @@
 # AR0234 镜像构建与烧录记录
 
+当前最新镜像为当天 14:16–14:17 生成的 CIF 裁剪修复版，见文末。
+下面 14:01–14:02 的记录保留为首次构建历史。
+
 2026-10-12，在 Ubuntu 22.04 `aura-sdk` Distrobox 中执行 `./build.sh all`，
 退出码 0，`build_all` 和 `build_firmware` 均成功。镜像位于
 `/home/ww/codings/aura-sdk/output/image`，生成时间为当天 14:01–14:02。
@@ -62,3 +65,28 @@ ssh root@192.168.1.10 'sh -s -- --probe' < tools/diagnose-ar0234
 
 密码为 `luckfox`。ID 和媒体链路确认正常后，再按
 [SSH 诊断流程](ar0234-ssh-diagnostics.md) 采集 120 帧。
+
+## 首次实机测试后的修复镜像（当前最新）
+
+2026-10-12 14:16–14:17，在相同 AR0234 BoardConfig 下再次执行
+`./build.sh all`，退出码 0。kernel 更新到 `6f1aee66d`，修复 CIF 将
+1920×1200 像素阵列边界误作 1280×720 输入帧裁剪边界的问题。
+诊断脚本同时支持 sensor/CIF 与 ISP 分属两个 media graph 的拓扑。
+首次实机采集仍失败，具体证据见 [实机测试记录](ar0234-hardware-test.md)。
+
+22 项自动化测试、驱动 `.o/.ko` 的 `W=1 + -Werror` 编译链接通过。
+从最新 `boot.img` 提取的内核与构建产物一致，DTB 四项测试通过；
+最新 `oem.img` 中五个 MPP/Rockit 模块 vermagic 与 PREEMPT 内核匹配。
+sender runtime 检查、烧录脚本 dry-run 通过，没有自动烧录或重启。
+
+当前 SHA-256：
+
+```text
+283720ea3c4cbf72a9ead3f926c8e6b0a7381470128ae89d3c05536f3ec352db  boot.img
+6440821de4f09c5e633e0c238347a794e410623a11dbf523301cb2ed0eb66bde  rootfs.img
+87894b73299d60e7af6119b453cb83e777bd41940266b8966a47eaecffab6d90  oem.img
+```
+
+烧录命令仍为 `./tools/flash-aura-emmc`，覆盖 `/userdata`；烧录后需要
+重新实机采集验证修复效果，尚不能宣称成功出帧或达到 99.23 fps。
+新构建日志：`logs/ar0234-hardware/crop-fix-full-build.log`。

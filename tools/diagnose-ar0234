@@ -136,6 +136,35 @@ probe_sensor() {
     return 0
 }
 
+# RV1126B exposes the sensor/CIF and ISP as separate media devices. Verify
+# their bridge in both the graph and live DT before selecting an ISP node.
+split_graph_matches() {
+    command -v cmp >/dev/null || return 1
+    isp_dev=$(timeout "$limit" media-ctl -d "$m" -e rkisp-isp-subdev 2>/dev/null) || return 1
+    isp_dt=$(readlink -f "$sys/class/video4linux/${isp_dev##*/}/device/of_node") || return 1
+    for cif in "$dev"/media*; do
+        [ -e "$cif" ] || continue
+        cif_graph=$(timeout "$limit" media-ctl -d "$cif" -p 2>/dev/null) || continue
+        printf '%s\n' "$cif_graph" | grep -q "ar0234 $bus-$addr4" || continue
+        bridge=$(printf '%s\n' "$cif_graph" | sed -n 's/^model[[:space:]]*//p' | head -n 1)
+        case "$bridge" in rkcif*) ;; *) continue ;; esac
+        printf '%s\n' "$graph" | grep -Fq "<- \"$bridge\":0 [ENABLED]" || continue
+        bridge_dev=$(timeout "$limit" media-ctl -d "$m" -e "$bridge" 2>/dev/null) || continue
+        bridge_dt=$(readlink -f "$sys/class/video4linux/${bridge_dev##*/}/device/of_node") || continue
+        for output_ep in "$bridge_dt"/port/endpoint*; do
+            [ -f "$output_ep/remote-endpoint" ] && [ -f "$output_ep/phandle" ] || continue
+            for input_ep in "$isp_dt"/port/endpoint*; do
+                [ -f "$input_ep/remote-endpoint" ] && [ -f "$input_ep/phandle" ] || continue
+                cmp -s "$output_ep/remote-endpoint" "$input_ep/phandle" || continue
+                cmp -s "$input_ep/remote-endpoint" "$output_ep/phandle" || continue
+                echo "verified split media bridge: $cif -> $bridge -> $m"
+                return 0
+            done
+        done
+    done
+    return 1
+}
+
 capture_sensor() {
     [ "$(driver_name)" = ar0234 ] || { echo 'UNAVAILABLE: no bound AR0234; capture requires the bring-up DT'; return 3; }
     for cmd in media-ctl v4l2-ctl timeout; do
@@ -147,7 +176,9 @@ capture_sensor() {
         graph=$(timeout "$limit" media-ctl -d "$m" -p 2>/dev/null) || continue
         graph_driver=$(printf '%s\n' "$graph" | sed -n 's/^driver[[:space:]]*//p' | head -n 1)
         [ "$graph_driver" = "rkisp-vir$camera" ] || continue
-        printf '%s\n' "$graph" | grep -q "ar0234 $bus-$addr4" || continue
+        if ! printf '%s\n' "$graph" | grep -q "ar0234 $bus-$addr4"; then
+            split_graph_matches || continue
+        fi
         media=$m
         break
     done

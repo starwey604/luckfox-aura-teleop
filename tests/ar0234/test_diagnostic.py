@@ -70,6 +70,31 @@ esac''')
         path.mkdir(parents=True)
         (self.client / 'driver').symlink_to(path)
 
+    def split_graph(self, *, reciprocal=True, enabled=True, sensor_bus=7):
+        (self.dev / 'media1').touch()
+        bridge = self.dt / 'rkcif-mipi-lvds-sditf/port/endpoint'
+        isp = self.dt / 'rkisp-vir0/port/endpoint@0'
+        for path in (bridge, isp):
+            path.mkdir(parents=True, exist_ok=True)
+        (bridge / 'phandle').write_bytes(b'\0\0\0\x01')
+        (bridge / 'remote-endpoint').write_bytes(b'\0\0\0\x02')
+        (isp / 'phandle').write_bytes(b'\0\0\0\x02')
+        (isp / 'remote-endpoint').write_bytes(b'\0\0\0\x01' if reciprocal else b'\0\0\0\x03')
+        for name, node in [('v4l-subdev4', isp.parents[1]), ('v4l-subdev5', bridge.parents[1])]:
+            path = self.sys / 'class/video4linux' / name / 'device'
+            path.mkdir(parents=True, exist_ok=True)
+            if not (path / 'of_node').is_symlink():
+                (path / 'of_node').symlink_to(node)
+        flags = 'ENABLED' if enabled else ''
+        self.command('media-ctl', f'''
+case "$*" in
+ *"-e rkisp_mainpath"*) printf '%s/video24\\n' "$DEV_ROOT" ;;
+ *"-e rkisp-isp-subdev"*) printf '%s/v4l-subdev4\\n' "$DEV_ROOT" ;;
+ *"-e rkcif-mipi-lvds"*) printf '%s/v4l-subdev5\\n' "$DEV_ROOT" ;;
+ *media1*) printf 'driver          rkcif\\nmodel           rkcif-mipi-lvds\\n- entity 63: m00_b_ar0234 {sensor_bus}-0010 (1 pad)\\n' ;;
+ *) printf 'driver          rkisp-vir0\\n- entity 1: rkisp-isp-subdev\\n<- "rkcif-mipi-lvds":0 [{flags}]\\n' ;;
+esac''')
+
     def run_script(self, *args, **extra_env):
         return subprocess.run(['/bin/sh', str(SCRIPT), '--output', str(self.root / 'report'), *args],
                               env=self.env | extra_env, text=True, capture_output=True, timeout=5)
@@ -121,6 +146,26 @@ esac''')
         (self.client / 'chip_id').write_text('0x0a56\n')
         result = self.run_script('--capture', '--frames', '3', CAPTURE_COUNT='2')
         self.assertEqual(result.returncode, 1, result.stdout)
+
+    def test_capture_follows_verified_split_cif_isp_graphs(self):
+        self.bound()
+        (self.client / 'chip_id').write_text('0x0a56\n')
+        self.split_graph()
+        result = self.run_script('--capture', '--frames', '3')
+        self.assertEqual(result.returncode, 0, result.stdout)
+        self.assertIn('verified split media bridge:', result.stdout)
+        self.assertIn('PASS: captured 3 frames', result.stdout)
+
+    def test_capture_rejects_unrelated_or_disabled_split_bridge(self):
+        self.bound()
+        (self.client / 'chip_id').write_text('0x0a56\n')
+        for kwargs in ({'reciprocal': False}, {'enabled': False}, {'sensor_bus': 8}):
+            with self.subTest(kwargs=kwargs):
+                self.calls.write_text('')
+                self.split_graph(**kwargs)
+                result = self.run_script('--capture', '--frames', '3')
+                self.assertEqual(result.returncode, 3, result.stdout)
+                self.assertNotIn('--set-fmt-video', self.calls.read_text())
 
     def test_capture_rejects_clipped_dimensions(self):
         self.bound()

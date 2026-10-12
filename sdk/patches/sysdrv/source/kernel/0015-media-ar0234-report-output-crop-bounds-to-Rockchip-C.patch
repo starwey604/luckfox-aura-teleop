@@ -1,0 +1,35 @@
+From 6f1aee66d8cdce530b14046a5883b3155b4a1e82 Mon Sep 17 00:00:00 2001
+From: Starwey <moonbite233@gmail.com>
+Date: Mon, 12 Oct 2026 14:16:22 +0800
+Subject: [PATCH] media: ar0234: report output crop bounds to Rockchip CIF
+
+---
+ drivers/media/i2c/ar0234.c | 9 ++++++++-
+ 1 file changed, 8 insertions(+), 1 deletion(-)
+
+diff --git a/drivers/media/i2c/ar0234.c b/drivers/media/i2c/ar0234.c
+index 667371a7f..01172b855 100644
+--- a/drivers/media/i2c/ar0234.c
++++ b/drivers/media/i2c/ar0234.c
+@@ -883,10 +883,17 @@ static int ar0234_get_selection(struct v4l2_subdev *sd,
+ 		sel->r = (struct v4l2_rect) { 0, 0, AR0234_NATIVE_WIDTH, AR0234_NATIVE_HEIGHT };
+ 		break;
+ 	case V4L2_SEL_TGT_CROP_DEFAULT:
+-	case V4L2_SEL_TGT_CROP_BOUNDS:
+ 		sel->r = (struct v4l2_rect) { AR0234_PIXEL_ARRAY_LEFT, AR0234_PIXEL_ARRAY_TOP,
+ 					    AR0234_PIXEL_ARRAY_WIDTH, AR0234_PIXEL_ARRAY_HEIGHT };
+ 		break;
++	case V4L2_SEL_TGT_CROP_BOUNDS:
++		/*
++		 * Rockchip CIF uses this rectangle to crop the transmitted frame.
++		 * The sensor has already applied mode->crop in native coordinates;
++		 * reporting the full pixel array makes CIF reject the 720p input.
++		 */
++		sel->r = (struct v4l2_rect) { 0, 0, mode->width, mode->height };
++		break;
+ 	default:
+ 		ret = -EINVAL;
+ 	}
+-- 
+2.56.0
+
