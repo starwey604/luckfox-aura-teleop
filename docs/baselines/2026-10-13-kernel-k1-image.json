@@ -1,5 +1,5 @@
 {
-  "phase": "A captured; B built, NOT flashed or hardware tested",
+  "phase": "A/B/A-return short-tested; frozen A and B images retained; board currently A",
   "A": {
     ".env.txt": {
       "bytes": 227,

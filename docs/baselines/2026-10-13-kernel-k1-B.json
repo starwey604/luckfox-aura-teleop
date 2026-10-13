@@ -1847,7 +1847,7 @@
   },
   "accepted_cases": 14,
   "hardware_frames_all_validation": 1920,
-  "A_return_status": "Pending manual user flash; no automatic reboot or flash",
+  "A_return_status": "Completed, see 2026-10-13-kernel-k1-A-return.json; board left on A",
   "final_resource_pools": [
     {
       "name": "kmpp_obj_head",
