@@ -11,6 +11,7 @@
 #include <libavcodec/avcodec.h>
 
 #include <poll.h>
+#include <sched.h>
 
 #include <array>
 #include <charconv>
@@ -51,9 +52,11 @@ struct Options {
     bool async_pipeline{true};
     std::size_t queue_capacity{4U};
     std::size_t receive_batch_size{16U};
+    teleop::ViewerThreadPolicy scheduling;
     std::uint32_t queue_report_ms{};
     std::uint32_t diagnostic_present_delay_ms{};
     std::uint32_t diagnostic_decode_delay_ms{};
+    int cpu_latency_us{-1};
     teleop::VulkanWindowOptions window{};
 };
 
@@ -81,6 +84,12 @@ void print_usage(const char* program)
         "  --pipeline async|sync  Independent RX/decoder/display (default: async)\n"
         "  --rx-batch-size N      Async nonblocking receive limit (1..32, default: 16);\n"
         "                         1 preserves poll + recvmsg; sync always receives singly\n"
+        "  --rx-cpu N             Pin RX worker to allowed logical CPU N (default: inherited)\n"
+        "  --decode0-cpu N        Pin stream0 decoder worker (default: inherited)\n"
+        "  --decode1-cpu N        Pin stream1 decoder worker (default: inherited)\n"
+        "  --rx-rr-priority N     RX-only SCHED_RR priority 1..99; 0 inherits (default: 0)\n"
+        "  --cpu-latency-us N     Session CPU idle exit latency constraint (0..10000 us);\n"
+        "                         default: disabled; requires /dev/cpu_dma_latency access\n"
         "  --decode-queue-capacity N  Per-stream encoded AU limit (default: 4; 1..64)\n"
         "  --queue-report-ms N    Live async queue snapshots; 0 disables (default: 0)\n"
         "  --diagnostic-present-delay-ms N  Test-only display blocking (0..1000)\n"
@@ -151,6 +160,15 @@ bool parse_options(int argc, char* argv[], Options& options)
             options.async_pipeline = value == "async";
         } else if (option == "--rx-batch-size") {
             if (!parse_integer(value, options.receive_batch_size) || options.receive_batch_size == 0U || options.receive_batch_size > teleop::ReceiveBatch::kMaximum) return false;
+        } else if (option == "--rx-cpu" || option == "--decode0-cpu" || option == "--decode1-cpu") {
+            int cpu = -1;
+            if (!parse_integer(value, cpu) || cpu < 0 || cpu >= CPU_SETSIZE) return false;
+            if (option == "--rx-cpu") options.scheduling.rx_cpu = cpu;
+            else options.scheduling.decoder_cpu[option == "--decode0-cpu" ? 0U : 1U] = cpu;
+        } else if (option == "--rx-rr-priority") {
+            if (!parse_integer(value, options.scheduling.rx_rr_priority) || options.scheduling.rx_rr_priority < 0 || options.scheduling.rx_rr_priority > 99) return false;
+        } else if (option == "--cpu-latency-us") {
+            if (!parse_integer(value, options.cpu_latency_us) || options.cpu_latency_us < 0 || options.cpu_latency_us > 10000) return false;
         } else if (option == "--decode-queue-capacity") {
             if (!parse_integer(value, options.queue_capacity) || options.queue_capacity == 0U || options.queue_capacity > 64U) return false;
         } else if (option == "--queue-report-ms") {
@@ -194,6 +212,9 @@ bool parse_options(int argc, char* argv[], Options& options)
         }
     }
     options.window.position_specified = has_window_x && has_window_y;
+    const bool requested_scheduling = options.scheduling.rx_cpu >= 0 || options.scheduling.decoder_cpu[0] >= 0 ||
+        options.scheduling.decoder_cpu[1] >= 0 || options.scheduling.rx_rr_priority != 0;
+    if (requested_scheduling && (!options.async_pipeline || !options.input_path.empty())) return false;
     return (!options.transport_only || options.input_path.empty()) && has_window_x == has_window_y &&
            (options.async_pipeline || (options.diagnostic_decode_delay_ms == 0U && options.queue_report_ms == 0U));
 }
@@ -297,6 +318,7 @@ int main(int argc, char* argv[])
     }
 
     try {
+        teleop::CpuLatencyRequest latency_request{options.cpu_latency_us};
         auto presenter = make_presenter(options);
         if (!options.input_path.empty()) {
             teleop::H264VaapiDecoder decoder{options.vaapi_device, presenter.get(),
@@ -314,6 +336,7 @@ int main(int argc, char* argv[])
                 .port = options.port, .max_frames = options.max_frames, .timeout_ms = options.timeout_ms,
                 .stream_count = options.dual_stream ? 2U : 1U, .queue_capacity = options.queue_capacity,
                 .receive_batch_size = options.receive_batch_size,
+                .scheduling = options.scheduling,
                 .queue_report_ms = options.queue_report_ms,
                 .vaapi_device = options.vaapi_device, .software_decode = options.software_decode,
                 .transport_only = options.transport_only, .force_stream_parser = options.force_stream_parser,

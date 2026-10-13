@@ -14,6 +14,7 @@ add_executable(host-viewer
     src/libplacebo_ffmpeg_bridge.c
     src/main.cpp
     src/receive_observer.cpp
+    src/thread_policy.cpp
     src/viewer_pipeline.cpp
     src/vulkan_presenter.cpp
 )

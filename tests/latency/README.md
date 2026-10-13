@@ -35,6 +35,13 @@ rounds plus four window tests, 120 frames per camera each. For observer controls
 use `--rounds 1 --minimal --no-display`. See
 [batch results](../../docs/viewer-udp-batch-2026-10-13.md).
 
+The native viewer suite also verifies worker affinity, RX-only RR, permission
+failure cleanup, and PM QoS release after normal/error exits. Do not run its PM
+QoS tests concurrently with power-policy benchmarks: the constraint is global.
+`python3 tests/latency/test_scheduling_power_tools.py` tests restoration without
+privileged/device writes. `tools/test-scheduling-power-ab` runs bounded one-factor
+A/B/A-return tests; see [results and limitations](../../docs/scheduling-power-ab-2026-10-13.md).
+
 `tools/test-frame-boundary-wait --output logs/frame-boundary/new-run` is a native
 VAAPI boundary experiment. It links the production parser/decoder and compares
 normal byte-stream parsing, explicitly complete-AU parsing and direct complete-AU

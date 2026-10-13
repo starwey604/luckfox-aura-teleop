@@ -4,6 +4,7 @@ import json
 import os
 from pathlib import Path
 import re
+import resource
 import signal
 import socket
 import struct
@@ -157,6 +158,75 @@ class ViewerPipelineTest(unittest.TestCase):
             self.assertEqual(timestamps, datagrams)
             self.assertIn(f'batch_capacity={capacity}', text)
             self.assertIn('rxq_overflow=0', text)
+
+    def test_worker_cpu_affinity_is_applied_without_changing_default_scheduler(self):
+        allowed = sorted(os.sched_getaffinity(0))
+        if len(allowed) < 3: self.skipTest('Need three allowed CPUs')
+        process, path, port = self.start('worker-affinity', [
+            '--headless', '--dual-stream', '--frames', '24', '--rx-cpu', str(allowed[0]),
+            '--decode0-cpu', str(allowed[1]), '--decode1-cpu', str(allowed[2])])
+        self.send(port, 12, interval=.02)
+        text = self.finish(process, path)
+        for role, cpu in zip(('rx', 'dec0', 'dec1'), allowed):
+            self.assertRegex(text, rf'thread-policy: role={role} .*policy=other priority=0 .*affinity={cpu} cpu={cpu} requested_cpu={cpu}')
+        self.assertEqual(text.count('decoder: frames=12 hardware_frames=12'), 2)
+
+    def test_invalid_worker_cpu_fails_and_joins_peers(self):
+        invalid = next(cpu for cpu in range(1024) if cpu not in os.sched_getaffinity(0))
+        with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as probe:
+            probe.bind(('127.0.0.1', 0)); port = probe.getsockname()[1]
+        result = subprocess.run([str(VIEWER), '--port', str(port), '--headless', '--dual-stream',
+            '--rx-cpu', str(invalid)], text=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, timeout=5)
+        self.assertEqual(result.returncode, 1, result.stdout)
+        self.assertIn('requested CPU is outside inherited allowed affinity', result.stdout)
+
+    def test_rx_round_robin_does_not_elevate_decoder_workers(self):
+        if resource.getrlimit(resource.RLIMIT_RTPRIO)[0] < 10: self.skipTest('SCHED_RR requires RLIMIT_RTPRIO>=10')
+        cpu = min(os.sched_getaffinity(0))
+        process, path, port = self.start('worker-rr', ['--headless', '--dual-stream', '--frames', '24',
+                                                     '--rx-cpu', str(cpu), '--rx-rr-priority', '10'])
+        self.send(port, 12, interval=.02)
+        text = self.finish(process, path)
+        self.assertRegex(text, r'thread-policy: role=rx .*policy=rr priority=10')
+        for role in ('dec0', 'dec1'):
+            self.assertRegex(text, rf'thread-policy: role={role} .*policy=other priority=0')
+        self.assertEqual(text.count('decoder: frames=12 hardware_frames=12'), 2)
+
+    def test_rt_permission_failure_is_explicit_and_joins_peers(self):
+        with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as probe:
+            probe.bind(('127.0.0.1', 0)); port = probe.getsockname()[1]
+        def deny_rt(): resource.setrlimit(resource.RLIMIT_RTPRIO, (0, 0))
+        result = subprocess.run([str(VIEWER), '--port', str(port), '--headless', '--dual-stream',
+            '--rx-rr-priority', '10'], preexec_fn=deny_rt, text=True, stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT, timeout=5)
+        self.assertEqual(result.returncode, 1, result.stdout)
+        self.assertIn('rx: SCHED_RR:', result.stdout)
+
+    @staticmethod
+    def cpu_latency_value():
+        with open('/dev/cpu_dma_latency', 'rb', buffering=0) as node:
+            return struct.unpack('=i', node.read(4))[0]
+
+    def test_cpu_latency_request_released_after_normal_exit(self):
+        if not os.access('/dev/cpu_dma_latency', os.R_OK | os.W_OK): self.skipTest('Need PM QoS node access')
+        before = self.cpu_latency_value()
+        if before <= 50: self.skipTest('Existing stricter PM QoS request')
+        process, path, port = self.start('cpu-qos-normal', ['--headless', '--frames', '12', '--cpu-latency-us', '50'])
+        self.assertEqual(self.cpu_latency_value(), 50)
+        self.send(port, 12, streams=(0,), interval=.02)
+        text = self.finish(process, path)
+        self.assertIn('cpu-latency: requested_us=50 effective_us=50', text)
+        self.assertEqual(self.cpu_latency_value(), before)
+
+    def test_cpu_latency_request_released_after_worker_error(self):
+        if not os.access('/dev/cpu_dma_latency', os.R_OK | os.W_OK): self.skipTest('Need PM QoS node access')
+        before = self.cpu_latency_value()
+        if before <= 50: self.skipTest('Existing stricter PM QoS request')
+        process, path, port = self.start('cpu-qos-error', ['--headless', '--dual-stream', '--frames', '0',
+                                                        '--cpu-latency-us', '50'])
+        self.send(port, 1, streams=(0,), invalid=True)
+        self.finish(process, path, 1)
+        self.assertEqual(self.cpu_latency_value(), before)
 
     def test_one_stream_is_not_held_for_idle_peer(self):
         process, path, port = self.start('idle-peer', ['--dual-stream', '--frames', '12'])

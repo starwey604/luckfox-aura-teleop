@@ -306,8 +306,10 @@ private:
     }
     void receive()
     {
+        ThreadObservation observation{"rx"};
         const auto cpu_begin = viewer_thread_cpu_ns();
         try {
+            configure_worker("rx", options_.scheduling.rx_cpu, options_.scheduling.rx_rr_priority);
             std::array<FrameReassembler, 2U> reassemblers;
             std::array<std::uint64_t, 2U> previous_ready{};
             std::array<std::byte, kMaxDatagramSize> buffer{};
@@ -410,7 +412,10 @@ private:
 
     void decode(std::size_t stream)
     {
+        const std::string_view role = stream == 0U ? "dec0" : "dec1";
+        ThreadObservation observation{role};
         try {
+            configure_worker(role, options_.scheduling.decoder_cpu[stream]);
             MailboxSink sink{shared_, stream};
             H264VaapiDecoder decoder{options_.vaapi_device, presenter_ != nullptr ? &sink : nullptr,
                                      !options_.software_decode, static_cast<std::uint16_t>(stream)};

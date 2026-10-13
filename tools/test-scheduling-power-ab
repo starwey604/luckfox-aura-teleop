@@ -1,0 +1,272 @@
+#!/usr/bin/env python3
+"""One-factor scheduling/power A-B-A tests, with 120 frames per real camera."""
+import argparse
+from contextlib import contextmanager
+import hashlib
+import json
+import os
+from pathlib import Path
+import re
+import shlex
+import subprocess
+import struct
+import time
+
+ROOT = Path(__file__).resolve().parents[1]
+VENC = '/sys/class/devfreq/21f40000.rkvenc'
+
+
+def metrics(text):
+    result = {}
+    for line in text.splitlines():
+        if line.startswith('metric:'):
+            values = dict(re.findall(r'(\w+)=([^ ]+)', line))
+            stage = values.pop('stage')
+            result[stage] = {key: float(value) for key, value in values.items()}
+    return result
+
+
+def stable_host(state):
+    return {'profile': state['profile'], 'gpu_power_level': state['gpu_power_level'],
+            'sched_ext': state['sched_ext'], 'cpu_policies': {
+                path: {key: value for key, value in values.items() if key != 'scaling_cur_freq'}
+                for path, values in state['cpu_policies'].items()}}
+
+
+def cpu_latency_value():
+    fd = os.open('/dev/cpu_dma_latency', os.O_RDONLY | os.O_CLOEXEC)
+    try:
+        value = os.read(fd, 4)
+        if len(value) != 4: raise RuntimeError('Incomplete PM QoS aggregate readback')
+        return struct.unpack('=i', value)[0]
+    finally: os.close(fd)
+
+
+@contextmanager
+def idle_constraint(active, requested):
+    if not active:
+        yield None
+        return
+    before = cpu_latency_value()
+    if before <= requested: raise RuntimeError('Existing PM QoS request already at/below candidate; no A/B contrast')
+    state = {'before_us': before, 'requested_us': requested}
+    fd = os.open('/dev/cpu_dma_latency', os.O_WRONLY | os.O_CLOEXEC)
+    try:
+        if os.write(fd, struct.pack('=i', requested)) != 4: raise RuntimeError('Incomplete PM QoS request write')
+        state['applied_us'] = cpu_latency_value()
+        if state['applied_us'] != requested: raise RuntimeError('PM QoS candidate did not apply')
+        yield state
+    finally:
+        os.close(fd)
+        state['restored_us'] = cpu_latency_value()
+        if state['restored_us'] != before: raise RuntimeError('PM QoS aggregate changed; stop')
+
+
+class BoardPolicy:
+    def __init__(self, remote, irq):
+        self.remote = remote
+        self.irq = irq
+        self.paths = {
+            'boot': '/proc/sys/kernel/random/boot_id', 'temperature': '/sys/class/thermal/thermal_zone0/temp',
+            'venc_governor': VENC + '/governor', 'venc_min': VENC + '/min_freq',
+            'venc_max': VENC + '/max_freq', 'venc_current': VENC + '/cur_freq',
+            'irq_mask': f'/proc/irq/{irq}/smp_affinity_list',
+            'irq_effective': f'/proc/irq/{irq}/effective_affinity_list'}
+        interrupts = remote('cat /proc/interrupts')
+        if not re.search(rf'^\s*{irq}:.*\beth0\b', interrupts, re.M):
+            raise RuntimeError('Selected board IRQ is not eth0; no changes made')
+        self.original = self.snapshot()
+
+    def snapshot(self):
+        values = self.remote('cat ' + ' '.join(shlex.quote(path) for path in self.paths.values())).splitlines()
+        if len(values) != len(self.paths): raise RuntimeError('Incomplete board policy snapshot')
+        return dict(zip(self.paths, values))
+
+    def write(self, key, value):
+        if key not in ('venc_min', 'irq_mask'): raise RuntimeError('Unapproved policy attribute')
+        if not re.fullmatch(r'[0-9,\-]+', value): raise RuntimeError('Invalid policy value')
+        self.remote("printf '%s\\n' " + shlex.quote(value) + ' > ' + shlex.quote(self.paths[key]))
+
+    def restored(self):
+        state = self.snapshot()
+        for key in ('boot', 'venc_governor', 'venc_min', 'venc_max', 'irq_mask', 'irq_effective'):
+            if state[key] != self.original[key]: raise RuntimeError('Board policy not restored: ' + key)
+        return state
+
+    @contextmanager
+    def treatment(self, experiment, variant, irq_cpu):
+        self.restored()
+        active = variant == 'B' and experiment in ('venc-floor', 'gmac-irq')
+        key = 'venc_min' if experiment == 'venc-floor' else 'irq_mask'
+        value = self.original['venc_max'] if experiment == 'venc-floor' else str(irq_cpu)
+        try:
+            if active:
+                self.write(key, value)
+                state = self.snapshot()
+                if state[key] != value: raise RuntimeError('Requested board policy did not apply')
+                if key == 'irq_mask' and state['irq_effective'] != value:
+                    raise RuntimeError('GMAC effective affinity did not apply')
+            yield self.snapshot()
+        finally:
+            if active:
+                # Steering back to the original effective CPU first avoids an
+                # allowed 0-3 mask leaving the interrupt on the B CPU in A-return.
+                if key == 'irq_mask': self.write(key, self.original['irq_effective'])
+                self.write(key, self.original[key])
+            self.restored()
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('--experiment', required=True, choices=(
+        'host-power', 'host-idle', 'venc-floor', 'rx-affinity', 'rx-rr', 'decode-affinity', 'gmac-irq'))
+    parser.add_argument('--output', type=Path, required=True)
+    parser.add_argument('--viewer', type=Path, default=ROOT / 'build/host/bin/host-viewer')
+    parser.add_argument('--rounds', type=int, choices=range(1, 4), default=3)
+    parser.add_argument('--display-pair', action='store_true', help='Additional A/B real-window pair')
+    parser.add_argument('--rx-cpu', type=int, default=1)
+    parser.add_argument('--decoder-cpus', type=int, nargs=2, default=(2, 3))
+    parser.add_argument('--rr-priority', type=int, choices=range(1, 50), default=10)
+    parser.add_argument('--idle-owner', choices=('viewer', 'controller'), default='viewer')
+    parser.add_argument('--idle-latency-us', type=int, default=50)
+    parser.add_argument('--gmac-irq', type=int, default=71)
+    parser.add_argument('--gmac-cpu', type=int, choices=range(4), default=1)
+    parser.add_argument('--host', default='root@192.168.1.10')
+    parser.add_argument('--adb-serial', default='4a988b5514157df5')
+    args = parser.parse_args()
+    if Path('/run/.containerenv').exists() or Path('/.dockerenv').exists(): parser.error('Run natively')
+    if any(cpu not in os.sched_getaffinity(0) for cpu in (args.rx_cpu, *args.decoder_cpus)):
+        parser.error('Requested host CPU outside allowed affinity')
+    if not 0 <= args.idle_latency_us <= 10000: parser.error('Invalid idle latency constraint')
+    args.output.mkdir(parents=True, exist_ok=False)
+    ssh = ['ssh', '-o', 'ConnectTimeout=5', '-o', 'ServerAliveInterval=3',
+           '-o', 'ServerAliveCountMax=2', args.host]
+    if 'SSHPASS' in os.environ: ssh = ['sshpass', '-e', *ssh]
+    adb = ['adb', '-s', args.adb_serial, 'shell']
+    def remote(command):
+        try: return subprocess.check_output([*ssh, command], text=True, timeout=15).strip()
+        except (subprocess.TimeoutExpired, subprocess.CalledProcessError):
+            # USB provides a recovery route for both readback and restoration.
+            return subprocess.check_output([*adb, command], text=True, timeout=10).strip()
+    policy = BoardPolicy(remote, args.gmac_irq)
+    profile = subprocess.check_output(['powerprofilesctl', 'get'], text=True).strip()
+    identity = remote('uname -a; sha256sum /userdata/teleop-sender /userdata/run-ar0234-stereo; ps')
+    (args.output / 'identity.txt').write_text(identity + '\n')
+    if re.search(r'^\s*\d+\s+\S+\s+\S+\s+(?:/\S*/)?(?:teleop-sender\S*|v4l2-ctl|rkipc)(?:\s|$)', identity, re.M):
+        raise RuntimeError('Existing board camera application; stop')
+    capture = None
+    reader_pid = None
+    marker = f'teleop-scheduling-power-{args.experiment}-{time.monotonic_ns()}'
+    log_path = args.output / 'usb-kmsg.txt'
+    runs = []
+    initial_host = None
+    baseline_nice = None
+    cases = [(f'headless-{index}-{variant}', variant, False)
+             for index in range(1, args.rounds + 1) for variant in ('A', 'B')]
+    cases.append(('headless-return-A', 'A', False))
+    if args.display_pair: cases += [(f'display-{variant}', variant, True) for variant in ('A', 'B')]
+    with log_path.open('w') as log:
+        try:
+            command = "timeout 240 sh -c 'echo usb_reader_pid=$$; cat /dev/kmsg & child=$!; " \
+                      "trap \"kill $child 2>/dev/null; wait $child 2>/dev/null; exit 0\" TERM INT HUP; wait $child'"
+            capture = subprocess.Popen([*adb, command], stdout=log, stderr=subprocess.STDOUT)
+            time.sleep(.3)
+            subprocess.run([*adb, f'echo {marker} >/dev/kmsg'], check=True, timeout=10, stdout=subprocess.DEVNULL)
+            deadline = time.monotonic() + 5
+            while marker not in log_path.read_text(errors='replace'):
+                if capture.poll() is not None or time.monotonic() >= deadline:
+                    raise RuntimeError('USB live marker not received; no camera started')
+                time.sleep(.05)
+            reader_pid = re.search(r'^usb_reader_pid=(\d+)', log_path.read_text(), re.M)[1]
+            for name, variant, display in cases:
+                path = args.output / name
+                with policy.treatment(args.experiment, variant, args.gmac_cpu) as applied, \
+                     idle_constraint(args.experiment == 'host-idle' and variant == 'B' and args.idle_owner == 'controller', args.idle_latency_us) as idle:
+                    if int(applied['temperature']) >= 70000: raise RuntimeError('Board too warm; stop')
+                    command = [str(ROOT / 'tools/test-aura-software-baseline'), '--camera', 'dual',
+                        '--frames', '120', '--viewer', str(args.viewer), '--rx-batch-size', '16',
+                        '--queue-report-ms', '250', '--host', args.host, '--output', str(path)]
+                    idle_before = cpu_latency_value() if args.experiment == 'host-idle' else None
+                    if args.experiment == 'host-idle' and variant == 'B' and args.idle_owner == 'viewer':
+                        if idle_before <= args.idle_latency_us: raise RuntimeError('Existing PM QoS request gives no A/B contrast')
+                        command += ['--cpu-latency-us', str(args.idle_latency_us)]
+                    if display: command += ['--display']
+                    if args.experiment in ('rx-rr', 'decode-affinity') or (args.experiment == 'rx-affinity' and variant == 'B'):
+                        command += ['--rx-cpu', str(args.rx_cpu)]
+                    if variant == 'B' and args.experiment == 'rx-rr':
+                        command += ['--rx-rr-priority', str(args.rr_priority)]
+                    if variant == 'B' and args.experiment == 'decode-affinity':
+                        command += ['--decode0-cpu', str(args.decoder_cpus[0]), '--decode1-cpu', str(args.decoder_cpus[1])]
+                    if variant == 'B' and args.experiment == 'host-power':
+                        command = ['powerprofilesctl', 'launch', '--profile', 'performance', '--reason',
+                                   'Bounded teleop power A/B', '--appid', 'luckfox-aura-teleop', *command]
+                    subprocess.run(command, check=True, timeout=60)
+                    after_applied = policy.snapshot()
+                if idle is not None: (path / 'idle-policy.json').write_text(json.dumps(idle, indent=2) + '\n')
+                (path / 'board-policy-before.json').write_text(json.dumps(applied, indent=2) + '\n')
+                (path / 'board-policy-after.json').write_text(json.dumps(after_applied, indent=2) + '\n')
+                text = (path / 'viewer.txt').read_text()
+                if args.experiment == 'host-idle' and args.idle_owner == 'viewer':
+                    idle_restored = cpu_latency_value()
+                    if idle_restored != idle_before: raise RuntimeError('Viewer PM QoS request not removed')
+                    if variant == 'B' and f'cpu-latency: requested_us={args.idle_latency_us} effective_us={args.idle_latency_us}' not in text:
+                        raise RuntimeError('Viewer PM QoS request did not apply')
+                    (path / 'idle-policy.json').write_text(json.dumps({
+                        'before_us': idle_before, 'requested_us': args.idle_latency_us if variant == 'B' else None,
+                        'applied_us': args.idle_latency_us if variant == 'B' else idle_before,
+                        'restored_us': idle_restored}, indent=2) + '\n')
+                host_before = json.loads((path / 'host-policy-before.json').read_text())
+                host_after = json.loads((path / 'host-policy-after.json').read_text())
+                if initial_host is None: initial_host = stable_host(host_before)
+                expected_profile = 'performance' if args.experiment == 'host-power' and variant == 'B' else profile
+                if host_before['profile'] != expected_profile or stable_host(host_before) != stable_host(host_after):
+                    raise RuntimeError('Host policy changed inside camera run')
+                if expected_profile == profile and stable_host(host_before) != initial_host:
+                    raise RuntimeError('Baseline host policy drifted; stop')
+                if subprocess.check_output(['powerprofilesctl', 'get'], text=True).strip() != profile:
+                    raise RuntimeError('Power profile hold not restored')
+                if 'rxq_overflow=0 truncated=0 clock_discontinuities=0' not in text or \
+                   len(re.findall(r'queue: stream=\d .*overflows=0', text)) != 2:
+                    raise RuntimeError('Transport/queue observation failure')
+                actual_nice = {}
+                for role in ('rx', 'dec0', 'dec1'):
+                    row = re.search(rf'^thread-policy: role={role} .*', text, re.M)[0]
+                    actual_nice[role] = int(re.search(r'nice=(-?\d+)', row)[1])
+                    expected_cpu = None
+                    if role == 'rx' and (args.experiment in ('rx-rr', 'decode-affinity') or
+                                         (args.experiment == 'rx-affinity' and variant == 'B')):
+                        expected_cpu = args.rx_cpu
+                    elif role in ('dec0', 'dec1') and args.experiment == 'decode-affinity' and variant == 'B':
+                        expected_cpu = args.decoder_cpus[0 if role == 'dec0' else 1]
+                    if expected_cpu is not None and f'affinity={expected_cpu} cpu={expected_cpu} requested_cpu={expected_cpu}' not in row:
+                        raise RuntimeError('Effective CPU placement did not apply')
+                    if role != 'rx' or args.experiment != 'rx-rr' or variant != 'B':
+                        if 'policy=other priority=0' not in row: raise RuntimeError('Unexpected worker RT policy')
+                    elif f'policy=rr priority={args.rr_priority}' not in row:
+                        raise RuntimeError('RX RR policy did not apply')
+                if baseline_nice is None: baseline_nice = actual_nice
+                if actual_nice != baseline_nice: raise RuntimeError('Worker startup nice drifted inside A/B group')
+                runs.append({'name': name, 'variant': variant, 'display': display,
+                    'viewer_metrics': metrics(text), 'sender_metrics': metrics((path / 'board-senders.txt').read_text()),
+                    'worker_policies': [line for line in text.splitlines() if line.startswith('thread-policy:')],
+                    'worker_counters': [line for line in text.splitlines() if line.startswith(('thread-run:', 'rx-thread:', 'queue:'))]})
+                if re.search(r'BUG:|WARNING:|soft lockup|hard LOCKUP', log_path.read_text(errors='replace').split(marker, 1)[1]):
+                    raise RuntimeError('Kernel fault after marker; stop')
+        finally:
+            try:
+                policy.restored()
+            finally:
+                if reader_pid:
+                    subprocess.run([*adb, f'kill {reader_pid}'], timeout=10, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+                if capture and capture.poll() is None: capture.terminate(); capture.wait(timeout=10)
+    summary = {'experiment': args.experiment, 'viewer_sha256': hashlib.sha256(args.viewer.read_bytes()).hexdigest(),
+        'profile_restored': subprocess.check_output(['powerprofilesctl', 'get'], text=True).strip() == profile,
+        'board_original': policy.original, 'board_restored': policy.restored(),
+        'idle_owner': args.idle_owner, 'baseline_host': initial_host, 'frames_per_camera': 120, 'hardware_frames': len(runs) * 240,
+        'runs': runs, 'measurement': 'local software stages only; no screen or cross-host one-way timing'}
+    (args.output / 'summary.json').write_text(json.dumps(summary, indent=2) + '\n')
+    print(f'PASS {args.experiment}: {len(runs)} short runs / {summary["hardware_frames"]} hardware frames')
+
+
+if __name__ == '__main__':
+    main()

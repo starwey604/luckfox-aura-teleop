@@ -87,6 +87,10 @@ Order matters: apply the SDK patch stack and `select-teleop-board` before SDK bu
   1 retains poll/recvmsg). Never wait to fill a batch. Preserve per-packet cmsgs,
   restore their buffer capacity before reuse, and bound drain rounds for cancellation.
   `tools/test-viewer-rx-batch` runs bounded native/SSH batch comparisons with live USB logging.
+- Viewer worker affinity/RR and `--cpu-latency-us` are opt-in; defaults preserve inherited
+  scheduling and do not open PM QoS. Keep real-time changes RX-only and hold the PM QoS
+  fd for the viewer lifetime. `tools/test-scheduling-power-ab` performs one-factor short
+  tests and restores VENC, effective GMAC IRQ routing, profile holds and QoS requests.
 
 ## Board / deployment
 

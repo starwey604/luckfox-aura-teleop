@@ -2,6 +2,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <string_view>
+#include "thread_policy.hpp"
 
 namespace teleop {
 class VulkanPresenter;
@@ -13,6 +14,7 @@ struct ViewerPipelineOptions {
     std::size_t stream_count{1U};
     std::size_t queue_capacity{4U};
     std::size_t receive_batch_size{16U};
+    ViewerThreadPolicy scheduling;
     std::uint32_t queue_report_ms{};
     std::string_view vaapi_device{"/dev/dri/renderD128"};
     bool software_decode{};

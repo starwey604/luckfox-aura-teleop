@@ -1,0 +1,1886 @@
+{
+  "date": "2026-10-13",
+  "scope": "native viewer optional policy controls and one-factor hardware A/B; no SDK/image/sender changes or reboot",
+  "default": "inherit worker affinity/scheduler; no PM QoS request; no persistent power/IRQ changes",
+  "final_viewer_sha256": "3c57f82264feeaeb14c0f0524c0c972953b0269ab6cfeaa3b00469e3386675c2",
+  "board_boot_id": "32d05d60-7683-4865-868e-866f1a7217b9",
+  "sender_sha256": "06583eb5ab52c824f2d8fab1cbea24839fb81aef547060e9d84eb900456a33bd",
+  "launcher_sha256": "214ba50faf169f86acdd99e1161c1a57455fe671f2865573ed251227daee87b8",
+  "host": {
+    "cpu": "AMD Ryzen AI 9 HX 470",
+    "allowed_cpus": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10,
+      11,
+      12,
+      13,
+      14,
+      15,
+      16,
+      17,
+      18,
+      19,
+      20,
+      21,
+      22,
+      23
+    ],
+    "power_profile": "balanced",
+    "driver": "amd-pstate-epp active",
+    "GPU_power": "auto",
+    "sched_ext": "disabled",
+    "ananicy_cpp": "active",
+    "RT_limit": [
+      99,
+      99
+    ],
+    "CPU_idle_exit_latency_us": [
+      0,
+      1,
+      18,
+      300
+    ]
+  },
+  "tests": {
+    "viewer_cases": 20,
+    "existing_vaapi_cases": 2,
+    "ctest_cases": 3,
+    "policy_rollback_cases": 6,
+    "all_pass": true,
+    "hardware_runs": 59,
+    "hardware_frames": 14160,
+    "per_camera_per_run": 120,
+    "transport_errors": 0,
+    "rxq_overflow": 0,
+    "encoded_queue_overflow": 0,
+    "kernel_faults_after_markers": 0,
+    "board_reboot": false
+  },
+  "final_restoration": {
+    "CPU_all_24_governor_EPP_min_max": "matches initial audit",
+    "profile": "balanced",
+    "GPU": "auto",
+    "PM_QoS_aggregate_us": 2000000000,
+    "VENC_governor": "venc_ondemand",
+    "VENC_min_max_Hz": [
+      396000000,
+      550000000
+    ],
+    "IRQ71_requested": "0-3",
+    "IRQ71_effective": "0",
+    "board_temp_c": 43.69,
+    "own_test_processes": "exited"
+  },
+  "decisions": {
+    "performance": "optional, no consistent latency advantage",
+    "VENC_floor": "restored, no gain proven",
+    "RX_affinity": "optional, fewer migrations but mixed latency",
+    "RX_RR10": "not default, no gain measured",
+    "GMAC_CPU1": "restored, small tentative gain only",
+    "idle50": "explicit viewer option; first control tails better, final repeat mixed"
+  },
+  "limits": [
+    "Short three-pair tests; no sustained-load/power/optical measurement",
+    "PM QoS applies globally while fd open, may increase idle power",
+    "RX timestamps omit some pre-network-stack wakeup work",
+    "VAAPI object/present return do not prove GPU/photon completion",
+    "Group startup nice fixed, but differs across groups; ananicy/background remain active",
+    "Two binaries across groups; identical binary within each A/B group",
+    "One old log-mirror reader survived SSH teardown; removed, cleanup fixed and three final owned-PID cases verified no residual readers; earlier microsecond results remain exploratory"
+  ],
+  "reports": [
+    {
+      "label": "host-power",
+      "experiment": "host-power",
+      "viewer_sha256": "978d30cf2283fbccfb5e4e778d84152710685277023a8ab6a9012bacc8a63832",
+      "runs": 9,
+      "hardware_frames": 2160,
+      "startup_nice_per_role": [
+        [
+          "dec0",
+          "-4"
+        ],
+        [
+          "dec1",
+          "-4"
+        ],
+        [
+          "rx",
+          "-4"
+        ]
+      ],
+      "profile_restored": true,
+      "board_original": {
+        "boot": "32d05d60-7683-4865-868e-866f1a7217b9",
+        "temperature": "44550",
+        "venc_governor": "venc_ondemand",
+        "venc_min": "396000000",
+        "venc_max": "550000000",
+        "venc_current": "550000000",
+        "irq_mask": "0-3",
+        "irq_effective": "0"
+      },
+      "board_restored": {
+        "boot": "32d05d60-7683-4865-868e-866f1a7217b9",
+        "temperature": "46060",
+        "venc_governor": "venc_ondemand",
+        "venc_min": "396000000",
+        "venc_max": "550000000",
+        "venc_current": "550000000",
+        "irq_mask": "0-3",
+        "irq_effective": "0"
+      },
+      "headless": {
+        "A": {
+          "host.kernel_rx_to_user": {
+            "mean_ms": 0.007589701594222647,
+            "p99_range_ms": [
+              0.024063,
+              0.027647
+            ],
+            "max_ms": 0.141233,
+            "samples": 22017
+          },
+          "host.stream0.au_queue_wait": {
+            "mean_ms": 0.012792000000000001,
+            "p99_range_ms": [
+              0.025855,
+              0.041983
+            ],
+            "max_ms": 0.053961,
+            "samples": 360
+          },
+          "host.stream1.au_queue_wait": {
+            "mean_ms": 0.02589,
+            "p99_range_ms": [
+              0.028415,
+              0.524287
+            ],
+            "max_ms": 0.542801,
+            "samples": 360
+          },
+          "host.stream0.au_ready_to_frame": {
+            "mean_ms": 0.174663,
+            "p99_range_ms": [
+              0.385023,
+              0.802815
+            ],
+            "max_ms": 4.984117,
+            "samples": 360
+          },
+          "host.stream1.au_ready_to_frame": {
+            "mean_ms": 0.20692366666666667,
+            "p99_range_ms": [
+              0.393215,
+              0.917503
+            ],
+            "max_ms": 7.641313,
+            "samples": 360
+          },
+          "stream0.sender.udp_queue": {
+            "mean_ms": 0.311114,
+            "p99_range_ms": [
+              0.679935,
+              0.745471
+            ],
+            "max_ms": 0.763292,
+            "samples": 360
+          },
+          "stream1.sender.udp_queue": {
+            "mean_ms": 0.37015,
+            "p99_range_ms": [
+              0.573439,
+              0.827391
+            ],
+            "max_ms": 0.909708,
+            "samples": 360
+          }
+        },
+        "B": {
+          "host.kernel_rx_to_user": {
+            "mean_ms": 0.006428109830539359,
+            "p99_range_ms": [
+              0.025599,
+              0.026367
+            ],
+            "max_ms": 0.113261,
+            "samples": 21952
+          },
+          "host.stream0.au_queue_wait": {
+            "mean_ms": 0.018842666666666667,
+            "p99_range_ms": [
+              0.028671,
+              0.062463
+            ],
+            "max_ms": 0.481616,
+            "samples": 360
+          },
+          "host.stream1.au_queue_wait": {
+            "mean_ms": 0.05078033333333334,
+            "p99_range_ms": [
+              0.045055,
+              0.540671
+            ],
+            "max_ms": 0.748012,
+            "samples": 360
+          },
+          "host.stream0.au_ready_to_frame": {
+            "mean_ms": 0.18066633333333337,
+            "p99_range_ms": [
+              0.339967,
+              0.819199
+            ],
+            "max_ms": 3.279553,
+            "samples": 360
+          },
+          "host.stream1.au_ready_to_frame": {
+            "mean_ms": 0.26781699999999997,
+            "p99_range_ms": [
+              0.491519,
+              1.081343
+            ],
+            "max_ms": 5.398057,
+            "samples": 360
+          },
+          "stream0.sender.udp_queue": {
+            "mean_ms": 0.29866733333333334,
+            "p99_range_ms": [
+              0.647167,
+              0.696319
+            ],
+            "max_ms": 0.721292,
+            "samples": 360
+          },
+          "stream1.sender.udp_queue": {
+            "mean_ms": 0.3771913333333333,
+            "p99_range_ms": [
+              0.745471,
+              0.802815
+            ],
+            "max_ms": 0.877917,
+            "samples": 360
+          }
+        }
+      },
+      "rx_migrations": {
+        "A": [
+          873,
+          838,
+          573
+        ],
+        "B": [
+          1142,
+          535,
+          896
+        ]
+      },
+      "return_A": {
+        "host.kernel_rx_to_user": {
+          "samples": 7348.0,
+          "min": 0.003206,
+          "mean": 0.007472,
+          "p50": 0.006335,
+          "p95": 0.013055,
+          "p99": 0.028927,
+          "max": 0.076332
+        },
+        "host.stream1.au_queue_wait": {
+          "samples": 120.0,
+          "min": 0.004789,
+          "mean": 0.015247,
+          "p50": 0.009087,
+          "p95": 0.029183,
+          "p99": 0.073727,
+          "max": 0.204781
+        },
+        "host.stream1.au_ready_to_frame": {
+          "samples": 120.0,
+          "min": 0.067035,
+          "mean": 0.193181,
+          "p50": 0.122879,
+          "p95": 0.368639,
+          "p99": 0.548863,
+          "max": 6.362282
+        },
+        "host.stream0.au_queue_wait": {
+          "samples": 120.0,
+          "min": 0.004959,
+          "mean": 0.010769,
+          "p50": 0.007231,
+          "p95": 0.029183,
+          "p99": 0.066559,
+          "max": 0.072996
+        },
+        "host.stream0.au_ready_to_frame": {
+          "samples": 120.0,
+          "min": 0.064951,
+          "mean": 0.171993,
+          "p50": 0.120831,
+          "p95": 0.266239,
+          "p99": 0.503807,
+          "max": 4.21737
+        }
+      },
+      "display": [
+        {
+          "variant": "A",
+          "batch_call": {
+            "samples": 223.0,
+            "min": 0.293376,
+            "mean": 2.172482,
+            "p50": 1.687551,
+            "p95": 2.490367,
+            "p99": 3.604479,
+            "max": 87.989154
+          },
+          "au_to_present_return": {
+            "0": {
+              "samples": 112.0,
+              "min": 1.467451,
+              "mean": 2.146504,
+              "p50": 1.835007,
+              "p95": 2.818047,
+              "p99": 7.012351,
+              "max": 16.848953
+            },
+            "1": {
+              "samples": 112.0,
+              "min": 1.438047,
+              "mean": 2.751686,
+              "p50": 1.851391,
+              "p95": 2.555903,
+              "p99": 9.699327,
+              "max": 92.744877
+            }
+          }
+        },
+        {
+          "variant": "B",
+          "batch_call": {
+            "samples": 226.0,
+            "min": 0.834083,
+            "mean": 2.051322,
+            "p50": 1.671167,
+            "p95": 2.490367,
+            "p99": 3.538943,
+            "max": 68.800859
+          },
+          "au_to_present_return": {
+            "0": {
+              "samples": 114.0,
+              "min": 1.529327,
+              "mean": 2.704328,
+              "p50": 1.900543,
+              "p95": 2.949119,
+              "p99": 11.927551,
+              "max": 74.103539
+            },
+            "1": {
+              "samples": 113.0,
+              "min": 1.454317,
+              "mean": 1.842608,
+              "p50": 1.769471,
+              "p95": 2.555903,
+              "p99": 3.637247,
+              "max": 8.268301
+            }
+          }
+        }
+      ]
+    },
+    {
+      "label": "venc-floor",
+      "experiment": "venc-floor",
+      "viewer_sha256": "978d30cf2283fbccfb5e4e778d84152710685277023a8ab6a9012bacc8a63832",
+      "runs": 7,
+      "hardware_frames": 1680,
+      "startup_nice_per_role": [
+        [
+          "dec0",
+          "-8"
+        ],
+        [
+          "dec1",
+          "-8"
+        ],
+        [
+          "rx",
+          "-8"
+        ]
+      ],
+      "profile_restored": true,
+      "board_original": {
+        "boot": "32d05d60-7683-4865-868e-866f1a7217b9",
+        "temperature": "43930",
+        "venc_governor": "venc_ondemand",
+        "venc_min": "396000000",
+        "venc_max": "550000000",
+        "venc_current": "550000000",
+        "irq_mask": "0-3",
+        "irq_effective": "0"
+      },
+      "board_restored": {
+        "boot": "32d05d60-7683-4865-868e-866f1a7217b9",
+        "temperature": "45950",
+        "venc_governor": "venc_ondemand",
+        "venc_min": "396000000",
+        "venc_max": "550000000",
+        "venc_current": "550000000",
+        "irq_mask": "0-3",
+        "irq_effective": "0"
+      },
+      "headless": {
+        "A": {
+          "host.kernel_rx_to_user": {
+            "mean_ms": 0.00779363713156819,
+            "p99_range_ms": [
+              0.023039,
+              0.033279
+            ],
+            "max_ms": 0.185445,
+            "samples": 22019
+          },
+          "host.stream0.au_queue_wait": {
+            "mean_ms": 0.011747666666666667,
+            "p99_range_ms": [
+              0.032255,
+              0.038911
+            ],
+            "max_ms": 0.051436,
+            "samples": 360
+          },
+          "host.stream1.au_queue_wait": {
+            "mean_ms": 0.015644333333333333,
+            "p99_range_ms": [
+              0.029951,
+              0.046591
+            ],
+            "max_ms": 0.072756,
+            "samples": 360
+          },
+          "host.stream0.au_ready_to_frame": {
+            "mean_ms": 0.164629,
+            "p99_range_ms": [
+              0.294911,
+              0.487423
+            ],
+            "max_ms": 3.255592,
+            "samples": 360
+          },
+          "host.stream1.au_ready_to_frame": {
+            "mean_ms": 0.192219,
+            "p99_range_ms": [
+              0.425983,
+              0.565247
+            ],
+            "max_ms": 4.854309,
+            "samples": 360
+          },
+          "stream0.sender.udp_queue": {
+            "mean_ms": 0.301043,
+            "p99_range_ms": [
+              0.671743,
+              0.712703
+            ],
+            "max_ms": 0.781958,
+            "samples": 360
+          },
+          "stream1.sender.udp_queue": {
+            "mean_ms": 0.3746353333333333,
+            "p99_range_ms": [
+              0.614399,
+              0.745471
+            ],
+            "max_ms": 0.877333,
+            "samples": 360
+          }
+        },
+        "B": {
+          "host.kernel_rx_to_user": {
+            "mean_ms": 0.007350994362098754,
+            "p99_range_ms": [
+              0.022527,
+              0.025855
+            ],
+            "max_ms": 0.152043,
+            "samples": 21994
+          },
+          "host.stream0.au_queue_wait": {
+            "mean_ms": 0.010536333333333333,
+            "p99_range_ms": [
+              0.028927,
+              0.067583
+            ],
+            "max_ms": 0.130733,
+            "samples": 360
+          },
+          "host.stream1.au_queue_wait": {
+            "mean_ms": 0.010300333333333333,
+            "p99_range_ms": [
+              0.020735,
+              0.046079
+            ],
+            "max_ms": 0.068297,
+            "samples": 360
+          },
+          "host.stream0.au_ready_to_frame": {
+            "mean_ms": 0.16453800000000002,
+            "p99_range_ms": [
+              0.479231,
+              0.802815
+            ],
+            "max_ms": 3.266383,
+            "samples": 360
+          },
+          "host.stream1.au_ready_to_frame": {
+            "mean_ms": 0.19459966666666667,
+            "p99_range_ms": [
+              0.425983,
+              0.524287
+            ],
+            "max_ms": 5.130984,
+            "samples": 360
+          },
+          "stream0.sender.udp_queue": {
+            "mean_ms": 0.30171866666666664,
+            "p99_range_ms": [
+              0.688127,
+              0.745471
+            ],
+            "max_ms": 0.844666,
+            "samples": 360
+          },
+          "stream1.sender.udp_queue": {
+            "mean_ms": 0.38381733333333334,
+            "p99_range_ms": [
+              0.745471,
+              0.860159
+            ],
+            "max_ms": 0.893666,
+            "samples": 360
+          }
+        }
+      },
+      "rx_migrations": {
+        "A": [
+          800,
+          664,
+          687
+        ],
+        "B": [
+          826,
+          793,
+          0
+        ]
+      },
+      "return_A": {
+        "host.kernel_rx_to_user": {
+          "samples": 7332.0,
+          "min": 0.002384,
+          "mean": 0.007108,
+          "p50": 0.006655,
+          "p95": 0.009855,
+          "p99": 0.023551,
+          "max": 0.079287
+        },
+        "host.stream0.au_queue_wait": {
+          "samples": 120.0,
+          "min": 0.004218,
+          "mean": 0.011756,
+          "p50": 0.009599,
+          "p95": 0.021247,
+          "p99": 0.030463,
+          "max": 0.050694
+        },
+        "host.stream0.au_ready_to_frame": {
+          "samples": 120.0,
+          "min": 0.097231,
+          "mean": 0.186807,
+          "p50": 0.151551,
+          "p95": 0.237567,
+          "p99": 0.458751,
+          "max": 3.466936
+        },
+        "host.stream1.au_queue_wait": {
+          "samples": 120.0,
+          "min": 0.005189,
+          "mean": 0.009242,
+          "p50": 0.008447,
+          "p95": 0.016383,
+          "p99": 0.024831,
+          "max": 0.031458
+        },
+        "host.stream1.au_ready_to_frame": {
+          "samples": 120.0,
+          "min": 0.070772,
+          "mean": 0.165125,
+          "p50": 0.116735,
+          "p95": 0.206847,
+          "p99": 0.356351,
+          "max": 4.877202
+        }
+      },
+      "display": []
+    },
+    {
+      "label": "rx-affinity",
+      "experiment": "rx-affinity",
+      "viewer_sha256": "978d30cf2283fbccfb5e4e778d84152710685277023a8ab6a9012bacc8a63832",
+      "runs": 7,
+      "hardware_frames": 1680,
+      "startup_nice_per_role": [
+        [
+          "dec0",
+          "-4"
+        ],
+        [
+          "dec1",
+          "-4"
+        ],
+        [
+          "rx",
+          "-4"
+        ]
+      ],
+      "profile_restored": true,
+      "board_original": {
+        "boot": "32d05d60-7683-4865-868e-866f1a7217b9",
+        "temperature": "45430",
+        "venc_governor": "venc_ondemand",
+        "venc_min": "396000000",
+        "venc_max": "550000000",
+        "venc_current": "550000000",
+        "irq_mask": "0-3",
+        "irq_effective": "0"
+      },
+      "board_restored": {
+        "boot": "32d05d60-7683-4865-868e-866f1a7217b9",
+        "temperature": "46810",
+        "venc_governor": "venc_ondemand",
+        "venc_min": "396000000",
+        "venc_max": "550000000",
+        "venc_current": "550000000",
+        "irq_mask": "0-3",
+        "irq_effective": "0"
+      },
+      "headless": {
+        "A": {
+          "host.kernel_rx_to_user": {
+            "mean_ms": 0.008650403926558808,
+            "p99_range_ms": [
+              0.024319,
+              0.066559
+            ],
+            "max_ms": 0.22594,
+            "samples": 22004
+          },
+          "host.stream0.au_queue_wait": {
+            "mean_ms": 0.014982666666666668,
+            "p99_range_ms": [
+              0.023551,
+              0.063999
+            ],
+            "max_ms": 0.136043,
+            "samples": 360
+          },
+          "host.stream1.au_queue_wait": {
+            "mean_ms": 0.015285666666666666,
+            "p99_range_ms": [
+              0.028671,
+              0.031487
+            ],
+            "max_ms": 0.055043,
+            "samples": 360
+          },
+          "host.stream0.au_ready_to_frame": {
+            "mean_ms": 0.1786263333333333,
+            "p99_range_ms": [
+              0.548863,
+              0.581631
+            ],
+            "max_ms": 5.269413,
+            "samples": 360
+          },
+          "host.stream1.au_ready_to_frame": {
+            "mean_ms": 0.1698913333333333,
+            "p99_range_ms": [
+              0.446463,
+              0.479231
+            ],
+            "max_ms": 5.257079,
+            "samples": 360
+          },
+          "stream0.sender.udp_queue": {
+            "mean_ms": 0.3558623333333333,
+            "p99_range_ms": [
+              0.745471,
+              0.907084
+            ],
+            "max_ms": 0.907084,
+            "samples": 360
+          },
+          "stream1.sender.udp_queue": {
+            "mean_ms": 0.346151,
+            "p99_range_ms": [
+              0.663551,
+              0.745471
+            ],
+            "max_ms": 0.845542,
+            "samples": 360
+          }
+        },
+        "B": {
+          "host.kernel_rx_to_user": {
+            "mean_ms": 0.008860092828920476,
+            "p99_range_ms": [
+              0.038911,
+              0.058367
+            ],
+            "max_ms": 0.335104,
+            "samples": 22019
+          },
+          "host.stream0.au_queue_wait": {
+            "mean_ms": 0.010615666666666666,
+            "p99_range_ms": [
+              0.014719,
+              0.065023
+            ],
+            "max_ms": 0.065612,
+            "samples": 360
+          },
+          "host.stream1.au_queue_wait": {
+            "mean_ms": 0.014499333333333333,
+            "p99_range_ms": [
+              0.022783,
+              0.039935
+            ],
+            "max_ms": 0.137175,
+            "samples": 360
+          },
+          "host.stream0.au_ready_to_frame": {
+            "mean_ms": 0.14247366666666667,
+            "p99_range_ms": [
+              0.319487,
+              0.389119
+            ],
+            "max_ms": 5.496777,
+            "samples": 360
+          },
+          "host.stream1.au_ready_to_frame": {
+            "mean_ms": 0.17196366666666665,
+            "p99_range_ms": [
+              0.376831,
+              0.573439
+            ],
+            "max_ms": 4.847237,
+            "samples": 360
+          },
+          "stream0.sender.udp_queue": {
+            "mean_ms": 0.35651399999999994,
+            "p99_range_ms": [
+              0.638975,
+              0.851967
+            ],
+            "max_ms": 0.905625,
+            "samples": 360
+          },
+          "stream1.sender.udp_queue": {
+            "mean_ms": 0.3725456666666667,
+            "p99_range_ms": [
+              0.679935,
+              0.778239
+            ],
+            "max_ms": 0.910875,
+            "samples": 360
+          }
+        }
+      },
+      "rx_migrations": {
+        "A": [
+          490,
+          790,
+          1599
+        ],
+        "B": [
+          1,
+          2,
+          1
+        ]
+      },
+      "return_A": {
+        "host.kernel_rx_to_user": {
+          "samples": 7337.0,
+          "min": 0.003847,
+          "mean": 0.006403,
+          "p50": 0.006079,
+          "p95": 0.007807,
+          "p99": 0.011775,
+          "max": 0.20413
+        },
+        "host.stream0.au_queue_wait": {
+          "samples": 120.0,
+          "min": 0.004138,
+          "mean": 0.006482,
+          "p50": 0.005567,
+          "p95": 0.009983,
+          "p99": 0.028159,
+          "max": 0.028743
+        },
+        "host.stream0.au_ready_to_frame": {
+          "samples": 120.0,
+          "min": 0.084247,
+          "mean": 0.128083,
+          "p50": 0.091135,
+          "p95": 0.151551,
+          "p99": 0.368639,
+          "max": 3.025334
+        },
+        "host.stream1.au_queue_wait": {
+          "samples": 120.0,
+          "min": 0.005089,
+          "mean": 0.010092,
+          "p50": 0.007103,
+          "p95": 0.020223,
+          "p99": 0.021247,
+          "max": 0.073807
+        },
+        "host.stream1.au_ready_to_frame": {
+          "samples": 120.0,
+          "min": 0.076983,
+          "mean": 0.157451,
+          "p50": 0.106495,
+          "p95": 0.182271,
+          "p99": 0.405503,
+          "max": 4.917548
+        }
+      },
+      "display": []
+    },
+    {
+      "label": "rx-rr",
+      "experiment": "rx-rr",
+      "viewer_sha256": "978d30cf2283fbccfb5e4e778d84152710685277023a8ab6a9012bacc8a63832",
+      "runs": 7,
+      "hardware_frames": 1680,
+      "startup_nice_per_role": [
+        [
+          "dec0",
+          "-4"
+        ],
+        [
+          "dec1",
+          "-4"
+        ],
+        [
+          "rx",
+          "-4"
+        ]
+      ],
+      "profile_restored": true,
+      "board_original": {
+        "boot": "32d05d60-7683-4865-868e-866f1a7217b9",
+        "temperature": "45960",
+        "venc_governor": "venc_ondemand",
+        "venc_min": "396000000",
+        "venc_max": "550000000",
+        "venc_current": "550000000",
+        "irq_mask": "0-3",
+        "irq_effective": "0"
+      },
+      "board_restored": {
+        "boot": "32d05d60-7683-4865-868e-866f1a7217b9",
+        "temperature": "46660",
+        "venc_governor": "venc_ondemand",
+        "venc_min": "396000000",
+        "venc_max": "550000000",
+        "venc_current": "550000000",
+        "irq_mask": "0-3",
+        "irq_effective": "0"
+      },
+      "headless": {
+        "A": {
+          "host.kernel_rx_to_user": {
+            "mean_ms": 0.008496085226240232,
+            "p99_range_ms": [
+              0.024831,
+              0.037887
+            ],
+            "max_ms": 0.309466,
+            "samples": 22012
+          },
+          "host.stream0.au_queue_wait": {
+            "mean_ms": 0.006869333333333333,
+            "p99_range_ms": [
+              0.015487,
+              0.027135
+            ],
+            "max_ms": 0.042228,
+            "samples": 360
+          },
+          "host.stream1.au_queue_wait": {
+            "mean_ms": 0.011984666666666666,
+            "p99_range_ms": [
+              0.026623,
+              0.038399
+            ],
+            "max_ms": 0.047659,
+            "samples": 360
+          },
+          "host.stream0.au_ready_to_frame": {
+            "mean_ms": 0.13857966666666666,
+            "p99_range_ms": [
+              0.270335,
+              0.372735
+            ],
+            "max_ms": 3.562765,
+            "samples": 360
+          },
+          "host.stream1.au_ready_to_frame": {
+            "mean_ms": 0.1652406666666667,
+            "p99_range_ms": [
+              0.385023,
+              0.442367
+            ],
+            "max_ms": 4.766136,
+            "samples": 360
+          },
+          "stream0.sender.udp_queue": {
+            "mean_ms": 0.3017476666666667,
+            "p99_range_ms": [
+              0.696319,
+              0.720895
+            ],
+            "max_ms": 0.795666,
+            "samples": 360
+          },
+          "stream1.sender.udp_queue": {
+            "mean_ms": 0.38575266666666663,
+            "p99_range_ms": [
+              0.827391,
+              0.909311
+            ],
+            "max_ms": 1.01675,
+            "samples": 360
+          }
+        },
+        "B": {
+          "host.kernel_rx_to_user": {
+            "mean_ms": 0.008754808216687875,
+            "p99_range_ms": [
+              0.023295,
+              0.059903
+            ],
+            "max_ms": 0.322009,
+            "samples": 22004
+          },
+          "host.stream0.au_queue_wait": {
+            "mean_ms": 0.013039666666666666,
+            "p99_range_ms": [
+              0.031487,
+              0.052223
+            ],
+            "max_ms": 0.055463,
+            "samples": 360
+          },
+          "host.stream1.au_queue_wait": {
+            "mean_ms": 0.013724666666666666,
+            "p99_range_ms": [
+              0.024319,
+              0.034303
+            ],
+            "max_ms": 0.073226,
+            "samples": 360
+          },
+          "host.stream0.au_ready_to_frame": {
+            "mean_ms": 0.152949,
+            "p99_range_ms": [
+              0.368639,
+              0.417791
+            ],
+            "max_ms": 3.172679,
+            "samples": 360
+          },
+          "host.stream1.au_ready_to_frame": {
+            "mean_ms": 0.17354533333333333,
+            "p99_range_ms": [
+              0.315391,
+              0.630783
+            ],
+            "max_ms": 4.820989,
+            "samples": 360
+          },
+          "stream0.sender.udp_queue": {
+            "mean_ms": 0.29856366666666667,
+            "p99_range_ms": [
+              0.655359,
+              0.696319
+            ],
+            "max_ms": 0.810542,
+            "samples": 360
+          },
+          "stream1.sender.udp_queue": {
+            "mean_ms": 0.3893763333333333,
+            "p99_range_ms": [
+              0.712703,
+              0.868351
+            ],
+            "max_ms": 1.020833,
+            "samples": 360
+          }
+        }
+      },
+      "rx_migrations": {
+        "A": [
+          1,
+          1,
+          1
+        ],
+        "B": [
+          1,
+          1,
+          1
+        ]
+      },
+      "return_A": {
+        "host.kernel_rx_to_user": {
+          "samples": 7318.0,
+          "min": 0.004338,
+          "mean": 0.00774,
+          "p50": 0.006911,
+          "p95": 0.011135,
+          "p99": 0.020735,
+          "max": 0.094458
+        },
+        "host.stream1.au_queue_wait": {
+          "samples": 120.0,
+          "min": 0.003006,
+          "mean": 0.007301,
+          "p50": 0.005759,
+          "p95": 0.020735,
+          "p99": 0.024831,
+          "max": 0.029626
+        },
+        "host.stream1.au_ready_to_frame": {
+          "samples": 120.0,
+          "min": 0.056978,
+          "mean": 0.132207,
+          "p50": 0.081919,
+          "p95": 0.184319,
+          "p99": 0.737279,
+          "max": 3.156327
+        },
+        "host.stream0.au_queue_wait": {
+          "samples": 120.0,
+          "min": 0.003858,
+          "mean": 0.009362,
+          "p50": 0.006719,
+          "p95": 0.028671,
+          "p99": 0.069631,
+          "max": 0.070153
+        },
+        "host.stream0.au_ready_to_frame": {
+          "samples": 120.0,
+          "min": 0.061176,
+          "mean": 0.155608,
+          "p50": 0.103423,
+          "p95": 0.262143,
+          "p99": 0.503807,
+          "max": 4.320623
+        }
+      },
+      "display": []
+    },
+    {
+      "label": "gmac-irq",
+      "experiment": "gmac-irq",
+      "viewer_sha256": "978d30cf2283fbccfb5e4e778d84152710685277023a8ab6a9012bacc8a63832",
+      "runs": 7,
+      "hardware_frames": 1680,
+      "startup_nice_per_role": [
+        [
+          "dec0",
+          "-4"
+        ],
+        [
+          "dec1",
+          "-4"
+        ],
+        [
+          "rx",
+          "-4"
+        ]
+      ],
+      "profile_restored": true,
+      "board_original": {
+        "boot": "32d05d60-7683-4865-868e-866f1a7217b9",
+        "temperature": "46840",
+        "venc_governor": "venc_ondemand",
+        "venc_min": "396000000",
+        "venc_max": "550000000",
+        "venc_current": "550000000",
+        "irq_mask": "0-3",
+        "irq_effective": "0"
+      },
+      "board_restored": {
+        "boot": "32d05d60-7683-4865-868e-866f1a7217b9",
+        "temperature": "46280",
+        "venc_governor": "venc_ondemand",
+        "venc_min": "396000000",
+        "venc_max": "550000000",
+        "venc_current": "550000000",
+        "irq_mask": "0-3",
+        "irq_effective": "0"
+      },
+      "headless": {
+        "A": {
+          "host.kernel_rx_to_user": {
+            "mean_ms": 0.007212179118034424,
+            "p99_range_ms": [
+              0.021247,
+              0.023551
+            ],
+            "max_ms": 0.133633,
+            "samples": 22019
+          },
+          "host.stream0.au_queue_wait": {
+            "mean_ms": 0.011930333333333334,
+            "p99_range_ms": [
+              0.025087,
+              0.044031
+            ],
+            "max_ms": 0.078378,
+            "samples": 360
+          },
+          "host.stream1.au_queue_wait": {
+            "mean_ms": 0.019181666666666666,
+            "p99_range_ms": [
+              0.035327,
+              0.258047
+            ],
+            "max_ms": 0.590614,
+            "samples": 360
+          },
+          "host.stream0.au_ready_to_frame": {
+            "mean_ms": 0.17195,
+            "p99_range_ms": [
+              0.364543,
+              0.454655
+            ],
+            "max_ms": 5.133952,
+            "samples": 360
+          },
+          "host.stream1.au_ready_to_frame": {
+            "mean_ms": 0.20280366666666666,
+            "p99_range_ms": [
+              0.409599,
+              0.950271
+            ],
+            "max_ms": 5.736508,
+            "samples": 360
+          },
+          "stream0.sender.udp_queue": {
+            "mean_ms": 0.31171533333333334,
+            "p99_range_ms": [
+              0.696319,
+              0.794623
+            ],
+            "max_ms": 0.82425,
+            "samples": 360
+          },
+          "stream1.sender.udp_queue": {
+            "mean_ms": 0.40346,
+            "p99_range_ms": [
+              0.573439,
+              0.950271
+            ],
+            "max_ms": 1.005959,
+            "samples": 360
+          }
+        },
+        "B": {
+          "host.kernel_rx_to_user": {
+            "mean_ms": 0.007252697783228854,
+            "p99_range_ms": [
+              0.020735,
+              0.026111
+            ],
+            "max_ms": 0.115658,
+            "samples": 22014
+          },
+          "host.stream0.au_queue_wait": {
+            "mean_ms": 0.008128,
+            "p99_range_ms": [
+              0.035327,
+              0.039935
+            ],
+            "max_ms": 0.046487,
+            "samples": 360
+          },
+          "host.stream1.au_queue_wait": {
+            "mean_ms": 0.011681666666666667,
+            "p99_range_ms": [
+              0.015999,
+              0.031487
+            ],
+            "max_ms": 0.071685,
+            "samples": 360
+          },
+          "host.stream0.au_ready_to_frame": {
+            "mean_ms": 0.15621133333333334,
+            "p99_range_ms": [
+              0.385023,
+              1.048575
+            ],
+            "max_ms": 3.183775,
+            "samples": 360
+          },
+          "host.stream1.au_ready_to_frame": {
+            "mean_ms": 0.18201166666666668,
+            "p99_range_ms": [
+              0.344063,
+              0.475135
+            ],
+            "max_ms": 5.198766,
+            "samples": 360
+          },
+          "stream0.sender.udp_queue": {
+            "mean_ms": 0.30059633333333335,
+            "p99_range_ms": [
+              0.663551,
+              0.679935
+            ],
+            "max_ms": 0.714583,
+            "samples": 360
+          },
+          "stream1.sender.udp_queue": {
+            "mean_ms": 0.39352966666666667,
+            "p99_range_ms": [
+              0.720895,
+              0.794623
+            ],
+            "max_ms": 0.863041,
+            "samples": 360
+          }
+        }
+      },
+      "rx_migrations": {
+        "A": [
+          623,
+          281,
+          903
+        ],
+        "B": [
+          246,
+          429,
+          500
+        ]
+      },
+      "return_A": {
+        "host.kernel_rx_to_user": {
+          "samples": 7343.0,
+          "min": 0.003146,
+          "mean": 0.009413,
+          "p50": 0.007551,
+          "p95": 0.022527,
+          "p99": 0.036863,
+          "max": 0.099007
+        },
+        "host.stream1.au_queue_wait": {
+          "samples": 120.0,
+          "min": 0.006733,
+          "mean": 0.023289,
+          "p50": 0.021247,
+          "p95": 0.032511,
+          "p99": 0.046591,
+          "max": 0.048662
+        },
+        "host.stream1.au_ready_to_frame": {
+          "samples": 120.0,
+          "min": 0.096171,
+          "mean": 0.202651,
+          "p50": 0.155647,
+          "p95": 0.231423,
+          "p99": 0.663551,
+          "max": 4.066642
+        },
+        "host.stream0.au_queue_wait": {
+          "samples": 120.0,
+          "min": 0.00526,
+          "mean": 0.014622,
+          "p50": 0.010879,
+          "p95": 0.026367,
+          "p99": 0.035327,
+          "max": 0.041318
+        },
+        "host.stream0.au_ready_to_frame": {
+          "samples": 120.0,
+          "min": 0.092965,
+          "mean": 0.180376,
+          "p50": 0.141311,
+          "p95": 0.245759,
+          "p99": 0.385023,
+          "max": 3.575417
+        }
+      },
+      "display": []
+    },
+    {
+      "label": "host-idle",
+      "experiment": "host-idle",
+      "viewer_sha256": "978d30cf2283fbccfb5e4e778d84152710685277023a8ab6a9012bacc8a63832",
+      "runs": 7,
+      "hardware_frames": 1680,
+      "startup_nice_per_role": [
+        [
+          "dec0",
+          "-8"
+        ],
+        [
+          "dec1",
+          "-8"
+        ],
+        [
+          "rx",
+          "-8"
+        ]
+      ],
+      "profile_restored": true,
+      "board_original": {
+        "boot": "32d05d60-7683-4865-868e-866f1a7217b9",
+        "temperature": "44400",
+        "venc_governor": "venc_ondemand",
+        "venc_min": "396000000",
+        "venc_max": "550000000",
+        "venc_current": "550000000",
+        "irq_mask": "0-3",
+        "irq_effective": "0"
+      },
+      "board_restored": {
+        "boot": "32d05d60-7683-4865-868e-866f1a7217b9",
+        "temperature": "46170",
+        "venc_governor": "venc_ondemand",
+        "venc_min": "396000000",
+        "venc_max": "550000000",
+        "venc_current": "550000000",
+        "irq_mask": "0-3",
+        "irq_effective": "0"
+      },
+      "headless": {
+        "A": {
+          "host.kernel_rx_to_user": {
+            "mean_ms": 0.007712111474367706,
+            "p99_range_ms": [
+              0.025087,
+              0.028159
+            ],
+            "max_ms": 0.205797,
+            "samples": 22023
+          },
+          "host.stream0.au_queue_wait": {
+            "mean_ms": 0.022862999999999998,
+            "p99_range_ms": [
+              0.051711,
+              0.303103
+            ],
+            "max_ms": 0.554181,
+            "samples": 360
+          },
+          "host.stream1.au_queue_wait": {
+            "mean_ms": 0.016391,
+            "p99_range_ms": [
+              0.026111,
+              0.251903
+            ],
+            "max_ms": 0.394111,
+            "samples": 360
+          },
+          "host.stream0.au_ready_to_frame": {
+            "mean_ms": 0.1921226666666667,
+            "p99_range_ms": [
+              0.679935,
+              0.827391
+            ],
+            "max_ms": 4.538625,
+            "samples": 360
+          },
+          "host.stream1.au_ready_to_frame": {
+            "mean_ms": 0.19341466666666665,
+            "p99_range_ms": [
+              0.450559,
+              0.983039
+            ],
+            "max_ms": 5.115096,
+            "samples": 360
+          },
+          "stream0.sender.udp_queue": {
+            "mean_ms": 0.314525,
+            "p99_range_ms": [
+              0.679935,
+              0.745471
+            ],
+            "max_ms": 0.779042,
+            "samples": 360
+          },
+          "stream1.sender.udp_queue": {
+            "mean_ms": 0.3826616666666666,
+            "p99_range_ms": [
+              0.712703,
+              0.811007
+            ],
+            "max_ms": 0.997208,
+            "samples": 360
+          }
+        },
+        "B": {
+          "host.kernel_rx_to_user": {
+            "mean_ms": 0.007363110359235205,
+            "p99_range_ms": [
+              0.024319,
+              0.025855
+            ],
+            "max_ms": 0.137728,
+            "samples": 22019
+          },
+          "host.stream0.au_queue_wait": {
+            "mean_ms": 0.012950333333333333,
+            "p99_range_ms": [
+              0.034303,
+              0.048127
+            ],
+            "max_ms": 0.050335,
+            "samples": 360
+          },
+          "host.stream1.au_queue_wait": {
+            "mean_ms": 0.012404,
+            "p99_range_ms": [
+              0.025599,
+              0.041983
+            ],
+            "max_ms": 0.077365,
+            "samples": 360
+          },
+          "host.stream0.au_ready_to_frame": {
+            "mean_ms": 0.181599,
+            "p99_range_ms": [
+              0.385023,
+              0.417791
+            ],
+            "max_ms": 4.891585,
+            "samples": 360
+          },
+          "host.stream1.au_ready_to_frame": {
+            "mean_ms": 0.18277133333333334,
+            "p99_range_ms": [
+              0.417791,
+              0.499711
+            ],
+            "max_ms": 4.56984,
+            "samples": 360
+          },
+          "stream0.sender.udp_queue": {
+            "mean_ms": 0.41096900000000003,
+            "p99_range_ms": [
+              0.778239,
+              0.974847
+            ],
+            "max_ms": 1.13575,
+            "samples": 360
+          },
+          "stream1.sender.udp_queue": {
+            "mean_ms": 0.41470466666666667,
+            "p99_range_ms": [
+              0.819199,
+              0.925695
+            ],
+            "max_ms": 1.021125,
+            "samples": 360
+          }
+        }
+      },
+      "rx_migrations": {
+        "A": [
+          469,
+          963,
+          1150
+        ],
+        "B": [
+          722,
+          81,
+          1174
+        ]
+      },
+      "return_A": {
+        "host.kernel_rx_to_user": {
+          "samples": 7342.0,
+          "min": 0.003176,
+          "mean": 0.006746,
+          "p50": 0.006271,
+          "p95": 0.008831,
+          "p99": 0.021503,
+          "max": 0.065933
+        },
+        "host.stream1.au_queue_wait": {
+          "samples": 120.0,
+          "min": 0.004689,
+          "mean": 0.014715,
+          "p50": 0.018687,
+          "p95": 0.021247,
+          "p99": 0.025599,
+          "max": 0.040606
+        },
+        "host.stream1.au_ready_to_frame": {
+          "samples": 120.0,
+          "min": 0.096762,
+          "mean": 0.18021,
+          "p50": 0.131071,
+          "p95": 0.190463,
+          "p99": 0.540671,
+          "max": 5.161086
+        },
+        "host.stream0.au_queue_wait": {
+          "samples": 120.0,
+          "min": 0.004448,
+          "mean": 0.00798,
+          "p50": 0.006719,
+          "p95": 0.010495,
+          "p99": 0.050687,
+          "max": 0.060002
+        },
+        "host.stream0.au_ready_to_frame": {
+          "samples": 120.0,
+          "min": 0.071805,
+          "mean": 0.160919,
+          "p50": 0.113663,
+          "p95": 0.303103,
+          "p99": 0.532479,
+          "max": 3.126243
+        }
+      },
+      "display": []
+    },
+    {
+      "label": "host-idle-viewer",
+      "experiment": "host-idle",
+      "viewer_sha256": "3c57f82264feeaeb14c0f0524c0c972953b0269ab6cfeaa3b00469e3386675c2",
+      "runs": 9,
+      "hardware_frames": 2160,
+      "startup_nice_per_role": [
+        [
+          "dec0",
+          "-4"
+        ],
+        [
+          "dec1",
+          "-4"
+        ],
+        [
+          "rx",
+          "-4"
+        ]
+      ],
+      "profile_restored": true,
+      "board_original": {
+        "boot": "32d05d60-7683-4865-868e-866f1a7217b9",
+        "temperature": "44030",
+        "venc_governor": "venc_ondemand",
+        "venc_min": "396000000",
+        "venc_max": "550000000",
+        "venc_current": "550000000",
+        "irq_mask": "0-3",
+        "irq_effective": "0"
+      },
+      "board_restored": {
+        "boot": "32d05d60-7683-4865-868e-866f1a7217b9",
+        "temperature": "45910",
+        "venc_governor": "venc_ondemand",
+        "venc_min": "396000000",
+        "venc_max": "550000000",
+        "venc_current": "550000000",
+        "irq_mask": "0-3",
+        "irq_effective": "0"
+      },
+      "headless": {
+        "A": {
+          "host.kernel_rx_to_user": {
+            "mean_ms": 0.007476728173881411,
+            "p99_range_ms": [
+              0.016895,
+              0.033791
+            ],
+            "max_ms": 0.192972,
+            "samples": 21992
+          },
+          "host.stream0.au_queue_wait": {
+            "mean_ms": 0.013242666666666666,
+            "p99_range_ms": [
+              0.034505,
+              0.050175
+            ],
+            "max_ms": 0.184074,
+            "samples": 360
+          },
+          "host.stream1.au_queue_wait": {
+            "mean_ms": 0.014629666666666668,
+            "p99_range_ms": [
+              0.025599,
+              0.051711
+            ],
+            "max_ms": 0.269415,
+            "samples": 360
+          },
+          "host.stream0.au_ready_to_frame": {
+            "mean_ms": 0.16088033333333335,
+            "p99_range_ms": [
+              0.344063,
+              0.655359
+            ],
+            "max_ms": 4.961143,
+            "samples": 360
+          },
+          "host.stream1.au_ready_to_frame": {
+            "mean_ms": 0.18902466666666665,
+            "p99_range_ms": [
+              0.364543,
+              0.589823
+            ],
+            "max_ms": 5.707571,
+            "samples": 360
+          },
+          "stream0.sender.udp_queue": {
+            "mean_ms": 0.3412516666666667,
+            "p99_range_ms": [
+              0.696319,
+              0.819199
+            ],
+            "max_ms": 0.854,
+            "samples": 360
+          },
+          "stream1.sender.udp_queue": {
+            "mean_ms": 0.3643263333333334,
+            "p99_range_ms": [
+              0.647167,
+              0.737279
+            ],
+            "max_ms": 0.843209,
+            "samples": 360
+          }
+        },
+        "B": {
+          "host.kernel_rx_to_user": {
+            "mean_ms": 0.008387837688259845,
+            "p99_range_ms": [
+              0.013439,
+              0.037887
+            ],
+            "max_ms": 0.129062,
+            "samples": 22044
+          },
+          "host.stream0.au_queue_wait": {
+            "mean_ms": 0.019243000000000003,
+            "p99_range_ms": [
+              0.033593,
+              0.049653
+            ],
+            "max_ms": 0.051937,
+            "samples": 360
+          },
+          "host.stream1.au_queue_wait": {
+            "mean_ms": 0.019241666666666664,
+            "p99_range_ms": [
+              0.029695,
+              0.047615
+            ],
+            "max_ms": 0.073839,
+            "samples": 360
+          },
+          "host.stream0.au_ready_to_frame": {
+            "mean_ms": 0.163529,
+            "p99_range_ms": [
+              0.327679,
+              0.356351
+            ],
+            "max_ms": 4.721765,
+            "samples": 360
+          },
+          "host.stream1.au_ready_to_frame": {
+            "mean_ms": 0.18192199999999997,
+            "p99_range_ms": [
+              0.417791,
+              0.499711
+            ],
+            "max_ms": 4.793507,
+            "samples": 360
+          },
+          "stream0.sender.udp_queue": {
+            "mean_ms": 0.34231399999999995,
+            "p99_range_ms": [
+              0.671743,
+              0.860159
+            ],
+            "max_ms": 0.896,
+            "samples": 360
+          },
+          "stream1.sender.udp_queue": {
+            "mean_ms": 0.40829033333333337,
+            "p99_range_ms": [
+              0.786431,
+              0.811007
+            ],
+            "max_ms": 1.008,
+            "samples": 360
+          }
+        }
+      },
+      "rx_migrations": {
+        "A": [
+          690,
+          173,
+          1187
+        ],
+        "B": [
+          1291,
+          3123,
+          2284
+        ]
+      },
+      "return_A": {
+        "host.kernel_rx_to_user": {
+          "samples": 7339.0,
+          "min": 0.003327,
+          "mean": 0.006896,
+          "p50": 0.006271,
+          "p95": 0.010623,
+          "p99": 0.021759,
+          "max": 0.090029
+        },
+        "host.stream1.au_queue_wait": {
+          "samples": 120.0,
+          "min": 0.005219,
+          "mean": 0.019338,
+          "p50": 0.018687,
+          "p95": 0.025087,
+          "p99": 0.133119,
+          "max": 0.46464
+        },
+        "host.stream1.au_ready_to_frame": {
+          "samples": 120.0,
+          "min": 0.082975,
+          "mean": 0.186381,
+          "p50": 0.126975,
+          "p95": 0.270335,
+          "p99": 0.438271,
+          "max": 5.339138
+        },
+        "host.stream0.au_queue_wait": {
+          "samples": 120.0,
+          "min": 0.004548,
+          "mean": 0.04125,
+          "p50": 0.019967,
+          "p95": 0.061951,
+          "p99": 0.761855,
+          "max": 1.021743
+        },
+        "host.stream0.au_ready_to_frame": {
+          "samples": 120.0,
+          "min": 0.088406,
+          "mean": 0.206695,
+          "p50": 0.135167,
+          "p95": 0.446463,
+          "p99": 1.327103,
+          "max": 2.870084
+        }
+      },
+      "display": [
+        {
+          "variant": "A",
+          "batch_call": {
+            "samples": 222.0,
+            "min": 0.378539,
+            "mean": 2.223285,
+            "p50": 1.703935,
+            "p95": 2.621439,
+            "p99": 3.866623,
+            "max": 88.569614
+          },
+          "au_to_present_return": {
+            "0": {
+              "samples": 111.0,
+              "min": 1.460314,
+              "mean": 2.100364,
+              "p50": 1.867775,
+              "p95": 3.014655,
+              "p99": 4.063231,
+              "max": 9.827781
+            },
+            "1": {
+              "samples": 112.0,
+              "min": 1.481934,
+              "mean": 2.842364,
+              "p50": 1.867775,
+              "p95": 2.555903,
+              "p99": 13.107199,
+              "max": 93.031038
+            }
+          }
+        },
+        {
+          "variant": "B",
+          "batch_call": {
+            "samples": 223.0,
+            "min": 0.599753,
+            "mean": 2.237027,
+            "p50": 1.736703,
+            "p95": 2.588671,
+            "p99": 4.030463,
+            "max": 87.839316
+          },
+          "au_to_present_return": {
+            "0": {
+              "samples": 112.0,
+              "min": 1.446268,
+              "mean": 2.229321,
+              "p50": 1.867775,
+              "p95": 3.014655,
+              "p99": 6.684671,
+              "max": 16.07172
+            },
+            "1": {
+              "samples": 112.0,
+              "min": 1.473839,
+              "mean": 2.82306,
+              "p50": 1.900543,
+              "p95": 2.555903,
+              "p99": 9.175039,
+              "max": 92.999237
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "cleanup_validation": [
+    {
+      "label": "final-cleanup-regression",
+      "runs": 3,
+      "hardware_frames": 720,
+      "viewer_sha256": "3c57f82264feeaeb14c0f0524c0c972953b0269ab6cfeaa3b00469e3386675c2",
+      "purpose": "owned log-reader cleanup regression"
+    },
+    {
+      "label": "final-owned-cleanup",
+      "runs": 3,
+      "hardware_frames": 720,
+      "viewer_sha256": "3c57f82264feeaeb14c0f0524c0c972953b0269ab6cfeaa3b00469e3386675c2",
+      "purpose": "owned log-reader cleanup regression"
+    }
+  ]
+}
