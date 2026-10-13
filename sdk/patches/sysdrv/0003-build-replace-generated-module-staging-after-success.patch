@@ -1,0 +1,29 @@
+From 203814be9ca8138197f342780ac19736b0c4d8d1 Mon Sep 17 00:00:00 2001
+From: Starwey <moonbite233@gmail.com>
+Date: Tue, 13 Oct 2026 17:24:24 +0800
+Subject: [PATCH] build: replace generated module staging after successful
+ driver build
+
+---
+ Makefile | 5 +++++
+ 1 file changed, 5 insertions(+)
+
+diff --git a/Makefile b/Makefile
+index ca3801c..0e45c97 100644
+--- a/Makefile
++++ b/Makefile
+@@ -765,6 +765,11 @@ drv: prepare
+ 	$(AT)find $(KERNEL_DIR_DRV_KO)/lib/modules/*/kernel \
+ 		-name "*.ko" -type f -exec cp -fav {} $(SYSDRV_KERNEL_MOD_PATH) \;
+ 	@test ! -d drv_ko || ($(MAKE) O=$(SYSDRV_KERNEL_OBJS_OUTPUT_DIR) -C $(SYSDRV_DIR)/drv_ko KERNEL_DRV_KO_INSTALL_PATH=$(SYSDRV_KERNEL_MOD_PATH))
++# Copying over a previous module directory preserves disabled drivers. This is
++# generated staging, not a source tree: replace it after a successful drv build.
++ifneq ($(OUTPUT_ROOTFS_SOURCE_DIR),)
++	rm -rf $(OUTPUT_ROOTFS_SOURCE_DIR)/kernel_drv_ko
++endif
+ 	$(call MAROC_COPY_PKG_TO_SYSDRV_OUTPUT, $(OUTPUT_ROOTFS_SOURCE_DIR), $(SYSDRV_KERNEL_MOD_PATH), SELF)
+ 
+ drv_clean:
+-- 
+2.56.0
+

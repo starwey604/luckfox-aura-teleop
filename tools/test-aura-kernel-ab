@@ -1,0 +1,194 @@
+#!/usr/bin/env python3
+"""Native, bounded kernel A/B test. Never flash, reboot, deploy, or tune the board."""
+import argparse
+import gzip
+import hashlib
+import json
+import os
+from pathlib import Path
+import re
+import subprocess
+import sys
+
+ROOT = Path(__file__).resolve().parents[1]
+PROGRAMS = ("/userdata/teleop-sender", "/userdata/run-ar0234-stereo", "/userdata/diagnose-ar0234")
+SNAPSHOT = """uname -a
+cat /proc/sys/kernel/random/boot_id /proc/cmdline /proc/uptime
+cat /proc/sys/kernel/watchdog_thresh /proc/sys/kernel/softlockup_all_cpu_backtrace
+cat /proc/interrupts /proc/softirqs /proc/net/snmp /proc/net/softnet_stat
+cat /proc/sys/net/core/wmem_max /proc/sys/net/core/rmem_max
+for p in /proc/irq/71/smp_affinity_list /proc/irq/72/smp_affinity_list /proc/irq/73/smp_affinity_list /sys/class/devfreq/*/governor /sys/class/devfreq/*/cur_freq /sys/class/thermal/thermal_zone*/temp; do echo "$p"; cat "$p"; done
+ethtool -c eth0; ethtool --show-eee eth0
+sha256sum /oem/usr/ko/kmpp.ko
+ps
+"""
+
+
+def config_values(text):
+    values = {}
+    for line in text.splitlines():
+        if line.startswith("CONFIG_") and "=" in line:
+            key, value = line.split("=", 1)
+            values[key] = value
+        elif re.fullmatch(r"# CONFIG_\w+ is not set", line):
+            values[line.split()[1]] = "n"
+    return values
+
+
+def digest(path):
+    return hashlib.sha256(path.read_bytes()).hexdigest()
+
+
+def parse_metrics(text):
+    result = {}
+    for line in text.splitlines():
+        match = re.fullmatch(r"metric: stage=(\S+) (.+)", line)
+        if match:
+            stage, fields = match.groups()
+            if stage in result:
+                raise ValueError("Duplicate metric stage: " + stage)
+            result[stage] = {key: float(value) for key, value in
+                             (field.split("=", 1) for field in fields.split())}
+    return result
+
+
+def summarize(runs):
+    # Report run-to-run ranges. Averaging percentiles would not yield a pooled percentile.
+    stages = set.intersection(*(set(run["metrics"]) for run in runs))
+    result = {}
+    for stage in sorted(stages):
+        metrics = [run["metrics"][stage] for run in runs]
+        count = sum(metric["samples"] for metric in metrics)
+        result[stage] = {
+            "samples": int(count),
+            "weighted_mean_ms": sum(metric["mean"] * metric["samples"] for metric in metrics) / count,
+            "run_p95_range_ms": [min(metric["p95"] for metric in metrics), max(metric["p95"] for metric in metrics)],
+            "max_ms": max(metric["max"] for metric in metrics),
+        }
+    return result
+
+
+def load_run(path):
+    result = json.loads((path / "result.json").read_text())
+    required = {"camera": "dual", "frames_per_camera": 120, "mode": "decode",
+                "output_mode": "frame", "force_stream_parser": False, "minimal": False,
+                "success": True, "board_responds_after": True, "sender_exit": 0, "viewer_exit": 0}
+    for key, value in required.items():
+        if result.get(key) != value:
+            raise ValueError(f"Unusable A/B run {path}: {key}")
+    metrics = parse_metrics((path / "board-senders.txt").read_text())
+    metrics.update(parse_metrics((path / "viewer.txt").read_text()))
+    for stream in (0, 1):
+        for stage in (f"stream{stream}.sender.ready_to_send", f"stream{stream}.sender.udp_queue",
+                      f"host.stream{stream}.reassembly", f"host.stream{stream}.au_ready_to_frame"):
+            if metrics.get(stage, {}).get("samples") != 120:
+                raise ValueError(f"Missing stage samples {path}: {stage}")
+    return {"path": str(path), "result": result, "metrics": metrics}
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--variant", choices=("A", "B", "A-return"), required=True)
+    parser.add_argument("--expected-config", type=Path, required=True)
+    parser.add_argument("--reference", type=Path, help="A summary.json; mandatory for B/A-return")
+    parser.add_argument("--output", type=Path, required=True)
+    parser.add_argument("--host", default="root@192.168.1.10")
+    parser.add_argument("--viewer", type=Path, default=ROOT / "build/host-metrics/bin/host-viewer")
+    parser.add_argument("--adb-serial", default="4a988b5514157df5")
+    parser.add_argument("--adopt-run", type=Path, action="append", help="Import exactly three already completed runs instead of starting cameras")
+    args = parser.parse_args()
+    if Path("/run/.containerenv").exists() or Path("/.dockerenv").exists():
+        parser.error("Run natively on CachyOS")
+    if args.variant != "A" and not args.reference:
+        parser.error("B/A-return requires --reference from A")
+    if args.adopt_run and len(args.adopt_run) != 3:
+        parser.error("Import exactly three runs")
+    args.output.mkdir(parents=True, exist_ok=False)
+    ssh = ["ssh", "-o", "ConnectTimeout=5", "-o", "ServerAliveInterval=3", "-o", "ServerAliveCountMax=3", args.host]
+    if "SSHPASS" in os.environ:
+        ssh = ["sshpass", "-e"] + ssh
+
+    def remote(command):
+        return subprocess.check_output(ssh + [command], timeout=20)
+
+    actual_text = gzip.decompress(remote("cat /proc/config.gz")).decode()
+    (args.output / "running.config").write_text(actual_text)
+    actual = config_values(actual_text)
+    expected = config_values(args.expected_config.read_text())
+    if actual != expected:
+        diff = {key: [expected.get(key), actual.get(key)] for key in expected.keys() | actual.keys()
+                if expected.get(key) != actual.get(key)}
+        (args.output / "config-mismatch.json").write_text(json.dumps(diff, indent=2) + "\n")
+        raise ValueError("Running kernel does not match expected config; no cameras started")
+    identity = {"viewer": digest(args.viewer)}
+    for line in remote("sha256sum " + " ".join(PROGRAMS)).decode().splitlines():
+        sha, name = line.split()
+        identity[name] = sha
+    reference = json.loads(args.reference.read_text()) if args.reference else None
+    if reference and identity != reference["programs"]:
+        raise ValueError("Programs changed since A; no cameras started")
+    if reference:
+        for run in reference["runs"]:
+            if Path(run["result"]["viewer_command"][0]).resolve() != args.viewer.resolve():
+                raise ValueError("Viewer path changed since A")
+    before = remote(SNAPSHOT)
+    (args.output / "board-before.txt").write_bytes(before)
+    boot_id = remote("cat /proc/sys/kernel/random/boot_id").decode().strip()
+    runs = []
+    capture = None
+    with (args.output / "usb-kmsg.txt").open("wb") as log:
+        try:
+            if args.adopt_run:
+                runs = [load_run(path.resolve()) for path in args.adopt_run]
+            else:
+                # A live USB marker is required before camera initialization.
+                capture = subprocess.Popen(["adb", "-s", args.adb_serial, "shell", "timeout 120 cat /dev/kmsg"],
+                                           stdout=log, stderr=subprocess.STDOUT)
+                import time
+                time.sleep(0.3)
+                marker = f"teleop-kernel-ab-{args.variant}-{time.monotonic_ns()}"
+                subprocess.run(["adb", "-s", args.adb_serial, "shell", f"echo {marker} >/dev/kmsg"],
+                               check=True, timeout=10, stdout=subprocess.DEVNULL)
+                deadline = time.monotonic() + 5
+                while marker not in (args.output / "usb-kmsg.txt").read_text(errors="replace"):
+                    if capture.poll() is not None or time.monotonic() >= deadline:
+                        raise ValueError("USB live capture marker not received; no cameras started")
+                    time.sleep(0.05)
+                for index in range(1, 4):
+                    path = args.output / f"run-{index:02}"
+                    subprocess.run([str(ROOT / "tools/test-aura-software-baseline"), "--camera", "dual",
+                                    "--frames", "120", "--output-mode", "frame", "--host", args.host,
+                                    "--viewer", str(args.viewer), "--output", str(path)], check=True, timeout=90)
+                    runs.append(load_run(path.resolve()))
+                    if remote("cat /proc/sys/kernel/random/boot_id").decode().strip() != boot_id:
+                        raise ValueError("Board rebooted during test; stop")
+            after = remote(SNAPSHOT)
+            (args.output / "board-after.txt").write_bytes(after)
+            if remote("cat /proc/sys/kernel/random/boot_id").decode().strip() != boot_id:
+                raise ValueError("Board rebooted during test; stop")
+            if not args.adopt_run and re.search(r"BUG:|WARNING:|soft lockup|hard LOCKUP",
+                                                (args.output / "usb-kmsg.txt").read_text(errors="replace").split(marker, 1)[1]):
+                raise ValueError("Kernel fault in USB log; stop")
+        finally:
+            if capture and capture.poll() is None:
+                capture.terminate()
+                capture.wait(timeout=10)
+    summary = {"variant": args.variant, "programs": identity, "boot_id": boot_id,
+               "config_sha256": digest(args.output / "running.config"), "runs": runs,
+               "summary": summarize(runs), "hardware_frames": 720,
+               "adopted_runs": bool(args.adopt_run), "reference": str(args.reference) if args.reference else None,
+               "measurement": "local stage durations only; no network one-way, screen, GPU completion or full encode latency"}
+    if reference:
+        summary["comparison"] = {stage: {"A": reference["summary"][stage], "current": values,
+            "mean_delta_ms": values["weighted_mean_ms"] - reference["summary"][stage]["weighted_mean_ms"]}
+            for stage, values in summary["summary"].items() if stage in reference["summary"]}
+    (args.output / "summary.json").write_text(json.dumps(summary, indent=2) + "\n")
+    print(f"PASS {args.variant}: 3 runs, 720 hardware frames; {args.output / 'summary.json'}")
+
+
+if __name__ == "__main__":
+    try:
+        main()
+    except (ValueError, OSError, subprocess.SubprocessError) as error:
+        print("test-aura-kernel-ab:", error, file=sys.stderr)
+        sys.exit(1)

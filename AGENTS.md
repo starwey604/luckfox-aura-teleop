@@ -23,7 +23,7 @@ There is no CI; all build/test steps are run manually. The origin remote is GitH
 ## Commands
 
 ```sh
-./tools/select-teleop-board <sdk> [profile]  # ar0234-stereo-debug is diagnostic only; symlink .BoardConfig.mk to the teleop BoardConfig
+./tools/select-teleop-board <sdk> [profile]  # ar0234-stereo-k1 is a kernel-only A/B candidate layered over stereo-debug
 ./tools/sdk-patch {check|status|apply|export} <sdk>   # patch stack management
 ./tools/verify-sdk-baseline <sdk>     # all 63 locked vendor revisions + saved patch prefixes
 ./tools/test-sdk-replay <sdk>         # isolated clean-baseline clones, compare patched trees
@@ -35,8 +35,9 @@ There is no CI; all build/test steps are run manually. The origin remote is GitH
 ./tools/test-vaapi-decoder             # generate H.264 via ffmpeg, prove VAAPI hw decode
 ./tools/test-vulkan-presenter          # VAAPI -> DRM PRIME -> Vulkan/SDL3 window
 ./tools/test-aura-software-baseline --camera {0|1|dual} --output <new-dir>  # bounded SSH/native profiling
+./tools/test-aura-kernel-ab --variant B --expected-config <kernel.config> --reference <A-summary.json> --output <new-dir>
 ./tools/test-usb-camera-loopback       # /dev/video0 -> UDP -> VAAPI/Vulkan (needs real camera)
-./tools/flash-aura-emmc [--dry-run]    # full eMMC flash via Rockchip upgrade_tool
+./tools/flash-aura-emmc [--dry-run] [--images <saved-image-dir>]  # full eMMC flash via Rockchip upgrade_tool
 ```
 
 Order matters: apply the SDK patch stack and `select-teleop-board` before SDK builds;
@@ -61,6 +62,10 @@ Order matters: apply the SDK patch stack and `select-teleop-board` before SDK bu
 - After changing SDK config, prefer editing the source locations under `sysdrv/tools/...` /
   the BoardConfig patch. Do not edit `sysdrv/source/buildroot/buildroot-2025.02.6`, which is
   deleted and re-extracted by `buildroot_create`.
+- Driver and OEM packaging replace generated module directories; copying over them
+  preserves disabled sensor modules. K1 deliberately leaves Buildroot and USB/ADB intact.
+  KMPP patch context lines contain intentional spaces: re-export from their commits,
+  never strip all trailing spaces. Validate the complete patch series by replay.
 - Teleop Buildroot intentionally uses GCC 12, not the vendor GCC 13 defconfig, to keep
   `v4l-utils` (`v4l2-ctl`, `media-ctl`).
 

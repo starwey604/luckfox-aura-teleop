@@ -1,0 +1,44 @@
+From ce3c2f98f1c7f94be0bb5b8c7a2f924e5e3aae5f Mon Sep 17 00:00:00 2001
+From: Starwey <moonbite233@gmail.com>
+Date: Tue, 13 Oct 2026 17:24:24 +0800
+Subject: [PATCH] arm64: add isolated Aura kernel trimming candidate
+
+---
+ arch/arm64/configs/rv1126b_teleop_k1.config | 25 +++++++++++++++++++++
+ 1 file changed, 25 insertions(+)
+ create mode 100644 arch/arm64/configs/rv1126b_teleop_k1.config
+
+diff --git a/arch/arm64/configs/rv1126b_teleop_k1.config b/arch/arm64/configs/rv1126b_teleop_k1.config
+new file mode 100644
+index 000000000..cab7e77f8
+--- /dev/null
++++ b/arch/arm64/configs/rv1126b_teleop_k1.config
+@@ -0,0 +1,25 @@
++# K1 kernel-only A/B candidate, layered after the lifecycle debug fragment.
++# Keep clocks, sensor timing, USB/ADB, display, wireless, and media core unchanged.
++# Wireless needs a separate driver/service packaging change; do not mix it into K1.
++# CONFIG_SOUND is not set
++# CONFIG_NETFILTER is not set
++# CONFIG_BRIDGE is not set
++# CONFIG_TUN is not set
++# CONFIG_VETH is not set
++# CONFIG_USB_VIDEO_CLASS is not set
++# CONFIG_VIDEO_GC2053 is not set
++# CONFIG_VIDEO_GC8613 is not set
++# CONFIG_VIDEO_IMX415 is not set
++# CONFIG_VIDEO_IMX586 is not set
++# CONFIG_VIDEO_MIA1321 is not set
++# CONFIG_VIDEO_OS04A10 is not set
++# CONFIG_VIDEO_PS5458 is not set
++# CONFIG_VIDEO_SC200AI is not set
++# CONFIG_VIDEO_SC3336 is not set
++# CONFIG_VIDEO_SC401AI is not set
++# CONFIG_VIDEO_SC4336 is not set
++# CONFIG_VIDEO_SC450AI is not set
++# CONFIG_VIDEO_SC530AI is not set
++# CONFIG_VIDEO_SC635HAI is not set
++# CONFIG_VIDEO_SC850SL is not set
++# CONFIG_VIDEO_TECHPOINT is not set
+-- 
+2.56.0
+

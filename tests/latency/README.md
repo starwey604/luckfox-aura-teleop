@@ -52,3 +52,12 @@ top-level position. On this desktop `--x`/`--y` are best-effort requests: use th
 window titles **Aura optical latency stimulus** and **Luckfox Aura Teleop** with KWin's
 manual/quick-tiling controls to put the stimulus above the viewer. The supplied sizes
 remain useful even when KWin owns the final position.
+
+# Kernel A/B
+
+`tools/test-aura-kernel-ab` runs natively on CachyOS, checks the running kernel
+config and unchanged sender/launcher/diagnose/viewer hashes, then runs three dual
+120-frame software-baseline tests with USB backup logging. It never flashes,
+reboots or deploys. B/A-return require an A summary; see
+[`docs/kernel-k1-ab-2026-10-13.md`](../../docs/kernel-k1-ab-2026-10-13.md).
+Run percentile ranges are reported separately; they are not pooled percentiles.

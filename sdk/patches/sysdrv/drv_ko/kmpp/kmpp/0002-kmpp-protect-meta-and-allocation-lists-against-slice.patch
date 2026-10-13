@@ -1,7 +1,7 @@
 From d5d13f821d7a155f430088f0681e6bd610d58241 Mon Sep 17 00:00:00 2001
 From: Starwey <moonbite233@gmail.com>
 Date: Tue, 13 Oct 2026 15:12:40 +0800
-Subject: [PATCH 2/3] kmpp: protect meta and allocation lists against slice IRQ
+Subject: [PATCH] kmpp: protect meta and allocation lists against slice IRQ
  reentry
 
 ---
@@ -125,3 +125,7 @@ index 03048e62..6844c228 100644
 +
      return node;
  }
+ 
+-- 
+2.56.0
+

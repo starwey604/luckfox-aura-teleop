@@ -1,0 +1,3 @@
+# Git patch context and signature lines contain intentional trailing spaces.
+# Validate these files by replay; check whitespace in the source repositories.
+*.patch -whitespace

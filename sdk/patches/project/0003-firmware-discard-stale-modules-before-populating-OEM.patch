@@ -1,0 +1,25 @@
+From 7d53dd3518e2230ae07f505d8a1673a4eaef1175 Mon Sep 17 00:00:00 2001
+From: Starwey <moonbite233@gmail.com>
+Date: Tue, 13 Oct 2026 17:24:24 +0800
+Subject: [PATCH] firmware: discard stale modules before populating OEM
+
+---
+ build.sh | 2 ++
+ 1 file changed, 2 insertions(+)
+
+diff --git a/build.sh b/build.sh
+index e3584c4..ca5f813 100755
+--- a/build.sh
++++ b/build.sh
+@@ -1668,6 +1668,8 @@ function __PACKAGE_RESOURCES()
+ 	_install_dir=$_target_dir/usr
+ 	_iqfiles_dir=$_install_dir/share/iqfiles
+ 
++	# Replace generated module staging so disabled drivers cannot survive packaging.
++	rm -rf "$_install_dir/ko"
+ 	__COPY_FILES $RK_PROJECT_PATH_SYSDRV/kernel_drv_ko/ $_install_dir/ko
+ 
+ 	__COPY_FILES $RK_PROJECT_PATH_APP/bin $_install_dir/bin/
+-- 
+2.56.0
+

@@ -8,10 +8,11 @@ set -eu
 
 root=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
 sdk=${AURA_SDK_ROOT:-"$root/../aura-sdk"}
+images=
 dry_run=false
 
 usage() {
-    printf '%s\n' "usage: $(basename "$0") [--dry-run] [--sdk <aura-sdk-path>]"
+    printf '%s\n' "usage: $(basename "$0") [--dry-run] [--sdk <aura-sdk-path>] [--images <saved-image-directory>]"
     exit 2
 }
 
@@ -23,6 +24,11 @@ while [ "$#" -gt 0 ]; do
             sdk=$2
             shift
             ;;
+        --images)
+            [ "$#" -ge 2 ] || usage
+            images=$2
+            shift
+            ;;
         -h|--help) usage ;;
         *) usage ;;
     esac
@@ -30,7 +36,8 @@ while [ "$#" -gt 0 ]; do
 done
 
 sdk=$(CDPATH= cd -- "$sdk" && pwd)
-images="$sdk/output/image"
+images=${images:-"$sdk/output/image"}
+images=$(CDPATH= cd -- "$images" && pwd)
 tool_dir="$sdk/tools/linux/Linux_Upgrade_Tool"
 tool="$tool_dir/upgrade_tool"
 

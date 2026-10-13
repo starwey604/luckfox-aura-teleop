@@ -119,6 +119,11 @@ class PatchStackTests(unittest.TestCase):
         subprocess.run([str(self.bundle / "tools/select-teleop-board"), "sdk", "ar0234-stereo"],
                        cwd=self.root, check=True, capture_output=True)
         self.assertEqual((self.sdk / ".BoardConfig.mk").resolve(strict=True), board)
+        candidate = board.with_name(board.name.replace("Stereo-Buildroot", "Stereo-K1-Buildroot"))
+        candidate.write_text("# candidate fixture\n")
+        subprocess.run([str(self.bundle / "tools/select-teleop-board"), "sdk", "ar0234-stereo-k1"],
+                       cwd=self.root, check=True, capture_output=True)
+        self.assertEqual((self.sdk / ".BoardConfig.mk").resolve(strict=True), candidate)
 
 
 if __name__ == "__main__":

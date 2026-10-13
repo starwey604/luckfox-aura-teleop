@@ -163,3 +163,8 @@ index 1d671438..f119558d 100644
 +        kmpp_env_log(env, "snapshot truncated (pool growth or %u-row limit); reread for fresh statistics\n", POOL_SNAPSHOT_MAX_ROWS);
 +    kmpp_free(rows);
  }
+ 
+ 
+-- 
+2.56.0
+

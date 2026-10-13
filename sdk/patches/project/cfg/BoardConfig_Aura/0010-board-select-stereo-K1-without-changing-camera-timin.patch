@@ -1,0 +1,24 @@
+From 54afced49d2d7a67ae8eb018ac26de9677faa13a Mon Sep 17 00:00:00 2001
+From: Starwey <moonbite233@gmail.com>
+Date: Tue, 13 Oct 2026 17:24:24 +0800
+Subject: [PATCH] board: select stereo K1 without changing camera timing or
+ packages
+
+---
+ ...MC-RK801-Luckfox_Aura-Teleop-AR0234-Stereo-K1-Buildroot.mk | 4 ++++
+ 1 file changed, 4 insertions(+)
+ create mode 100644 BoardConfig-EMMC-RK801-Luckfox_Aura-Teleop-AR0234-Stereo-K1-Buildroot.mk
+
+diff --git a/BoardConfig-EMMC-RK801-Luckfox_Aura-Teleop-AR0234-Stereo-K1-Buildroot.mk b/BoardConfig-EMMC-RK801-Luckfox_Aura-Teleop-AR0234-Stereo-K1-Buildroot.mk
+new file mode 100644
+index 0000000..c77797d
+--- /dev/null
++++ b/BoardConfig-EMMC-RK801-Luckfox_Aura-Teleop-AR0234-Stereo-K1-Buildroot.mk
+@@ -0,0 +1,4 @@
++#!/bin/bash
++# Kernel-only trimming candidate; same DTS, rootfs packages and runtime settings as A.
++source "$(dirname "$(realpath "${BASH_SOURCE[0]}")")/BoardConfig-EMMC-RK801-Luckfox_Aura-Teleop-AR0234-Stereo-Debug-Buildroot.mk"
++export RK_KERNEL_DEFCONFIG_FRAGMENT="rv1126b_teleop_lifecycle_debug.config rv1126b_teleop_k1.config"
+-- 
+2.56.0
+

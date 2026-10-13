@@ -1,0 +1,1095 @@
+{
+  "variant": "A",
+  "programs": {
+    "viewer": "46e89a46514fe9eecb6a5a8e3f56a3fc9fc27d7335c6f2308f4a3aba02807d86",
+    "/userdata/teleop-sender": "06583eb5ab52c824f2d8fab1cbea24839fb81aef547060e9d84eb900456a33bd",
+    "/userdata/run-ar0234-stereo": "214ba50faf169f86acdd99e1161c1a57455fe671f2865573ed251227daee87b8",
+    "/userdata/diagnose-ar0234": "49a668fce438ac0a9915ec1dd696cf6b3f18f098bf74c42874b630d1c688102e"
+  },
+  "boot_id": "4a130084-d1d5-4445-8e5e-20343f70db94",
+  "config_sha256": "f8743b202a6a8aed9051b842555e832824d0cc42c87f5d45482ec6b235f19b4e",
+  "runs": [
+    {
+      "path": "/home/ww/codings/luckfox-aura-teleop/logs/kernel-ab/20261013/A-01",
+      "result": {
+        "camera": "dual",
+        "frames_per_camera": 120,
+        "mode": "decode",
+        "port": 5000,
+        "vertical_blanking": null,
+        "output_mode": "frame",
+        "force_stream_parser": false,
+        "minimal": false,
+        "success": true,
+        "viewer_command": [
+          "/home/ww/codings/luckfox-aura-teleop/build/host-metrics/bin/host-viewer",
+          "--port",
+          "5000",
+          "--headless",
+          "--frames",
+          "240",
+          "--timeout-ms",
+          "60000",
+          "--dual-stream"
+        ],
+        "sender_command": "timeout -s INT -k 5 21 env TELEOP_METRICS=1 AURA_LIFECYCLE_TRACE=1 SENDER=/userdata/teleop-sender PORT=5000 WRAP_LINES=0 OUTPUT_MODE=frame REPORT_DIR=/userdata/latency-20261013-A-01 /userdata/run-ar0234-stereo --frames 120",
+        "sender_exit": 0,
+        "viewer_exit": 0,
+        "board_responds_after": true,
+        "elapsed_seconds": 8.67211994599893
+      },
+      "metrics": {
+        "stream0.sender.au_interval": {
+          "samples": 119.0,
+          "min": 9.463125,
+          "mean": 10.072674,
+          "p50": 10.092543,
+          "p95": 10.485759,
+          "p99": 10.52975,
+          "max": 10.52975
+        },
+        "stream0.sender.au_pack_span": {
+          "samples": 120.0,
+          "min": 0.0,
+          "mean": 0.0,
+          "p50": 0.0,
+          "p95": 0.0,
+          "p99": 0.0,
+          "max": 0.0
+        },
+        "stream0.sender.first_pack_to_send": {
+          "samples": 120.0,
+          "min": 0.036167,
+          "mean": 0.106745,
+          "p50": 0.109567,
+          "p95": 0.122879,
+          "p99": 0.147455,
+          "max": 0.186375
+        },
+        "stream0.sender.get_stream_wait": {
+          "samples": 120.0,
+          "min": 8.931125,
+          "mean": 9.567683,
+          "p50": 9.568255,
+          "p95": 9.830399,
+          "p99": 9.961471,
+          "max": 9.967125
+        },
+        "stream0.sender.next_pts_wait": {
+          "samples": 120.0,
+          "min": 0.036167,
+          "mean": 0.106745,
+          "p50": 0.109567,
+          "p95": 0.122879,
+          "p99": 0.147455,
+          "max": 0.186375
+        },
+        "stream0.sender.ready_to_send": {
+          "samples": 120.0,
+          "min": 0.036167,
+          "mean": 0.106745,
+          "p50": 0.109567,
+          "p95": 0.122879,
+          "p99": 0.147455,
+          "max": 0.186375
+        },
+        "stream0.sender.udp_queue": {
+          "samples": 120.0,
+          "min": 0.226625,
+          "mean": 0.359363,
+          "p50": 0.372735,
+          "p95": 0.606207,
+          "p99": 0.753663,
+          "max": 0.837959
+        },
+        "stream1.sender.au_interval": {
+          "samples": 119.0,
+          "min": 9.514166,
+          "mean": 10.071958,
+          "p50": 10.092543,
+          "p95": 10.609958,
+          "p99": 10.609958,
+          "max": 10.609958
+        },
+        "stream1.sender.au_pack_span": {
+          "samples": 120.0,
+          "min": 0.0,
+          "mean": 0.0,
+          "p50": 0.0,
+          "p95": 0.0,
+          "p99": 0.0,
+          "max": 0.0
+        },
+        "stream1.sender.first_pack_to_send": {
+          "samples": 120.0,
+          "min": 0.03675,
+          "mean": 0.134103,
+          "p50": 0.127999,
+          "p95": 0.200703,
+          "p99": 0.221183,
+          "max": 0.321125
+        },
+        "stream1.sender.get_stream_wait": {
+          "samples": 120.0,
+          "min": 6.443792,
+          "mean": 9.470657,
+          "p50": 9.568255,
+          "p95": 9.699327,
+          "p99": 9.762958,
+          "max": 9.762958
+        },
+        "stream1.sender.next_pts_wait": {
+          "samples": 120.0,
+          "min": 0.03675,
+          "mean": 0.134103,
+          "p50": 0.127999,
+          "p95": 0.200703,
+          "p99": 0.221183,
+          "max": 0.321125
+        },
+        "stream1.sender.ready_to_send": {
+          "samples": 120.0,
+          "min": 0.03675,
+          "mean": 0.134103,
+          "p50": 0.127999,
+          "p95": 0.200703,
+          "p99": 0.221183,
+          "max": 0.321125
+        },
+        "stream1.sender.udp_queue": {
+          "samples": 120.0,
+          "min": 0.233625,
+          "mean": 0.39322,
+          "p50": 0.372735,
+          "p95": 0.679935,
+          "p99": 0.991231,
+          "max": 1.043291
+        },
+        "host.recv_syscall": {
+          "samples": 7387.0,
+          "min": 0.00015,
+          "mean": 0.000422,
+          "p50": 0.000383,
+          "p95": 0.000623,
+          "p99": 0.000927,
+          "max": 0.024125
+        },
+        "host.stream0.au_interval": {
+          "samples": 119.0,
+          "min": 8.9779,
+          "mean": 10.063951,
+          "p50": 10.092543,
+          "p95": 10.354687,
+          "p99": 10.465694,
+          "max": 10.465694
+        },
+        "host.stream0.au_ready_to_frame": {
+          "samples": 120.0,
+          "min": 0.062066,
+          "mean": 0.113276,
+          "p50": 0.081919,
+          "p95": 0.210943,
+          "p99": 0.389119,
+          "max": 2.369913
+        },
+        "host.stream0.parser_decode_call": {
+          "samples": 120.0,
+          "min": 0.062145,
+          "mean": 0.113594,
+          "p50": 0.082943,
+          "p95": 0.210943,
+          "p99": 0.389119,
+          "max": 2.370254
+        },
+        "host.stream0.parser_wait": {
+          "samples": 120.0,
+          "min": 0.001042,
+          "mean": 0.001784,
+          "p50": 0.001343,
+          "p95": 0.003647,
+          "p99": 0.009087,
+          "max": 0.016441
+        },
+        "host.stream0.reassembly": {
+          "samples": 120.0,
+          "min": 0.040295,
+          "mean": 0.341141,
+          "p50": 0.335871,
+          "p95": 0.606207,
+          "p99": 0.712703,
+          "max": 0.80238
+        },
+        "host.stream0.submit_to_frame": {
+          "samples": 120.0,
+          "min": 0.060703,
+          "mean": 0.111492,
+          "p50": 0.080895,
+          "p95": 0.204799,
+          "p99": 0.389119,
+          "max": 2.353472
+        },
+        "host.stream1.au_interval": {
+          "samples": 119.0,
+          "min": 9.325015,
+          "mean": 10.070465,
+          "p50": 10.092543,
+          "p95": 10.354687,
+          "p99": 10.354687,
+          "max": 10.52817
+        },
+        "host.stream1.au_ready_to_frame": {
+          "samples": 120.0,
+          "min": 0.074298,
+          "mean": 0.142287,
+          "p50": 0.093183,
+          "p95": 0.204799,
+          "p99": 0.557055,
+          "max": 3.813816
+        },
+        "host.stream1.parser_decode_call": {
+          "samples": 120.0,
+          "min": 0.074458,
+          "mean": 0.142462,
+          "p50": 0.092159,
+          "p95": 0.206847,
+          "p99": 0.548863,
+          "max": 3.8161
+        },
+        "host.stream1.parser_wait": {
+          "samples": 120.0,
+          "min": 0.001252,
+          "mean": 0.002444,
+          "p50": 0.001583,
+          "p95": 0.004735,
+          "p99": 0.021247,
+          "max": 0.026389
+        },
+        "host.stream1.reassembly": {
+          "samples": 120.0,
+          "min": 0.150119,
+          "mean": 0.338346,
+          "p50": 0.323583,
+          "p95": 0.647167,
+          "p99": 0.933887,
+          "max": 1.027148
+        },
+        "host.stream1.submit_to_frame": {
+          "samples": 120.0,
+          "min": 0.072855,
+          "mean": 0.139843,
+          "p50": 0.091135,
+          "p95": 0.200703,
+          "p99": 0.540671,
+          "max": 3.792807
+        }
+      }
+    },
+    {
+      "path": "/home/ww/codings/luckfox-aura-teleop/logs/kernel-ab/20261013/A-02",
+      "result": {
+        "camera": "dual",
+        "frames_per_camera": 120,
+        "mode": "decode",
+        "port": 5000,
+        "vertical_blanking": null,
+        "output_mode": "frame",
+        "force_stream_parser": false,
+        "minimal": false,
+        "success": true,
+        "viewer_command": [
+          "/home/ww/codings/luckfox-aura-teleop/build/host-metrics/bin/host-viewer",
+          "--port",
+          "5000",
+          "--headless",
+          "--frames",
+          "240",
+          "--timeout-ms",
+          "60000",
+          "--dual-stream"
+        ],
+        "sender_command": "timeout -s INT -k 5 21 env TELEOP_METRICS=1 AURA_LIFECYCLE_TRACE=1 SENDER=/userdata/teleop-sender PORT=5000 WRAP_LINES=0 OUTPUT_MODE=frame REPORT_DIR=/userdata/latency-20261013-A-02 /userdata/run-ar0234-stereo --frames 120",
+        "sender_exit": 0,
+        "viewer_exit": 0,
+        "board_responds_after": true,
+        "elapsed_seconds": 8.674983541999609
+      },
+      "metrics": {
+        "stream0.sender.au_interval": {
+          "samples": 119.0,
+          "min": 9.687417,
+          "mean": 10.072368,
+          "p50": 10.092543,
+          "p95": 10.477833,
+          "p99": 10.477833,
+          "max": 10.477833
+        },
+        "stream0.sender.au_pack_span": {
+          "samples": 120.0,
+          "min": 0.0,
+          "mean": 0.0,
+          "p50": 0.0,
+          "p95": 0.0,
+          "p99": 0.0,
+          "max": 0.0
+        },
+        "stream0.sender.first_pack_to_send": {
+          "samples": 120.0,
+          "min": 0.037334,
+          "mean": 0.107132,
+          "p50": 0.109567,
+          "p95": 0.126975,
+          "p99": 0.139263,
+          "max": 0.151084
+        },
+        "stream0.sender.get_stream_wait": {
+          "samples": 120.0,
+          "min": 9.076375,
+          "mean": 9.599963,
+          "p50": 9.699327,
+          "p95": 9.830399,
+          "p99": 9.960125,
+          "max": 9.960125
+        },
+        "stream0.sender.next_pts_wait": {
+          "samples": 120.0,
+          "min": 0.037334,
+          "mean": 0.107132,
+          "p50": 0.109567,
+          "p95": 0.126975,
+          "p99": 0.139263,
+          "max": 0.151084
+        },
+        "stream0.sender.ready_to_send": {
+          "samples": 120.0,
+          "min": 0.037334,
+          "mean": 0.107132,
+          "p50": 0.109567,
+          "p95": 0.126975,
+          "p99": 0.139263,
+          "max": 0.151084
+        },
+        "stream0.sender.udp_queue": {
+          "samples": 120.0,
+          "min": 0.219916,
+          "mean": 0.317647,
+          "p50": 0.270335,
+          "p95": 0.581631,
+          "p99": 0.802815,
+          "max": 0.943834
+        },
+        "stream1.sender.au_interval": {
+          "samples": 119.0,
+          "min": 9.083666,
+          "mean": 10.065681,
+          "p50": 10.092543,
+          "p95": 10.616831,
+          "p99": 10.616831,
+          "max": 10.635625
+        },
+        "stream1.sender.au_pack_span": {
+          "samples": 120.0,
+          "min": 0.0,
+          "mean": 0.0,
+          "p50": 0.0,
+          "p95": 0.0,
+          "p99": 0.0,
+          "max": 0.0
+        },
+        "stream1.sender.first_pack_to_send": {
+          "samples": 120.0,
+          "min": 0.037333,
+          "mean": 0.144608,
+          "p50": 0.124927,
+          "p95": 0.255999,
+          "p99": 0.274431,
+          "max": 0.281458
+        },
+        "stream1.sender.get_stream_wait": {
+          "samples": 120.0,
+          "min": 7.481833,
+          "mean": 9.4387,
+          "p50": 9.568255,
+          "p95": 9.699327,
+          "p99": 9.699327,
+          "max": 9.801459
+        },
+        "stream1.sender.next_pts_wait": {
+          "samples": 120.0,
+          "min": 0.037333,
+          "mean": 0.144608,
+          "p50": 0.124927,
+          "p95": 0.255999,
+          "p99": 0.274431,
+          "max": 0.281458
+        },
+        "stream1.sender.ready_to_send": {
+          "samples": 120.0,
+          "min": 0.037333,
+          "mean": 0.144608,
+          "p50": 0.124927,
+          "p95": 0.255999,
+          "p99": 0.274431,
+          "max": 0.281458
+        },
+        "stream1.sender.udp_queue": {
+          "samples": 120.0,
+          "min": 0.172375,
+          "mean": 0.415632,
+          "p50": 0.364543,
+          "p95": 0.835583,
+          "p99": 0.966655,
+          "max": 1.103083
+        },
+        "host.recv_syscall": {
+          "samples": 7358.0,
+          "min": 0.000161,
+          "mean": 0.000415,
+          "p50": 0.000343,
+          "p95": 0.000631,
+          "p99": 0.001015,
+          "max": 0.007493
+        },
+        "host.stream0.au_interval": {
+          "samples": 119.0,
+          "min": 7.390481,
+          "mean": 10.05052,
+          "p50": 10.092543,
+          "p95": 10.354687,
+          "p99": 10.354687,
+          "max": 10.454754
+        },
+        "host.stream0.au_ready_to_frame": {
+          "samples": 120.0,
+          "min": 0.062897,
+          "mean": 0.117801,
+          "p50": 0.082943,
+          "p95": 0.178175,
+          "p99": 0.315391,
+          "max": 2.377497
+        },
+        "host.stream0.parser_decode_call": {
+          "samples": 120.0,
+          "min": 0.063187,
+          "mean": 0.117721,
+          "p50": 0.082943,
+          "p95": 0.178175,
+          "p99": 0.315391,
+          "max": 2.37908
+        },
+        "host.stream0.parser_wait": {
+          "samples": 120.0,
+          "min": 0.001012,
+          "mean": 0.002329,
+          "p50": 0.001535,
+          "p95": 0.004351,
+          "p99": 0.020735,
+          "max": 0.046276
+        },
+        "host.stream0.reassembly": {
+          "samples": 120.0,
+          "min": 0.055653,
+          "mean": 0.306987,
+          "p50": 0.274431,
+          "p95": 0.589823,
+          "p99": 0.778239,
+          "max": 0.863063
+        },
+        "host.stream0.submit_to_frame": {
+          "samples": 120.0,
+          "min": 0.061705,
+          "mean": 0.115472,
+          "p50": 0.080895,
+          "p95": 0.174079,
+          "p99": 0.311295,
+          "max": 2.356839
+        },
+        "host.stream1.au_interval": {
+          "samples": 119.0,
+          "min": 8.914542,
+          "mean": 10.065168,
+          "p50": 10.092543,
+          "p95": 10.223615,
+          "p99": 10.485759,
+          "max": 10.572272
+        },
+        "host.stream1.au_ready_to_frame": {
+          "samples": 120.0,
+          "min": 0.073927,
+          "mean": 0.158693,
+          "p50": 0.097279,
+          "p95": 0.245759,
+          "p99": 0.516095,
+          "max": 4.646803
+        },
+        "host.stream1.parser_decode_call": {
+          "samples": 120.0,
+          "min": 0.074388,
+          "mean": 0.158966,
+          "p50": 0.097279,
+          "p95": 0.245759,
+          "p99": 0.516095,
+          "max": 4.647175
+        },
+        "host.stream1.parser_wait": {
+          "samples": 120.0,
+          "min": 0.001113,
+          "mean": 0.003084,
+          "p50": 0.001855,
+          "p95": 0.008575,
+          "p99": 0.031231,
+          "max": 0.04312
+        },
+        "host.stream1.reassembly": {
+          "samples": 120.0,
+          "min": 0.054882,
+          "mean": 0.337744,
+          "p50": 0.303103,
+          "p95": 0.753663,
+          "p99": 0.901119,
+          "max": 1.044291
+        },
+        "host.stream1.submit_to_frame": {
+          "samples": 120.0,
+          "min": 0.072735,
+          "mean": 0.155609,
+          "p50": 0.095231,
+          "p95": 0.237567,
+          "p99": 0.483327,
+          "max": 4.603683
+        }
+      }
+    },
+    {
+      "path": "/home/ww/codings/luckfox-aura-teleop/logs/kernel-ab/20261013/A-03",
+      "result": {
+        "camera": "dual",
+        "frames_per_camera": 120,
+        "mode": "decode",
+        "port": 5000,
+        "vertical_blanking": null,
+        "output_mode": "frame",
+        "force_stream_parser": false,
+        "minimal": false,
+        "success": true,
+        "viewer_command": [
+          "/home/ww/codings/luckfox-aura-teleop/build/host-metrics/bin/host-viewer",
+          "--port",
+          "5000",
+          "--headless",
+          "--frames",
+          "240",
+          "--timeout-ms",
+          "60000",
+          "--dual-stream"
+        ],
+        "sender_command": "timeout -s INT -k 5 21 env TELEOP_METRICS=1 AURA_LIFECYCLE_TRACE=1 SENDER=/userdata/teleop-sender PORT=5000 WRAP_LINES=0 OUTPUT_MODE=frame REPORT_DIR=/userdata/latency-20261013-A-03 /userdata/run-ar0234-stereo --frames 120",
+        "sender_exit": 0,
+        "viewer_exit": 0,
+        "board_responds_after": true,
+        "elapsed_seconds": 8.635336892999476
+      },
+      "metrics": {
+        "stream0.sender.au_interval": {
+          "samples": 119.0,
+          "min": 9.486459,
+          "mean": 10.072995,
+          "p50": 10.092543,
+          "p95": 10.354687,
+          "p99": 10.477833,
+          "max": 10.477833
+        },
+        "stream0.sender.au_pack_span": {
+          "samples": 120.0,
+          "min": 0.0,
+          "mean": 0.0,
+          "p50": 0.0,
+          "p95": 0.0,
+          "p99": 0.0,
+          "max": 0.0
+        },
+        "stream0.sender.first_pack_to_send": {
+          "samples": 120.0,
+          "min": 0.037041,
+          "mean": 0.107472,
+          "p50": 0.110591,
+          "p95": 0.124927,
+          "p99": 0.139263,
+          "max": 0.15575
+        },
+        "stream0.sender.get_stream_wait": {
+          "samples": 120.0,
+          "min": 9.009291,
+          "mean": 9.638509,
+          "p50": 9.699327,
+          "p95": 9.830399,
+          "p99": 9.961471,
+          "max": 10.009417
+        },
+        "stream0.sender.next_pts_wait": {
+          "samples": 120.0,
+          "min": 0.037041,
+          "mean": 0.107472,
+          "p50": 0.110591,
+          "p95": 0.124927,
+          "p99": 0.139263,
+          "max": 0.15575
+        },
+        "stream0.sender.ready_to_send": {
+          "samples": 120.0,
+          "min": 0.037041,
+          "mean": 0.107472,
+          "p50": 0.110591,
+          "p95": 0.124927,
+          "p99": 0.139263,
+          "max": 0.15575
+        },
+        "stream0.sender.udp_queue": {
+          "samples": 120.0,
+          "min": 0.220792,
+          "mean": 0.298037,
+          "p50": 0.270335,
+          "p95": 0.598015,
+          "p99": 0.671743,
+          "max": 0.721291
+        },
+        "stream1.sender.au_interval": {
+          "samples": 119.0,
+          "min": 9.373292,
+          "mean": 10.072745,
+          "p50": 10.092543,
+          "p95": 10.485759,
+          "p99": 10.604125,
+          "max": 10.604125
+        },
+        "stream1.sender.au_pack_span": {
+          "samples": 120.0,
+          "min": 0.0,
+          "mean": 0.0,
+          "p50": 0.0,
+          "p95": 0.0,
+          "p99": 0.0,
+          "max": 0.0
+        },
+        "stream1.sender.first_pack_to_send": {
+          "samples": 120.0,
+          "min": 0.036458,
+          "mean": 0.122991,
+          "p50": 0.123903,
+          "p95": 0.153599,
+          "p99": 0.196607,
+          "max": 0.245875
+        },
+        "stream1.sender.get_stream_wait": {
+          "samples": 120.0,
+          "min": 6.871958,
+          "mean": 9.499462,
+          "p50": 9.568255,
+          "p95": 9.699327,
+          "p99": 9.733208,
+          "max": 9.733208
+        },
+        "stream1.sender.next_pts_wait": {
+          "samples": 120.0,
+          "min": 0.036458,
+          "mean": 0.122991,
+          "p50": 0.123903,
+          "p95": 0.153599,
+          "p99": 0.196607,
+          "max": 0.245875
+        },
+        "stream1.sender.ready_to_send": {
+          "samples": 120.0,
+          "min": 0.036458,
+          "mean": 0.122991,
+          "p50": 0.123903,
+          "p95": 0.153599,
+          "p99": 0.196607,
+          "max": 0.245875
+        },
+        "stream1.sender.udp_queue": {
+          "samples": 120.0,
+          "min": 0.229834,
+          "mean": 0.383622,
+          "p50": 0.356351,
+          "p95": 0.712703,
+          "p99": 0.843775,
+          "max": 0.938583
+        },
+        "host.recv_syscall": {
+          "samples": 7346.0,
+          "min": 0.00016,
+          "mean": 0.000424,
+          "p50": 0.000371,
+          "p95": 0.000655,
+          "p99": 0.001167,
+          "max": 0.022812
+        },
+        "host.stream0.au_interval": {
+          "samples": 119.0,
+          "min": 7.978234,
+          "mean": 10.056437,
+          "p50": 10.092543,
+          "p95": 10.223615,
+          "p99": 10.354687,
+          "max": 10.402939
+        },
+        "host.stream0.au_ready_to_frame": {
+          "samples": 120.0,
+          "min": 0.051456,
+          "mean": 0.115561,
+          "p50": 0.083967,
+          "p95": 0.184319,
+          "p99": 0.260095,
+          "max": 2.480539
+        },
+        "host.stream0.parser_decode_call": {
+          "samples": 120.0,
+          "min": 0.051747,
+          "mean": 0.115766,
+          "p50": 0.083967,
+          "p95": 0.184319,
+          "p99": 0.262143,
+          "max": 2.481721
+        },
+        "host.stream0.parser_wait": {
+          "samples": 120.0,
+          "min": 0.000852,
+          "mean": 0.002076,
+          "p50": 0.001455,
+          "p95": 0.003647,
+          "p99": 0.015743,
+          "max": 0.02711
+        },
+        "host.stream0.reassembly": {
+          "samples": 120.0,
+          "min": 0.052067,
+          "mean": 0.289548,
+          "p50": 0.274431,
+          "p95": 0.573439,
+          "p99": 0.671743,
+          "max": 0.677318
+        },
+        "host.stream0.submit_to_frame": {
+          "samples": 120.0,
+          "min": 0.050604,
+          "mean": 0.113485,
+          "p50": 0.081919,
+          "p95": 0.180223,
+          "p99": 0.258047,
+          "max": 2.453429
+        },
+        "host.stream1.au_interval": {
+          "samples": 119.0,
+          "min": 9.223707,
+          "mean": 10.070488,
+          "p50": 10.092543,
+          "p95": 10.354687,
+          "p99": 10.354687,
+          "max": 10.493998
+        },
+        "host.stream1.au_ready_to_frame": {
+          "samples": 120.0,
+          "min": 0.053639,
+          "mean": 0.15175,
+          "p50": 0.093183,
+          "p95": 0.231423,
+          "p99": 0.442367,
+          "max": 4.648246
+        },
+        "host.stream1.parser_decode_call": {
+          "samples": 120.0,
+          "min": 0.05385,
+          "mean": 0.151961,
+          "p50": 0.093183,
+          "p95": 0.229375,
+          "p99": 0.442367,
+          "max": 4.650751
+        },
+        "host.stream1.parser_wait": {
+          "samples": 120.0,
+          "min": 0.001072,
+          "mean": 0.002928,
+          "p50": 0.001727,
+          "p95": 0.007807,
+          "p99": 0.029695,
+          "max": 0.034945
+        },
+        "host.stream1.reassembly": {
+          "samples": 120.0,
+          "min": 0.036157,
+          "mean": 0.316588,
+          "p50": 0.299007,
+          "p95": 0.671743,
+          "p99": 0.786431,
+          "max": 0.907546
+        },
+        "host.stream1.submit_to_frame": {
+          "samples": 120.0,
+          "min": 0.052567,
+          "mean": 0.148822,
+          "p50": 0.092159,
+          "p95": 0.227327,
+          "p99": 0.409599,
+          "max": 4.613301
+        }
+      }
+    }
+  ],
+  "summary": {
+    "host.recv_syscall": {
+      "samples": 22091,
+      "weighted_mean_ms": 0.00042033352949164823,
+      "run_p95_range_ms": [
+        0.000623,
+        0.000655
+      ],
+      "max_ms": 0.024125
+    },
+    "host.stream0.au_interval": {
+      "samples": 357,
+      "weighted_mean_ms": 10.056969333333333,
+      "run_p95_range_ms": [
+        10.223615,
+        10.354687
+      ],
+      "max_ms": 10.465694
+    },
+    "host.stream0.au_ready_to_frame": {
+      "samples": 360,
+      "weighted_mean_ms": 0.115546,
+      "run_p95_range_ms": [
+        0.178175,
+        0.210943
+      ],
+      "max_ms": 2.480539
+    },
+    "host.stream0.parser_decode_call": {
+      "samples": 360,
+      "weighted_mean_ms": 0.11569366666666667,
+      "run_p95_range_ms": [
+        0.178175,
+        0.210943
+      ],
+      "max_ms": 2.481721
+    },
+    "host.stream0.parser_wait": {
+      "samples": 360,
+      "weighted_mean_ms": 0.002063,
+      "run_p95_range_ms": [
+        0.003647,
+        0.004351
+      ],
+      "max_ms": 0.046276
+    },
+    "host.stream0.reassembly": {
+      "samples": 360,
+      "weighted_mean_ms": 0.31255866666666665,
+      "run_p95_range_ms": [
+        0.573439,
+        0.606207
+      ],
+      "max_ms": 0.863063
+    },
+    "host.stream0.submit_to_frame": {
+      "samples": 360,
+      "weighted_mean_ms": 0.11348300000000001,
+      "run_p95_range_ms": [
+        0.174079,
+        0.204799
+      ],
+      "max_ms": 2.453429
+    },
+    "host.stream1.au_interval": {
+      "samples": 357,
+      "weighted_mean_ms": 10.068707,
+      "run_p95_range_ms": [
+        10.223615,
+        10.354687
+      ],
+      "max_ms": 10.572272
+    },
+    "host.stream1.au_ready_to_frame": {
+      "samples": 360,
+      "weighted_mean_ms": 0.15091000000000002,
+      "run_p95_range_ms": [
+        0.204799,
+        0.245759
+      ],
+      "max_ms": 4.648246
+    },
+    "host.stream1.parser_decode_call": {
+      "samples": 360,
+      "weighted_mean_ms": 0.15112966666666666,
+      "run_p95_range_ms": [
+        0.206847,
+        0.245759
+      ],
+      "max_ms": 4.650751
+    },
+    "host.stream1.parser_wait": {
+      "samples": 360,
+      "weighted_mean_ms": 0.002818666666666667,
+      "run_p95_range_ms": [
+        0.004735,
+        0.008575
+      ],
+      "max_ms": 0.04312
+    },
+    "host.stream1.reassembly": {
+      "samples": 360,
+      "weighted_mean_ms": 0.33089266666666667,
+      "run_p95_range_ms": [
+        0.647167,
+        0.753663
+      ],
+      "max_ms": 1.044291
+    },
+    "host.stream1.submit_to_frame": {
+      "samples": 360,
+      "weighted_mean_ms": 0.14809133333333332,
+      "run_p95_range_ms": [
+        0.200703,
+        0.237567
+      ],
+      "max_ms": 4.613301
+    },
+    "stream0.sender.au_interval": {
+      "samples": 357,
+      "weighted_mean_ms": 10.072678999999999,
+      "run_p95_range_ms": [
+        10.354687,
+        10.485759
+      ],
+      "max_ms": 10.52975
+    },
+    "stream0.sender.au_pack_span": {
+      "samples": 360,
+      "weighted_mean_ms": 0.0,
+      "run_p95_range_ms": [
+        0.0,
+        0.0
+      ],
+      "max_ms": 0.0
+    },
+    "stream0.sender.first_pack_to_send": {
+      "samples": 360,
+      "weighted_mean_ms": 0.10711633333333334,
+      "run_p95_range_ms": [
+        0.122879,
+        0.126975
+      ],
+      "max_ms": 0.186375
+    },
+    "stream0.sender.get_stream_wait": {
+      "samples": 360,
+      "weighted_mean_ms": 9.602051666666668,
+      "run_p95_range_ms": [
+        9.830399,
+        9.830399
+      ],
+      "max_ms": 10.009417
+    },
+    "stream0.sender.next_pts_wait": {
+      "samples": 360,
+      "weighted_mean_ms": 0.10711633333333334,
+      "run_p95_range_ms": [
+        0.122879,
+        0.126975
+      ],
+      "max_ms": 0.186375
+    },
+    "stream0.sender.ready_to_send": {
+      "samples": 360,
+      "weighted_mean_ms": 0.10711633333333334,
+      "run_p95_range_ms": [
+        0.122879,
+        0.126975
+      ],
+      "max_ms": 0.186375
+    },
+    "stream0.sender.udp_queue": {
+      "samples": 360,
+      "weighted_mean_ms": 0.32501566666666665,
+      "run_p95_range_ms": [
+        0.581631,
+        0.606207
+      ],
+      "max_ms": 0.943834
+    },
+    "stream1.sender.au_interval": {
+      "samples": 357,
+      "weighted_mean_ms": 10.070128,
+      "run_p95_range_ms": [
+        10.485759,
+        10.616831
+      ],
+      "max_ms": 10.635625
+    },
+    "stream1.sender.au_pack_span": {
+      "samples": 360,
+      "weighted_mean_ms": 0.0,
+      "run_p95_range_ms": [
+        0.0,
+        0.0
+      ],
+      "max_ms": 0.0
+    },
+    "stream1.sender.first_pack_to_send": {
+      "samples": 360,
+      "weighted_mean_ms": 0.13390066666666667,
+      "run_p95_range_ms": [
+        0.153599,
+        0.255999
+      ],
+      "max_ms": 0.321125
+    },
+    "stream1.sender.get_stream_wait": {
+      "samples": 360,
+      "weighted_mean_ms": 9.469606333333333,
+      "run_p95_range_ms": [
+        9.699327,
+        9.699327
+      ],
+      "max_ms": 9.801459
+    },
+    "stream1.sender.next_pts_wait": {
+      "samples": 360,
+      "weighted_mean_ms": 0.13390066666666667,
+      "run_p95_range_ms": [
+        0.153599,
+        0.255999
+      ],
+      "max_ms": 0.321125
+    },
+    "stream1.sender.ready_to_send": {
+      "samples": 360,
+      "weighted_mean_ms": 0.13390066666666667,
+      "run_p95_range_ms": [
+        0.153599,
+        0.255999
+      ],
+      "max_ms": 0.321125
+    },
+    "stream1.sender.udp_queue": {
+      "samples": 360,
+      "weighted_mean_ms": 0.3974913333333333,
+      "run_p95_range_ms": [
+        0.679935,
+        0.835583
+      ],
+      "max_ms": 1.103083
+    }
+  },
+  "hardware_frames": 720,
+  "adopted_runs": true,
+  "reference": null,
+  "measurement": "local stage durations only; no network one-way, screen, GPU completion or full encode latency",
+  "usb_capture": "logs/kernel-ab/20261013/A-usb-kmsg.txt",
+  "USB_live_marker_verified": true,
+  "kernel_faults_after_marker": false,
+  "temperature_range_C": [
+    44.64,
+    46.46
+  ],
+  "temperature_source": "six non-interleaved board-before/after snapshots; live monitor stream is interleaved and not parsed as atomic sysfs reads"
+}
