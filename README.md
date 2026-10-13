@@ -25,5 +25,8 @@ screen-to-screen 延迟仍待验收。
 完整AU标记让viewer立即提交VAAPI；双路短测中移除了约17.7ms的两项软件等待。
 最终屏幕延迟与长时间稳定性仍待验收；程序更新不需要烧写镜像。
 
+[Viewer 解耦与队列观测](docs/viewer-pipeline-decoupling-2026-10-13.md)：默认独立收包、
+每路解码和主线程显示，提供同步对照与运行中队列统计；双路短测已验证显示阻塞隔离。
+
 [重启后实机数据与温度核对](docs/software-performance-baseline-reboot-2026-10-12.md)：
 `tools/test-aura-software-baseline` 自动配对 SSH sender 与本机 headless viewer，默认短测并检查启动温度。

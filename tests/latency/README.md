@@ -16,6 +16,16 @@ forced lookahead and rejection of an incomplete AU (all-IDR recovery sample).
 Stage times are process-local; VAAPI frame availability does not prove that GPU
 work or panel scanout has completed.
 
+`python3 tests/latency/test_viewer_pipeline.py` exercises the default asynchronous
+viewer on native VAAPI/Vulkan, including display stalls, bounded queue overflow,
+idle peers, window close, signals, worker errors and swapchain failure cleanup.
+Use `TELEOP_TEST_VIEWER` to override `build/host/bin/host-viewer`, and
+`TELEOP_TEST_REPORT_DIR` to retain logs. Diagnostic delays are test-only.
+`tools/test-viewer-pipeline-ab --output <new-dir>` compares sync/async using three
+headless pairs and one real-window pair, 120 frames per camera per run, with
+independent live USB logging. `--headless-pairs 0` runs only the window pair.
+See [implementation and measured limits](../../docs/viewer-pipeline-decoupling-2026-10-13.md).
+
 `tools/test-frame-boundary-wait --output logs/frame-boundary/new-run` is a native
 VAAPI boundary experiment. It links the production parser/decoder and compares
 normal byte-stream parsing, explicitly complete-AU parsing and direct complete-AU

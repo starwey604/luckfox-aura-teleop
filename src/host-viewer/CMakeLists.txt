@@ -5,6 +5,7 @@ if(EXISTS "/run/.containerenv" OR EXISTS "/.dockerenv")
 endif()
 
 find_package(PkgConfig REQUIRED)
+find_package(Threads REQUIRED)
 pkg_check_modules(FFMPEG REQUIRED IMPORTED_TARGET libavcodec libavutil)
 pkg_check_modules(PRESENTER REQUIRED IMPORTED_TARGET sdl3 vulkan libplacebo)
 
@@ -12,10 +13,13 @@ add_executable(host-viewer
     src/h264_decoder.cpp
     src/libplacebo_ffmpeg_bridge.c
     src/main.cpp
+    src/receive_observer.cpp
+    src/viewer_pipeline.cpp
     src/vulkan_presenter.cpp
 )
 target_link_libraries(host-viewer PRIVATE
     teleop-common
+    Threads::Threads
     PkgConfig::FFMPEG
     PkgConfig::PRESENTER
 )

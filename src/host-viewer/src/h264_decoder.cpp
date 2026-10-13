@@ -91,6 +91,10 @@ void H264VaapiDecoder::drain()
     if (frame == nullptr) {
         throw std::runtime_error("could not allocate decoded frame");
     }
+    struct FrameScope {
+        AVFrame*& frame;
+        ~FrameScope() { av_frame_free(&frame); }
+    } retained{frame};
 
     while (true) {
         const int result = avcodec_receive_frame(context_, frame);
@@ -122,7 +126,7 @@ void H264VaapiDecoder::drain()
         if (sink_ != nullptr) {
             sink_->present(*frame);
             if (decoded_ns != 0U) {
-                record_stage(metrics_prefix_ + "present_call", decoded_ns, performance_time_ns());
+                record_stage(metrics_prefix_ + std::string{sink_->timing_stage()}, decoded_ns, performance_time_ns());
             }
         }
         av_frame_unref(frame);
@@ -148,16 +152,18 @@ void H264VaapiDecoder::submit_access_unit(std::span<const std::byte> access_unit
     }
     std::memcpy(packet->data, access_unit.data(), access_unit.size());
 
-    if (software_metrics_enabled() && ready_ns != 0U &&
+    if (ready_ns != 0U &&
         ready_ns <= static_cast<std::uint64_t>(std::numeric_limits<std::int64_t>::max())) {
         packet->pts = static_cast<std::int64_t>(ready_ns);
-        const auto submit_ns = performance_time_ns();
-        record_stage(metrics_prefix_ + "parser_wait", ready_ns, submit_ns);
-        if (submit_times_.size() >= 256U) {
-            av_packet_free(&packet);
-            throw std::runtime_error("software metrics lost H.264 frame timestamp association");
+        if (software_metrics_enabled()) {
+            const auto submit_ns = performance_time_ns();
+            record_stage(metrics_prefix_ + "parser_wait", ready_ns, submit_ns);
+            if (submit_times_.size() >= 256U) {
+                av_packet_free(&packet);
+                throw std::runtime_error("software metrics lost H.264 frame timestamp association");
+            }
+            submit_times_.emplace(packet->pts, submit_ns);
         }
-        submit_times_.emplace(packet->pts, submit_ns);
     }
 
     int send_result = avcodec_send_packet(context_, packet);

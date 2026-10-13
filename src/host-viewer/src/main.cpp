@@ -1,5 +1,7 @@
 #include "h264_decoder.hpp"
 #include "vulkan_presenter.hpp"
+#include "viewer_pipeline.hpp"
+#include "receive_observer.hpp"
 
 #include <teleop/reassembler.hpp>
 #include <teleop/statistics.hpp>
@@ -13,6 +15,8 @@
 #include <array>
 #include <charconv>
 #include <chrono>
+#include <cerrno>
+#include <thread>
 #include <cstddef>
 #include <cstdint>
 #include <cstdio>
@@ -44,6 +48,11 @@ struct Options {
     bool software_decode{false};
     bool dual_stream{false};
     bool force_stream_parser{false};
+    bool async_pipeline{true};
+    std::size_t queue_capacity{4U};
+    std::uint32_t queue_report_ms{};
+    std::uint32_t diagnostic_present_delay_ms{};
+    std::uint32_t diagnostic_decode_delay_ms{};
     teleop::VulkanWindowOptions window{};
 };
 
@@ -68,6 +77,11 @@ void print_usage(const char* program)
         "  --headless             Decode without creating the SDL3/Vulkan window\n"
         "  --software-decode      Decode in FFmpeg software; diagnostic fallback for VAAPI\n"
         "  --dual-stream          Receive stream IDs 0 and 1, stacked top to bottom\n"
+        "  --pipeline async|sync  Independent RX/decoder/display (default: async)\n"
+        "  --decode-queue-capacity N  Per-stream encoded AU limit (default: 4; 1..64)\n"
+        "  --queue-report-ms N    Live async queue snapshots; 0 disables (default: 0)\n"
+        "  --diagnostic-present-delay-ms N  Test-only display blocking (0..1000)\n"
+        "  --diagnostic-decode-delay-ms N   Test-only worker blocking (0..1000; async)\n"
         "  --force-stream-parser  Diagnostic: use Annex-B lookahead even for marked complete AUs\n"
         "  --transport-only       Validate UDP reassembly without opening FFmpeg\n"
         "  --same-clock           Report source-to-receive latency; only valid when\n"
@@ -129,6 +143,17 @@ bool parse_options(int argc, char* argv[], Options& options)
             if (!parse_integer(value, options.port) || options.port == 0U) {
                 return false;
             }
+        } else if (option == "--pipeline") {
+            if (value != "async" && value != "sync") return false;
+            options.async_pipeline = value == "async";
+        } else if (option == "--decode-queue-capacity") {
+            if (!parse_integer(value, options.queue_capacity) || options.queue_capacity == 0U || options.queue_capacity > 64U) return false;
+        } else if (option == "--queue-report-ms") {
+            if (!parse_integer(value, options.queue_report_ms) || options.queue_report_ms > 60000U) return false;
+        } else if (option == "--diagnostic-present-delay-ms") {
+            if (!parse_integer(value, options.diagnostic_present_delay_ms) || options.diagnostic_present_delay_ms > 1000U) return false;
+        } else if (option == "--diagnostic-decode-delay-ms") {
+            if (!parse_integer(value, options.diagnostic_decode_delay_ms) || options.diagnostic_decode_delay_ms > 1000U) return false;
         } else if (option == "--frames") {
             if (!parse_integer(value, options.max_frames)) {
                 return false;
@@ -164,7 +189,8 @@ bool parse_options(int argc, char* argv[], Options& options)
         }
     }
     options.window.position_specified = has_window_x && has_window_y;
-    return (!options.transport_only || options.input_path.empty()) && has_window_x == has_window_y;
+    return (!options.transport_only || options.input_path.empty()) && has_window_x == has_window_y &&
+           (options.async_pipeline || (options.diagnostic_decode_delay_ms == 0U && options.queue_report_ms == 0U));
 }
 
 std::uint64_t monotonic_time_ns()
@@ -209,16 +235,21 @@ std::unique_ptr<teleop::VulkanPresenter> make_presenter(const Options& options)
 
 class StreamPresenterSink final : public teleop::DecodedFrameSink {
 public:
-    StreamPresenterSink(teleop::VulkanPresenter& presenter, std::uint16_t stream_id)
-        : presenter_(presenter), stream_id_(stream_id)
+    StreamPresenterSink(teleop::VulkanPresenter& presenter, std::uint16_t stream_id, std::uint32_t delay_ms)
+        : presenter_(presenter), stream_id_(stream_id), delay_ms_(delay_ms)
     {
     }
 
-    void present(const AVFrame& frame) override { presenter_.present_stream(stream_id_, frame); }
+    void present(const AVFrame& frame) override
+    {
+        if (delay_ms_ != 0U) std::this_thread::sleep_for(std::chrono::milliseconds{delay_ms_});
+        presenter_.present_stream(stream_id_, frame);
+    }
 
 private:
     teleop::VulkanPresenter& presenter_;
     std::uint16_t stream_id_{};
+    std::uint32_t delay_ms_{};
 };
 
 void decode_annex_b_file(std::string_view path, teleop::H264VaapiDecoder& decoder)
@@ -273,7 +304,21 @@ int main(int argc, char* argv[])
             return decoder.statistics().decoded_frames == 0U ? EXIT_FAILURE : EXIT_SUCCESS;
         }
 
+        if (options.async_pipeline) {
+            teleop::run_viewer_pipeline({
+                .port = options.port, .max_frames = options.max_frames, .timeout_ms = options.timeout_ms,
+                .stream_count = options.dual_stream ? 2U : 1U, .queue_capacity = options.queue_capacity,
+                .queue_report_ms = options.queue_report_ms,
+                .vaapi_device = options.vaapi_device, .software_decode = options.software_decode,
+                .transport_only = options.transport_only, .force_stream_parser = options.force_stream_parser,
+                .same_clock = options.same_clock,
+                .diagnostic_present_delay_ms = options.diagnostic_present_delay_ms,
+                .diagnostic_decode_delay_ms = options.diagnostic_decode_delay_ms}, presenter.get());
+            return EXIT_SUCCESS;
+        }
+
         teleop::UdpReceiver receiver{options.port};
+        teleop::ReceiveObserver observer{receiver.fd()};
         std::array<teleop::FrameReassembler, 2U> reassemblers;
         teleop::TransportStatistics statistics;
         teleop::LatencyStatistics latency;
@@ -288,7 +333,7 @@ int main(int argc, char* argv[])
             for (std::size_t stream = 0U; stream < stream_count; ++stream) {
                 if (presenter != nullptr) {
                     sinks[stream] = std::make_unique<StreamPresenterSink>(
-                        *presenter, static_cast<std::uint16_t>(stream));
+                        *presenter, static_cast<std::uint16_t>(stream), options.diagnostic_present_delay_ms);
                 }
                 decoders[stream].emplace(options.vaapi_device, sinks[stream].get(),
                                          !options.software_decode, static_cast<std::uint16_t>(stream));
@@ -301,7 +346,7 @@ int main(int argc, char* argv[])
 
         while (options.max_frames == 0U || statistics.completed_frames < options.max_frames) {
             pollfd descriptor{.fd = receiver.fd(), .events = POLLIN, .revents = 0};
-            const int readiness = poll(&descriptor, 1U, static_cast<int>(options.timeout_ms));
+            const int readiness = poll(&descriptor, 1U, static_cast<int>(std::min(options.timeout_ms, static_cast<std::uint32_t>(std::numeric_limits<int>::max()))));
             if (readiness == 0) {
                 std::fprintf(stderr, "host-viewer: timeout after %u ms without a datagram\n",
                              options.timeout_ms);
@@ -312,14 +357,15 @@ int main(int argc, char* argv[])
                 return EXIT_FAILURE;
             }
 
-            const auto recv_begin = teleop::performance_time_ns();
-            const ssize_t received = recv(receiver.fd(), datagram.data(), datagram.size(), 0);
-            const auto received_ns = teleop::performance_time_ns();
-            teleop::record_stage("host.recv_syscall", recv_begin, received_ns);
+            const auto received_datagram = observer.receive(receiver.fd(), datagram);
+            const ssize_t received = received_datagram.size;
+            const auto received_ns = received_datagram.received_ns;
             if (received < 0) {
-                std::perror("host-viewer: recv");
+                if (errno == EINTR || errno == EAGAIN || errno == EWOULDBLOCK) continue;
+                std::perror("host-viewer: recvmsg");
                 return EXIT_FAILURE;
             }
+            if (received_datagram.truncated) { ++statistics.malformed_datagrams; continue; }
             const std::span<const std::byte> datagram_view{datagram.data(),
                                                             static_cast<std::size_t>(received)};
             const auto header = teleop::parse_header(datagram_view);
@@ -396,6 +442,8 @@ int main(int argc, char* argv[])
         if (options.same_clock) {
             print_latency(latency);
         }
+        std::printf("pipeline: mode=sync\n");
+        observer.print();
         teleop::print_software_metrics();
         return EXIT_SUCCESS;
     } catch (const std::exception& error) {

@@ -37,14 +37,17 @@ public:
 
     void present(const AVFrame& frame) override;
     void present_stream(std::uint16_t stream_id, const AVFrame& frame);
+    void update_stream(std::uint16_t stream_id, const AVFrame& frame);
+    void render_latest_frames();
+    void poll_events();
 
     [[nodiscard]] bool close_requested() const;
     [[nodiscard]] std::uint64_t presented_frames() const;
 
 private:
     void destroy();
-    void poll_events();
-    void render_latest_frames();
+    std::uint64_t test_quit_deadline_ns_{};
+    bool test_fail_after_acquire_{};
 
     SDL_Window* window_{};
     pl_log log_{};
@@ -56,6 +59,8 @@ private:
     bool close_requested_{};
     bool dual_stream_{};
     std::array<AVFrame*, 2U> latest_frames_{};
+    // Software diagnostics need persistent upload textures, one set per stream.
+    std::array<std::array<pl_tex, 4U>, 2U> software_textures_{};
     std::uint64_t presented_frames_{};
 };
 

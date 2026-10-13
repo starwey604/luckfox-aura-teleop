@@ -18,6 +18,7 @@ class DecodedFrameSink {
 public:
     virtual ~DecodedFrameSink() = default;
     virtual void present(const AVFrame& frame) = 0;
+    virtual std::string_view timing_stage() const { return "present_call"; }
 };
 
 struct DecodeStatistics {

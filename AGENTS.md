@@ -75,8 +75,14 @@ Order matters: apply the SDK patch stack and `select-teleop-board` before SDK bu
   hardware path). `src/aura-sender/src/main.cpp` is the synthetic UDP source and is compiled
   only by `transport-test-sender`. Editing `main.cpp` does not change `aura-sender`.
 - All targets are C++20 with `-Wall -Wextra -Wpedantic -Wconversion`; keep code warning-clean.
-- `host-viewer` accepts only VAAPI hardware decode (default `/dev/dri/renderD128`) and refuses
-  software fallback; it needs ffmpeg, SDL3, Vulkan, and libplacebo dev packages on the host.
+- `host-viewer` defaults to VAAPI hardware decode (`/dev/dri/renderD128`) and refuses
+  automatic software fallback; `--software-decode` is an explicit diagnostic. It needs
+  ffmpeg, SDL3, Vulkan, and libplacebo dev packages on the host.
+- UDP viewer defaults to independent RX + per-stream decoder workers + SDL/Vulkan main
+  thread (`--pipeline async`; `sync` is the A/B control). Encoded queues are bounded;
+  overflow fails explicitly rather than dropping H.264 reference pictures. Only decoded
+  mailbox frames are replaced. Keep GPU/UI calls on the main thread and join workers
+  before destroying the presenter. `--queue-report-ms` enables live queue snapshots.
 
 ## Board / deployment
 

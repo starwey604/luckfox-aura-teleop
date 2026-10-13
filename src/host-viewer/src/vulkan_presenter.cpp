@@ -1,4 +1,6 @@
 #include "vulkan_presenter.hpp"
+#include "receive_observer.hpp"
+#include <teleop/performance.hpp>
 
 #define PL_LIBAV_IMPLEMENTATION 0
 #include <libplacebo/utils/libav.h>
@@ -7,6 +9,8 @@
 #include <SDL3/SDL_vulkan.h>
 
 #include <cstdio>
+#include <cstdlib>
+#include <charconv>
 #include <stdexcept>
 #include <string>
 
@@ -35,6 +39,18 @@ VulkanPresenter::VulkanPresenter(const VulkanWindowOptions& options)
         window_ = SDL_CreateWindow("Luckfox Aura Teleop", options.width, options.height, flags);
         if (window_ == nullptr) {
             throw_sdl_error("SDL window creation failed");
+        }
+        const char* fail_acquire = std::getenv("TELEOP_TEST_FAIL_AFTER_SWAPCHAIN_ACQUIRE");
+        test_fail_after_acquire_ = fail_acquire != nullptr && std::string_view{fail_acquire} == "1";
+        // Test-only injection exercises SDL_QUIT with no incoming packets.
+        if (const char* value = std::getenv("TELEOP_TEST_SDL_QUIT_AFTER_MS")) {
+            const std::string text{value};
+            std::uint32_t delay = 0U;
+            const auto parsed = std::from_chars(text.data(), text.data() + text.size(), delay);
+            if (parsed.ec != std::errc{} || parsed.ptr != text.data() + text.size() || delay == 0U || delay > 60000U) {
+                throw std::runtime_error("invalid TELEOP_TEST_SDL_QUIT_AFTER_MS");
+            }
+            test_quit_deadline_ns_ = viewer_monotonic_ns() + static_cast<std::uint64_t>(delay) * 1'000'000U;
         }
         if (options.position_specified && !SDL_SetWindowPosition(window_, options.x, options.y)) {
             std::fprintf(stderr,
@@ -118,6 +134,11 @@ VulkanPresenter::~VulkanPresenter()
 
 void VulkanPresenter::destroy()
 {
+    if (vulkan_ != nullptr) {
+        for (auto& textures : software_textures_) {
+            for (auto& texture : textures) pl_tex_destroy(vulkan_->gpu, &texture);
+        }
+    }
     for (AVFrame*& frame : latest_frames_) {
         av_frame_free(&frame);
     }
@@ -141,6 +162,12 @@ void VulkanPresenter::destroy()
 
 void VulkanPresenter::poll_events()
 {
+    if (test_quit_deadline_ns_ != 0U && viewer_monotonic_ns() >= test_quit_deadline_ns_) {
+        SDL_Event quit{};
+        quit.type = SDL_EVENT_QUIT;
+        if (!SDL_PushEvent(&quit)) throw_sdl_error("SDL quit injection failed");
+        test_quit_deadline_ns_ = 0U;
+    }
     SDL_Event event;
     while (SDL_PollEvent(&event)) {
         if (event.type == SDL_EVENT_QUIT || event.type == SDL_EVENT_WINDOW_CLOSE_REQUESTED) {
@@ -156,6 +183,12 @@ void VulkanPresenter::present(const AVFrame& frame)
 
 void VulkanPresenter::present_stream(std::uint16_t stream_id, const AVFrame& frame)
 {
+    update_stream(stream_id, frame);
+    render_latest_frames();
+}
+
+void VulkanPresenter::update_stream(std::uint16_t stream_id, const AVFrame& frame)
+{
     const std::size_t stream_count = dual_stream_ ? 2U : 1U;
     if (stream_id >= stream_count) {
         throw std::runtime_error("received a video frame for an unsupported stream");
@@ -166,7 +199,6 @@ void VulkanPresenter::present_stream(std::uint16_t stream_id, const AVFrame& fra
     }
     av_frame_free(&latest_frames_[stream_id]);
     latest_frames_[stream_id] = retained;
-    render_latest_frames();
 }
 
 void VulkanPresenter::render_latest_frames()
@@ -190,14 +222,27 @@ void VulkanPresenter::render_latest_frames()
 
     const std::size_t stream_count = dual_stream_ ? 2U : 1U;
     pl_swapchain_frame swapchain_frame{};
+    const auto start_begin = performance_time_ns();
     const bool started = pl_swapchain_start_frame(swapchain_, &swapchain_frame);
+    record_stage("host.display.start_frame", start_begin, performance_time_ns());
     if (!started) {
         return;
     }
+    // An exception after acquiring a swapchain frame must still close it.
+    // Otherwise pending GPU work can wait for a semaphore during destruction.
+    struct AcquiredFrame {
+        pl_swapchain swapchain;
+        bool closed{};
+        ~AcquiredFrame()
+        {
+            if (!closed && pl_swapchain_submit_frame(swapchain)) pl_swapchain_swap_buffers(swapchain);
+        }
+    } acquired{swapchain_};
     pl_frame target{};
     pl_frame_from_swapchain(&target, &swapchain_frame);
     const float black[3]{0.0F, 0.0F, 0.0F};
     pl_frame_clear(vulkan_->gpu, &target, black);
+    if (test_fail_after_acquire_) throw std::runtime_error("injected failure after swapchain acquire");
     pl_render_params render_params = pl_render_fast_params;
     // In stereo mode each call owns only one target half. The default border
     // clear would erase the other half after it has been rendered.
@@ -208,12 +253,15 @@ void VulkanPresenter::render_latest_frames()
         pl_frame image{};
         const pl_avframe_params mapping_params{
             .frame = latest_frames_[stream],
-            .tex = nullptr,
+            .tex = software_textures_[stream].data(),
             .map_dovi = false,
         };
+        const std::string prefix = "host.stream" + std::to_string(stream) + ".";
+        const auto map_begin = performance_time_ns();
         if (!pl_map_avframe_ex(vulkan_->gpu, &image, &mapping_params)) {
             throw std::runtime_error("could not import decoded frame into Vulkan");
         }
+        record_stage(prefix + "map_call", map_begin, performance_time_ns());
         pl_frame target_region = target;
         if (dual_stream_) {
             const int y0 = static_cast<int>(stream) * height / 2;
@@ -223,14 +271,23 @@ void VulkanPresenter::render_latest_frames()
                                   .x1 = static_cast<float>(width),
                                   .y1 = static_cast<float>(y1)};
         }
+        const auto render_begin = performance_time_ns();
         const bool stream_rendered =
             pl_render_image(renderers_[stream], &image, &target_region, &render_params);
+        record_stage(prefix + "render_call", render_begin, performance_time_ns());
+        const auto unmap_begin = performance_time_ns();
         pl_unmap_avframe(vulkan_->gpu, &image);
+        record_stage(prefix + "unmap_call", unmap_begin, performance_time_ns());
         rendered = stream_rendered || rendered;
     }
+    const auto submit_begin = performance_time_ns();
     const bool submitted = pl_swapchain_submit_frame(swapchain_);
+    acquired.closed = true;
+    record_stage("host.display.submit_frame", submit_begin, performance_time_ns());
     if (rendered && submitted) {
+        const auto swap_begin = performance_time_ns();
         pl_swapchain_swap_buffers(swapchain_);
+        record_stage("host.display.swap_buffers", swap_begin, performance_time_ns());
         ++presented_frames_;
     }
     if (!rendered || !submitted) {
