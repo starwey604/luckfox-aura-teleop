@@ -83,6 +83,10 @@ Order matters: apply the SDK patch stack and `select-teleop-board` before SDK bu
   overflow fails explicitly rather than dropping H.264 reference pictures. Only decoded
   mailbox frames are replaced. Keep GPU/UI calls on the main thread and join workers
   before destroying the presenter. `--queue-report-ms` enables live queue snapshots.
+- Async UDP RX uses nonblocking `recvmmsg`, default `--rx-batch-size 16` (1..32;
+  1 retains poll/recvmsg). Never wait to fill a batch. Preserve per-packet cmsgs,
+  restore their buffer capacity before reuse, and bound drain rounds for cancellation.
+  `tools/test-viewer-rx-batch` runs bounded native/SSH batch comparisons with live USB logging.
 
 ## Board / deployment
 

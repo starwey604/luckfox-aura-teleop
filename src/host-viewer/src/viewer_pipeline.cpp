@@ -306,40 +306,21 @@ private:
     }
     void receive()
     {
+        const auto cpu_begin = viewer_thread_cpu_ns();
         try {
             std::array<FrameReassembler, 2U> reassemblers;
             std::array<std::uint64_t, 2U> previous_ready{};
             std::array<std::byte, kMaxDatagramSize> buffer{};
             auto last_received = viewer_monotonic_ns();
-            while (options_.max_frames == 0U || statistics_.completed_frames < options_.max_frames) {
-                const auto now = viewer_monotonic_ns();
-                const auto timeout_ns = static_cast<std::uint64_t>(options_.timeout_ms) * 1'000'000U;
-                if (now - last_received >= timeout_ns) throw std::runtime_error("network inactivity timeout");
-                const auto remaining_ms = (timeout_ns - (now - last_received) + 999'999U) / 1'000'000U;
-                const auto timeout = static_cast<int>(std::min(remaining_ms, static_cast<std::uint64_t>(2'147'483'647U)));
-                std::array<pollfd, 2U> descriptors{{{receiver_.fd(), POLLIN, 0}, {wake_.fd(), POLLIN, 0}}};
-                const int ready = poll(descriptors.data(), descriptors.size(), timeout);
-                if (ready < 0) {
-                    if (errno == EINTR) continue;
-                    throw std::runtime_error(std::string{"poll: "} + std::strerror(errno));
-                }
-                if ((descriptors[1].revents & POLLIN) != 0) break;
-                if (ready == 0) continue;
-                if ((descriptors[0].revents & (POLLERR | POLLHUP | POLLNVAL)) != 0) {
-                    throw std::runtime_error("UDP poll error");
-                }
-                const auto received = observer_.receive(receiver_.fd(), buffer);
-                if (received.size < 0) {
-                    if (errno == EINTR || errno == EAGAIN || errno == EWOULDBLOCK) continue;
-                    throw std::runtime_error(std::string{"recvmsg: "} + std::strerror(errno));
-                }
+            ReceiveBatch batch{options_.receive_batch_size};
+            const auto process_datagram = [&](const ReceivedDatagram& received, std::span<const std::byte> payload) {
                 last_received = received.received_ns;
-                if (received.truncated) { ++statistics_.malformed_datagrams; continue; }
-                const std::span<const std::byte> datagram{buffer.data(), static_cast<std::size_t>(received.size)};
+                if (received.truncated) { ++statistics_.malformed_datagrams; return; }
+                const auto datagram = payload.first(static_cast<std::size_t>(received.size));
                 const auto header = parse_header(datagram);
-                if (!header || header->stream_id >= options_.stream_count) { ++statistics_.malformed_datagrams; continue; }
+                if (!header || header->stream_id >= options_.stream_count) { ++statistics_.malformed_datagrams; return; }
                 auto completed = reassemblers[header->stream_id].accept(datagram, statistics_, received.received_ns);
-                if (!completed) continue;
+                if (!completed) return;
                 const auto ready_ns = viewer_monotonic_ns();
                 const auto stream = completed->stream_id;
                 const auto prefix = "host.stream" + std::to_string(stream) + ".";
@@ -349,10 +330,10 @@ private:
                 if (options_.same_clock && ready_ns >= completed->capture_time_ns) {
                     latency_.add_sample(ready_ns - completed->capture_time_ns);
                 }
-                if (options_.transport_only) continue;
+                if (options_.transport_only) return;
                 {
                     std::lock_guard lock{shared_.mutex};
-                    if (shared_.stop) break;
+                    if (shared_.stop) return;
                     auto& queue = shared_.queues[stream];
                     auto& stats = shared_.streams[stream];
                     if (queue.size() >= options_.queue_capacity) {
@@ -367,11 +348,61 @@ private:
                     stats.peak_bytes = std::max(stats.peak_bytes, stats.bytes);
                 }
                 shared_.changed.notify_all();
+            };
+            while (options_.max_frames == 0U || statistics_.completed_frames < options_.max_frames) {
+                const auto now = viewer_monotonic_ns();
+                const auto timeout_ns = static_cast<std::uint64_t>(options_.timeout_ms) * 1'000'000U;
+                if (now - last_received >= timeout_ns) throw std::runtime_error("network inactivity timeout");
+                const auto remaining_ms = (timeout_ns - (now - last_received) + 999'999U) / 1'000'000U;
+                const auto timeout = static_cast<int>(std::min(remaining_ms, static_cast<std::uint64_t>(2'147'483'647U)));
+                std::array<pollfd, 2U> descriptors{{{receiver_.fd(), POLLIN, 0}, {wake_.fd(), POLLIN, 0}}};
+                ++rx_poll_calls_;
+                const int ready = poll(descriptors.data(), descriptors.size(), timeout);
+                if (ready < 0) {
+                    if (errno == EINTR) continue;
+                    throw std::runtime_error(std::string{"poll: "} + std::strerror(errno));
+                }
+                if ((descriptors[1].revents & POLLIN) != 0) break;
+                if (ready == 0) continue;
+                if ((descriptors[0].revents & (POLLERR | POLLHUP | POLLNVAL)) != 0) {
+                    throw std::runtime_error("UDP poll error");
+                }
+                if (options_.receive_batch_size == 1U) {
+                    const auto received = observer_.receive(receiver_.fd(), buffer);
+                    if (received.size < 0) {
+                        if (errno == EINTR || errno == EAGAIN || errno == EWOULDBLOCK) continue;
+                        throw std::runtime_error(std::string{"recvmsg: "} + std::strerror(errno));
+                    }
+                    process_datagram(received, buffer);
+                    continue;
+                }
+                // Drain current packets without waiting to fill a batch. A
+                // partial return means recvmmsg already reached the empty queue.
+                // Bound each drain round so flood traffic cannot starve cancel.
+                std::size_t drained = 0U;
+                while (drained < 256U && (options_.max_frames == 0U || statistics_.completed_frames < options_.max_frames)) {
+                    { std::lock_guard lock{shared_.mutex}; if (shared_.stop) break; }
+                    const int count = observer_.receive_batch(receiver_.fd(), batch);
+                    if (count < 0) {
+                        if (errno == EINTR) continue;
+                        if (errno == EAGAIN || errno == EWOULDBLOCK) break;
+                        throw std::runtime_error(std::string{"recvmmsg: "} + std::strerror(errno));
+                    }
+                    const auto process_begin = performance_time_ns();
+                    for (const auto& packet : batch.packets()) {
+                        process_datagram(packet.result, packet.payload);
+                        if (options_.max_frames != 0U && statistics_.completed_frames >= options_.max_frames) break;
+                    }
+                    record_stage("host.rx.batch_process", process_begin, performance_time_ns());
+                    drained += static_cast<std::size_t>(count);
+                    if (static_cast<std::size_t>(count) < options_.receive_batch_size) break;
+                }
             }
         } catch (...) { fail(std::current_exception()); }
         {
             std::lock_guard lock{shared_.mutex};
             shared_.rx_done = true;
+            rx_cpu_ns_ = viewer_thread_cpu_ns() - cpu_begin;
         }
         shared_.changed.notify_all();
         print_software_metrics();
@@ -460,6 +491,8 @@ private:
                         static_cast<unsigned long long>(stats.last_displayed), shared_.queues[stream].size(), stats.bytes);
         }
         observer_.print();
+        std::printf("rx-thread: batch_capacity=%zu poll_calls=%llu cpu_ms=%.6f\n", options_.receive_batch_size,
+                    static_cast<unsigned long long>(rx_poll_calls_), static_cast<double>(rx_cpu_ns_) / 1'000'000.0);
         if (presenter_ != nullptr) std::printf("presenter: frames=%llu\n", static_cast<unsigned long long>(presenter_->presented_frames()));
         if (options_.same_clock && latency_.sample_count() != 0U) {
             std::printf("source-to-receive-ms: min=%.3f avg=%.3f max=%.3f samples=%llu\n", *latency_.minimum_ms(),
@@ -469,6 +502,8 @@ private:
     }
 
     std::uint64_t last_queue_report_ns_{};
+    std::uint64_t rx_poll_calls_{};
+    std::uint64_t rx_cpu_ns_{};
     ViewerPipelineOptions options_;
     VulkanPresenter* presenter_;
     UdpReceiver receiver_;

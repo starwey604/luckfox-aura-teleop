@@ -28,5 +28,8 @@ screen-to-screen 延迟仍待验收。
 [Viewer 解耦与队列观测](docs/viewer-pipeline-decoupling-2026-10-13.md)：默认独立收包、
 每路解码和主线程显示，提供同步对照与运行中队列统计；双路短测已验证显示阻塞隔离。
 
+[UDP 非阻塞批量收包](docs/viewer-udp-batch-2026-10-13.md)：默认上限 16，
+保留逐包对照与每包时间戳；20 次实机短测通过，RX 线程每包 CPU 成本下降。
+
 [重启后实机数据与温度核对](docs/software-performance-baseline-reboot-2026-10-12.md)：
 `tools/test-aura-software-baseline` 自动配对 SSH sender 与本机 headless viewer，默认短测并检查启动温度。

@@ -6,6 +6,8 @@
 #include <cstdio>
 #include <cstring>
 #include <ctime>
+#include <algorithm>
+#include <stdexcept>
 #include <sys/socket.h>
 
 namespace teleop {
@@ -20,6 +22,28 @@ std::uint64_t clock_ns(clockid_t clock)
 } // namespace
 
 std::uint64_t viewer_monotonic_ns() { return clock_ns(CLOCK_MONOTONIC); }
+std::uint64_t viewer_thread_cpu_ns() { return clock_ns(CLOCK_THREAD_CPUTIME_ID); }
+
+ReceiveBatch::ReceiveBatch(std::size_t capacity) : capacity_(capacity)
+{
+    if (capacity == 0U || capacity > kMaximum) throw std::runtime_error("invalid receive batch capacity");
+    for (std::size_t index = 0U; index < capacity_; ++index) {
+        vectors_[index] = {.iov_base = packets_[index].payload.data(), .iov_len = packets_[index].payload.size()};
+        messages_[index].msg_hdr.msg_iov = &vectors_[index];
+        messages_[index].msg_hdr.msg_iovlen = 1U;
+        messages_[index].msg_hdr.msg_control = controls_[index].data.data();
+    }
+}
+
+void ReceiveObserver::count_call(int packets, int error)
+{
+    ++calls_;
+    if (packets > 0) {
+        ++successful_calls_;
+        datagrams_ += static_cast<unsigned int>(packets);
+        maximum_batch_ = std::max(maximum_batch_, static_cast<unsigned int>(packets));
+    } else if (packets < 0 && (error == EAGAIN || error == EWOULDBLOCK)) ++would_block_;
+}
 
 ReceiveObserver::ReceiveObserver(int fd)
 {
@@ -44,7 +68,46 @@ ReceivedDatagram ReceiveObserver::receive(int fd, std::span<std::byte> buffer)
     const int saved_errno = errno;
     const auto received_ns = viewer_monotonic_ns();
     record_stage("host.recv_syscall", begin, received_ns);
+    count_call(size < 0 ? -1 : 1, saved_errno);
     if (size < 0) { errno = saved_errno; return {.size = size, .received_ns = received_ns}; }
+    const auto realtime_now = timestamp_enabled_ ? clock_ns(CLOCK_REALTIME) : 0U;
+    const auto monotonic_now = timestamp_enabled_ ? viewer_monotonic_ns() : received_ns;
+    return observe(message, size, received_ns, realtime_now, monotonic_now);
+}
+
+int ReceiveObserver::receive_batch(int fd, ReceiveBatch& batch)
+{
+    batch.count_ = 0U;
+    for (std::size_t index = 0U; index < batch.capacity_; ++index) {
+        auto& message = batch.messages_[index];
+        // Kernel writes these fields. In particular, restore cmsg capacity
+        // even when the previous receive returned no ancillary information.
+        message.msg_hdr.msg_controllen = batch.controls_[index].data.size();
+        message.msg_hdr.msg_flags = 0;
+        message.msg_len = 0U;
+    }
+    const auto begin = performance_time_ns();
+    const int count = recvmmsg(fd, batch.messages_.data(), static_cast<unsigned int>(batch.capacity_),
+                              MSG_DONTWAIT, nullptr);
+    const int saved_errno = errno;
+    const auto received_ns = viewer_monotonic_ns();
+    record_stage("host.recv_syscall", begin, received_ns);
+    count_call(count, saved_errno);
+    if (count < 0) { errno = saved_errno; return count; }
+    batch.count_ = static_cast<std::size_t>(count);
+    const auto realtime_now = timestamp_enabled_ ? clock_ns(CLOCK_REALTIME) : 0U;
+    const auto monotonic_now = timestamp_enabled_ ? viewer_monotonic_ns() : received_ns;
+    for (std::size_t index = 0U; index < batch.count_; ++index) {
+        auto& message = batch.messages_[index];
+        batch.packets_[index].result = observe(message.msg_hdr, static_cast<ssize_t>(message.msg_len),
+                                              received_ns, realtime_now, monotonic_now);
+    }
+    return count;
+}
+
+ReceivedDatagram ReceiveObserver::observe(msghdr& message, ssize_t size, std::uint64_t received_ns,
+                                         std::uint64_t realtime_now, std::uint64_t monotonic_now)
+{
     const bool truncated = (message.msg_flags & (MSG_TRUNC | MSG_CTRUNC)) != 0;
     if (truncated) ++truncated_;
     std::uint64_t realtime_rx = 0U;
@@ -68,8 +131,6 @@ ReceivedDatagram ReceiveObserver::receive(int fd, std::span<std::byte> buffer)
     }
     if (realtime_rx != 0U) {
         ++timestamps_;
-        const auto realtime_now = clock_ns(CLOCK_REALTIME);
-        const auto monotonic_now = viewer_monotonic_ns();
         const auto offset = static_cast<std::int64_t>(realtime_now) - static_cast<std::int64_t>(monotonic_now);
         const auto delta = offset - realtime_offset_;
         const bool discontinuity = calibrated_ && (delta > 1'000'000 || delta < -1'000'000);
@@ -98,6 +159,11 @@ void ReceiveObserver::print() const
                 static_cast<unsigned long long>(timestamps_), static_cast<unsigned long long>(overflows_),
                 static_cast<unsigned long long>(truncated_), static_cast<unsigned long long>(clock_discontinuities_),
                 static_cast<double>(max_age_ns_) / 1'000'000.0);
+    std::printf("rx-syscalls: calls=%llu successful_calls=%llu datagrams=%llu max_batch=%u mean_batch=%.6f would_block=%llu\n",
+                static_cast<unsigned long long>(calls_), static_cast<unsigned long long>(successful_calls_),
+                static_cast<unsigned long long>(datagrams_), maximum_batch_,
+                successful_calls_ == 0U ? 0.0 : static_cast<double>(datagrams_) / static_cast<double>(successful_calls_),
+                static_cast<unsigned long long>(would_block_));
 }
 
 } // namespace teleop

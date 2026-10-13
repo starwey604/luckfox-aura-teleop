@@ -50,6 +50,7 @@ struct Options {
     bool force_stream_parser{false};
     bool async_pipeline{true};
     std::size_t queue_capacity{4U};
+    std::size_t receive_batch_size{16U};
     std::uint32_t queue_report_ms{};
     std::uint32_t diagnostic_present_delay_ms{};
     std::uint32_t diagnostic_decode_delay_ms{};
@@ -78,6 +79,8 @@ void print_usage(const char* program)
         "  --software-decode      Decode in FFmpeg software; diagnostic fallback for VAAPI\n"
         "  --dual-stream          Receive stream IDs 0 and 1, stacked top to bottom\n"
         "  --pipeline async|sync  Independent RX/decoder/display (default: async)\n"
+        "  --rx-batch-size N      Async nonblocking receive limit (1..32, default: 16);\n"
+        "                         1 preserves poll + recvmsg; sync always receives singly\n"
         "  --decode-queue-capacity N  Per-stream encoded AU limit (default: 4; 1..64)\n"
         "  --queue-report-ms N    Live async queue snapshots; 0 disables (default: 0)\n"
         "  --diagnostic-present-delay-ms N  Test-only display blocking (0..1000)\n"
@@ -146,6 +149,8 @@ bool parse_options(int argc, char* argv[], Options& options)
         } else if (option == "--pipeline") {
             if (value != "async" && value != "sync") return false;
             options.async_pipeline = value == "async";
+        } else if (option == "--rx-batch-size") {
+            if (!parse_integer(value, options.receive_batch_size) || options.receive_batch_size == 0U || options.receive_batch_size > teleop::ReceiveBatch::kMaximum) return false;
         } else if (option == "--decode-queue-capacity") {
             if (!parse_integer(value, options.queue_capacity) || options.queue_capacity == 0U || options.queue_capacity > 64U) return false;
         } else if (option == "--queue-report-ms") {
@@ -308,6 +313,7 @@ int main(int argc, char* argv[])
             teleop::run_viewer_pipeline({
                 .port = options.port, .max_frames = options.max_frames, .timeout_ms = options.timeout_ms,
                 .stream_count = options.dual_stream ? 2U : 1U, .queue_capacity = options.queue_capacity,
+                .receive_batch_size = options.receive_batch_size,
                 .queue_report_ms = options.queue_report_ms,
                 .vaapi_device = options.vaapi_device, .software_decode = options.software_decode,
                 .transport_only = options.transport_only, .force_stream_parser = options.force_stream_parser,

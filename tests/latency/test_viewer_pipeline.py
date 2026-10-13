@@ -9,6 +9,7 @@ import socket
 import struct
 import subprocess
 import tempfile
+import threading
 import time
 import unittest
 
@@ -143,6 +144,20 @@ class ViewerPipelineTest(unittest.TestCase):
         self.assertIn('refusing to discard H.264 reference pictures', text)
         self.assertRegex(text, r'peak_depth=1 .*overflows=1')
 
+    def test_batch_capacities_preserve_dual_vaapi_and_packet_timestamps(self):
+        for capacity in (1, 8, 16, 32):
+            process, path, port = self.start(f'batch-{capacity}', [
+                '--headless', '--dual-stream', '--frames', '24', '--rx-batch-size', str(capacity)])
+            self.send(port, 12, interval=.02)
+            text = self.finish(process, path)
+            self.assertEqual(text.count('decoder: frames=12 hardware_frames=12'), 2)
+            self.assertIn('malformed=0 duplicates=0 dropped=0', text)
+            timestamps = int(re.search(r'kernel_timestamps=(\d+)', text)[1])
+            datagrams = int(re.search(r'rx-syscalls: .*datagrams=(\d+)', text)[1])
+            self.assertEqual(timestamps, datagrams)
+            self.assertIn(f'batch_capacity={capacity}', text)
+            self.assertIn('rxq_overflow=0', text)
+
     def test_one_stream_is_not_held_for_idle_peer(self):
         process, path, port = self.start('idle-peer', ['--dual-stream', '--frames', '12'])
         self.send(port, 12, streams=(0,), interval=.02)
@@ -165,6 +180,27 @@ class ViewerPipelineTest(unittest.TestCase):
         process.send_signal(signal.SIGINT)
         text = self.finish(process, path)
         self.assertIn('reason=signal', text)
+
+    def test_signal_can_cancel_a_busy_receive_queue(self):
+        process, path, port = self.start('busy-signal', [
+            '--transport-only', '--frames', '0', '--rx-batch-size', '32'])
+        finished = threading.Event()
+        def flood():
+            with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as source:
+                while not finished.is_set():
+                    source.sendto(b'invalid-packet', ('127.0.0.1', port))
+        producer = threading.Thread(target=flood)
+        producer.start()
+        try:
+            time.sleep(.05)
+            begin = time.monotonic()
+            process.send_signal(signal.SIGINT)
+            text = self.finish(process, path)
+            self.assertLess(time.monotonic() - begin, 2)
+            self.assertIn('reason=signal', text)
+        finally:
+            finished.set()
+            producer.join(timeout=2)
 
     def test_timeout_joins_all_workers(self):
         process, path, _ = self.start('timeout', ['--headless', '--dual-stream', '--frames', '0',

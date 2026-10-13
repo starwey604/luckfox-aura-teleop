@@ -63,6 +63,7 @@ def main():
                 path = args.output / name
                 command = [str(ROOT / 'tools/test-aura-software-baseline'), '--camera', 'dual',
                            '--frames', '120', '--viewer', str(args.viewer), '--viewer-pipeline', mode,
+                           '--rx-batch-size', '1',
                            '--host', args.host, '--output', str(path)]
                 if display:
                     command += ['--display']

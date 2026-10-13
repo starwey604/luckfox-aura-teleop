@@ -79,6 +79,8 @@ def main():
     parser.add_argument("--launcher", default="/userdata/run-ar0234-stereo", help="Board stereo launcher path")
     parser.add_argument("--viewer-pipeline", choices=("sync", "async"), default="async",
                         help="Host RX/decode/display architecture control")
+    parser.add_argument("--rx-batch-size", type=int, choices=range(1, 33), default=16,
+                        help="Async nonblocking receive batch limit; 1 is the recvmsg control")
     parser.add_argument("--display", action="store_true", help="Native VAAPI/Vulkan window instead of headless")
     parser.add_argument("--queue-report-ms", type=int, default=0, help="Optional live async queue snapshots")
     parser.add_argument("--viewer", type=Path, default=ROOT / "build/host-metrics/bin/host-viewer")
@@ -122,7 +124,7 @@ def main():
     with socket.socket(socket.AF_INET6, socket.SOCK_DGRAM) as check:
         check.bind(("::", args.port))
     result = {"camera": args.camera, "frames_per_camera": args.frames,
-              "viewer_pipeline": args.viewer_pipeline, "display": args.display, "queue_report_ms": args.queue_report_ms,
+              "rx_batch_size": args.rx_batch_size, "viewer_pipeline": args.viewer_pipeline, "display": args.display, "queue_report_ms": args.queue_report_ms,
               "mode": args.mode, "port": args.port, "vertical_blanking": args.vertical_blanking,
               "output_mode": args.output_mode, "force_stream_parser": args.force_stream_parser,
               "minimal": args.minimal, "success": False}
@@ -148,7 +150,7 @@ def main():
             mirror = subprocess.Popen(ssh + [shlex.join(command)], stdout=mirror_log,
                                       stderr=subprocess.STDOUT)
         streams = 2 if args.camera == "dual" else 1
-        command = [str(args.viewer), "--port", str(args.port), "--pipeline", args.viewer_pipeline,
+        command = [str(args.viewer), "--port", str(args.port), "--pipeline", args.viewer_pipeline, "--rx-batch-size", str(args.rx_batch_size),
                    "--frames", str(args.frames * streams), "--timeout-ms", "60000"]
         if not args.display: command += ["--headless"]
         if args.queue_report_ms: command += ["--queue-report-ms", str(args.queue_report_ms)]

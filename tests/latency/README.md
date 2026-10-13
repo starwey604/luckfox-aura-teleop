@@ -26,6 +26,15 @@ headless pairs and one real-window pair, 120 frames per camera per run, with
 independent live USB logging. `--headless-pairs 0` runs only the window pair.
 See [implementation and measured limits](../../docs/viewer-pipeline-decoupling-2026-10-13.md).
 
+The async UDP path defaults to `--rx-batch-size 16`; `1` preserves poll/recvmsg.
+`receive-observer-test` (native CTest with `TELEOP_BUILD_TESTS=ON`) exercises real
+UDP partial batches, cmsg reuse, truncation, empty datagrams and socket overflow.
+The viewer tests cover 1/8/16/32 VAAPI batches and cancellation under active traffic.
+`tools/test-viewer-rx-batch --output <new-dir>` runs three interleaved headless
+rounds plus four window tests, 120 frames per camera each. For observer controls,
+use `--rounds 1 --minimal --no-display`. See
+[batch results](../../docs/viewer-udp-batch-2026-10-13.md).
+
 `tools/test-frame-boundary-wait --output logs/frame-boundary/new-run` is a native
 VAAPI boundary experiment. It links the production parser/decoder and compares
 normal byte-stream parsing, explicitly complete-AU parsing and direct complete-AU

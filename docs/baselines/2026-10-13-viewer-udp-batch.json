@@ -1,0 +1,651 @@
+{
+  "date": "2026-10-13",
+  "scope": "native CachyOS viewer only; unchanged board kernel/sender/network; no flash/reboot",
+  "viewer": {
+    "sha256": "3be0bb52bd8688412665fe1820d9dc7d2b92fd24d0d1677ded7c9d790f58ab04",
+    "default_batch": 16,
+    "range": [
+      1,
+      32
+    ],
+    "batch_one": "poll + recvmsg control",
+    "batch_many": "poll + recvmmsg(MSG_DONTWAIT, timeout=nullptr)",
+    "drain_budget_datagrams": 256,
+    "encoded_queue_capacity": 4,
+    "compiler": "native GCC Release O3; no LTO/native tuning"
+  },
+  "board": {
+    "kernel": "6.1.141 #16 SMP PREEMPT",
+    "boot_id": "32d05d60-7683-4865-868e-866f1a7217b9",
+    "sender_sha256": "06583eb5ab52c824f2d8fab1cbea24839fb81aef547060e9d84eb900456a33bd",
+    "launcher_sha256": "214ba50faf169f86acdd99e1161c1a57455fe671f2865573ed251227daee87b8",
+    "final_temp_c": 44.88,
+    "camera": "dual AR0234 1280x720 ~99.23fps; 30Mbps; GOP15; mode1; wrap=0"
+  },
+  "tests": {
+    "native_viewer_cases": 14,
+    "existing_vaapi_cases": 2,
+    "ctest_cases": 3,
+    "all_pass": true,
+    "hardware_runs": 20,
+    "frames_per_camera_per_run": 120,
+    "hardware_frames": 4800,
+    "normal_transport_errors": 0,
+    "rxq_overflow": 0,
+    "encoded_queue_overflow": 0,
+    "kernel_fault_after_usb_markers": false,
+    "boot_unchanged": true,
+    "raw_datagram_timestamp_counts_verified": true,
+    "intentional_fault_test": "CTest separately induces RX overflow/truncation; native busy-signal sends invalid packets"
+  },
+  "headless_three_rounds": {
+    "1": {
+      "runs": 3,
+      "rx_cpu_ms_per_run": 13.162976333333333,
+      "rx_cpu_us_per_datagram": 1.8009271218132894,
+      "poll_calls_per_run": 7309.0,
+      "recv_calls_per_run": 7309.0,
+      "mean_actual_batch": 1.0,
+      "kernel_rx": {
+        "weighted_mean_ms": 0.008038073060610208,
+        "p95_run_range_ms": [
+          0.011263,
+          0.019711
+        ],
+        "p99_run_range_ms": [
+          0.019967,
+          0.034815
+        ],
+        "max_ms": 0.149609
+      }
+    },
+    "8": {
+      "runs": 3,
+      "rx_cpu_ms_per_run": 11.952333333333334,
+      "rx_cpu_us_per_datagram": 1.6368574819684105,
+      "poll_calls_per_run": 3072.0,
+      "recv_calls_per_run": 3076.0,
+      "mean_actual_batch": 2.3746341463414633,
+      "kernel_rx": {
+        "weighted_mean_ms": 0.007946026796311513,
+        "p95_run_range_ms": [
+          0.011007,
+          0.016639
+        ],
+        "p99_run_range_ms": [
+          0.022527,
+          0.047103
+        ],
+        "max_ms": 0.209281
+      }
+    },
+    "16": {
+      "runs": 3,
+      "rx_cpu_ms_per_run": 10.050717333333333,
+      "rx_cpu_us_per_datagram": 1.3632404376525908,
+      "poll_calls_per_run": 3168.0,
+      "recv_calls_per_run": 3168.3333333333335,
+      "mean_actual_batch": 2.326985796948974,
+      "kernel_rx": {
+        "weighted_mean_ms": 0.007480643457817163,
+        "p95_run_range_ms": [
+          0.009471,
+          0.015231
+        ],
+        "p99_run_range_ms": [
+          0.018175,
+          0.031743
+        ],
+        "max_ms": 0.166521
+      }
+    },
+    "32": {
+      "runs": 3,
+      "rx_cpu_ms_per_run": 10.304357,
+      "rx_cpu_us_per_datagram": 1.3922298234552333,
+      "poll_calls_per_run": 3209.0,
+      "recv_calls_per_run": 3209.0,
+      "mean_actual_batch": 2.3064298327620234,
+      "kernel_rx": {
+        "weighted_mean_ms": 0.0076582181588902894,
+        "p95_run_range_ms": [
+          0.012415,
+          0.017407
+        ],
+        "p99_run_range_ms": [
+          0.023551,
+          0.032767
+        ],
+        "max_ms": 0.189595
+      }
+    }
+  },
+  "minimal_one_round": {
+    "1": {
+      "runs": 1,
+      "rx_cpu_ms_per_run": 12.809465,
+      "rx_cpu_us_per_datagram": 1.734289872732196,
+      "poll_calls_per_run": 7386.0,
+      "recv_calls_per_run": 7386.0,
+      "mean_actual_batch": 1.0
+    },
+    "8": {
+      "runs": 1,
+      "rx_cpu_ms_per_run": 10.910147,
+      "rx_cpu_us_per_datagram": 1.4797432524074325,
+      "poll_calls_per_run": 3133.0,
+      "recv_calls_per_run": 3133.0,
+      "mean_actual_batch": 2.3533354612192787
+    },
+    "16": {
+      "runs": 1,
+      "rx_cpu_ms_per_run": 10.73324,
+      "rx_cpu_us_per_datagram": 1.4525971038029504,
+      "poll_calls_per_run": 3078.0,
+      "recv_calls_per_run": 3078.0,
+      "mean_actual_batch": 2.4005847953216373
+    },
+    "32": {
+      "runs": 1,
+      "rx_cpu_ms_per_run": 11.327197,
+      "rx_cpu_us_per_datagram": 1.5371416745827113,
+      "poll_calls_per_run": 3208.0,
+      "recv_calls_per_run": 3208.0,
+      "mean_actual_batch": 2.297069825436409
+    }
+  },
+  "runs": [
+    {
+      "group": "board-matrix",
+      "name": "headless-1-batch-1",
+      "batch_size": 1,
+      "display": false,
+      "rx_cpu_us_per_datagram": 2.1014160706773244,
+      "cpu_ms": 14.985198,
+      "received_datagrams": 7131,
+      "recv_calls": 7131,
+      "actual_mean_batch": 1.0,
+      "peak_decode_queue": [
+        1,
+        1
+      ],
+      "kernel_rx": {
+        "samples": 7131.0,
+        "min": 0.002815,
+        "mean": 0.008284,
+        "p50": 0.007231,
+        "p95": 0.014719,
+        "p99": 0.025087,
+        "max": 0.149609
+      },
+      "last_presented": null
+    },
+    {
+      "group": "board-matrix",
+      "name": "headless-1-batch-8",
+      "batch_size": 8,
+      "display": false,
+      "rx_cpu_us_per_datagram": 1.732236997469778,
+      "cpu_ms": 12.323134,
+      "received_datagrams": 7114,
+      "recv_calls": 3043,
+      "actual_mean_batch": 2.337825,
+      "peak_decode_queue": [
+        1,
+        1
+      ],
+      "kernel_rx": {
+        "samples": 7114.0,
+        "min": 0.003036,
+        "mean": 0.007135,
+        "p50": 0.006399,
+        "p95": 0.011007,
+        "p99": 0.022527,
+        "max": 0.120465
+      },
+      "last_presented": null
+    },
+    {
+      "group": "board-matrix",
+      "name": "headless-1-batch-16",
+      "batch_size": 16,
+      "display": false,
+      "rx_cpu_us_per_datagram": 1.5914934940419119,
+      "cpu_ms": 11.619494,
+      "received_datagrams": 7301,
+      "recv_calls": 3119,
+      "actual_mean_batch": 2.340814,
+      "peak_decode_queue": [
+        1,
+        1
+      ],
+      "kernel_rx": {
+        "samples": 7301.0,
+        "min": 0.002164,
+        "mean": 0.007195,
+        "p50": 0.006143,
+        "p95": 0.011007,
+        "p99": 0.026367,
+        "max": 0.161442
+      },
+      "last_presented": null
+    },
+    {
+      "group": "board-matrix",
+      "name": "headless-1-batch-32",
+      "batch_size": 32,
+      "display": false,
+      "rx_cpu_us_per_datagram": 1.4615617325597086,
+      "cpu_ms": 10.831634,
+      "received_datagrams": 7411,
+      "recv_calls": 3167,
+      "actual_mean_batch": 2.340069,
+      "peak_decode_queue": [
+        1,
+        1
+      ],
+      "kernel_rx": {
+        "samples": 7411.0,
+        "min": 0.002645,
+        "mean": 0.007261,
+        "p50": 0.006335,
+        "p95": 0.012415,
+        "p99": 0.023551,
+        "max": 0.132538
+      },
+      "last_presented": null
+    },
+    {
+      "group": "board-matrix",
+      "name": "headless-2-batch-32",
+      "batch_size": 32,
+      "display": false,
+      "rx_cpu_us_per_datagram": 1.353804439030992,
+      "cpu_ms": 10.003261,
+      "received_datagrams": 7389,
+      "recv_calls": 3190,
+      "actual_mean_batch": 2.316301,
+      "peak_decode_queue": [
+        1,
+        1
+      ],
+      "kernel_rx": {
+        "samples": 7389.0,
+        "min": 0.003797,
+        "mean": 0.008137,
+        "p50": 0.006911,
+        "p95": 0.017407,
+        "p99": 0.032767,
+        "max": 0.130985
+      },
+      "last_presented": null
+    },
+    {
+      "group": "board-matrix",
+      "name": "headless-2-batch-16",
+      "batch_size": 16,
+      "display": false,
+      "rx_cpu_us_per_datagram": 1.4580024291497977,
+      "cpu_ms": 10.803798,
+      "received_datagrams": 7410,
+      "recv_calls": 3234,
+      "actual_mean_batch": 2.29128,
+      "peak_decode_queue": [
+        1,
+        1
+      ],
+      "kernel_rx": {
+        "samples": 7410.0,
+        "min": 0.003397,
+        "mean": 0.007092,
+        "p50": 0.006655,
+        "p95": 0.009471,
+        "p99": 0.018175,
+        "max": 0.152204
+      },
+      "last_presented": null
+    },
+    {
+      "group": "board-matrix",
+      "name": "headless-2-batch-8",
+      "batch_size": 8,
+      "display": false,
+      "rx_cpu_us_per_datagram": 1.6149430388310106,
+      "cpu_ms": 11.936044,
+      "received_datagrams": 7391,
+      "recv_calls": 3086,
+      "actual_mean_batch": 2.39734,
+      "peak_decode_queue": [
+        1,
+        1
+      ],
+      "kernel_rx": {
+        "samples": 7391.0,
+        "min": 0.003547,
+        "mean": 0.00896,
+        "p50": 0.007103,
+        "p95": 0.016639,
+        "p99": 0.047103,
+        "max": 0.209281
+      },
+      "last_presented": null
+    },
+    {
+      "group": "board-matrix",
+      "name": "headless-2-batch-1",
+      "batch_size": 1,
+      "display": false,
+      "rx_cpu_us_per_datagram": 1.730789665900176,
+      "cpu_ms": 12.795728,
+      "received_datagrams": 7393,
+      "recv_calls": 7393,
+      "actual_mean_batch": 1.0,
+      "peak_decode_queue": [
+        1,
+        1
+      ],
+      "kernel_rx": {
+        "samples": 7393.0,
+        "min": 0.002584,
+        "mean": 0.007109,
+        "p50": 0.006591,
+        "p95": 0.011263,
+        "p99": 0.019967,
+        "max": 0.104585
+      },
+      "last_presented": null
+    },
+    {
+      "group": "board-matrix",
+      "name": "headless-3-batch-8",
+      "batch_size": 8,
+      "display": false,
+      "rx_cpu_us_per_datagram": 1.5670614781786245,
+      "cpu_ms": 11.597822,
+      "received_datagrams": 7401,
+      "recv_calls": 3099,
+      "actual_mean_batch": 2.38819,
+      "peak_decode_queue": [
+        1,
+        1
+      ],
+      "kernel_rx": {
+        "samples": 7401.0,
+        "min": 0.003737,
+        "mean": 0.007713,
+        "p50": 0.006463,
+        "p95": 0.016127,
+        "p99": 0.027647,
+        "max": 0.124844
+      },
+      "last_presented": null
+    },
+    {
+      "group": "board-matrix",
+      "name": "headless-3-batch-1",
+      "batch_size": 1,
+      "display": false,
+      "rx_cpu_us_per_datagram": 1.5815214102390924,
+      "cpu_ms": 11.708003,
+      "received_datagrams": 7403,
+      "recv_calls": 7403,
+      "actual_mean_batch": 1.0,
+      "peak_decode_queue": [
+        1,
+        1
+      ],
+      "kernel_rx": {
+        "samples": 7403.0,
+        "min": 0.002925,
+        "mean": 0.008729,
+        "p50": 0.007103,
+        "p95": 0.019711,
+        "p99": 0.034815,
+        "max": 0.133018
+      },
+      "last_presented": null
+    },
+    {
+      "group": "board-matrix",
+      "name": "headless-3-batch-32",
+      "batch_size": 32,
+      "display": false,
+      "rx_cpu_us_per_datagram": 1.3611799027552673,
+      "cpu_ms": 10.078176,
+      "received_datagrams": 7404,
+      "recv_calls": 3270,
+      "actual_mean_batch": 2.26422,
+      "peak_decode_queue": [
+        1,
+        1
+      ],
+      "kernel_rx": {
+        "samples": 7404.0,
+        "min": 0.002785,
+        "mean": 0.007578,
+        "p50": 0.006399,
+        "p95": 0.013823,
+        "p99": 0.024319,
+        "max": 0.189595
+      },
+      "last_presented": null
+    },
+    {
+      "group": "board-matrix",
+      "name": "headless-3-batch-16",
+      "batch_size": 16,
+      "display": false,
+      "rx_cpu_us_per_datagram": 1.0434534899419468,
+      "cpu_ms": 7.72886,
+      "received_datagrams": 7407,
+      "recv_calls": 3152,
+      "actual_mean_batch": 2.349937,
+      "peak_decode_queue": [
+        1,
+        1
+      ],
+      "kernel_rx": {
+        "samples": 7407.0,
+        "min": 0.003025,
+        "mean": 0.008151,
+        "p50": 0.006335,
+        "p95": 0.015231,
+        "p99": 0.031743,
+        "max": 0.166521
+      },
+      "last_presented": null
+    },
+    {
+      "group": "board-matrix",
+      "name": "display-batch-1",
+      "batch_size": 1,
+      "display": true,
+      "rx_cpu_us_per_datagram": 1.0377985839388857,
+      "cpu_ms": 5.569865,
+      "received_datagrams": 5367,
+      "recv_calls": 5367,
+      "actual_mean_batch": 1.0,
+      "peak_decode_queue": [
+        1,
+        1
+      ],
+      "kernel_rx": {
+        "samples": 5367.0,
+        "min": 0.003547,
+        "mean": 0.007486,
+        "p50": 0.006527,
+        "p95": 0.012159,
+        "p99": 0.025087,
+        "max": 0.145633
+      },
+      "last_presented": [
+        120,
+        120
+      ]
+    },
+    {
+      "group": "board-matrix",
+      "name": "display-batch-8",
+      "batch_size": 8,
+      "display": true,
+      "rx_cpu_us_per_datagram": 1.755154536925345,
+      "cpu_ms": 13.095208,
+      "received_datagrams": 7461,
+      "recv_calls": 3116,
+      "actual_mean_batch": 2.394416,
+      "peak_decode_queue": [
+        1,
+        1
+      ],
+      "kernel_rx": {
+        "samples": 7461.0,
+        "min": 0.003968,
+        "mean": 0.00772,
+        "p50": 0.006719,
+        "p95": 0.014079,
+        "p99": 0.028159,
+        "max": 0.139792
+      },
+      "last_presented": [
+        120,
+        120
+      ]
+    },
+    {
+      "group": "board-matrix",
+      "name": "display-batch-16",
+      "batch_size": 16,
+      "display": true,
+      "rx_cpu_us_per_datagram": 1.4328455407448124,
+      "cpu_ms": 10.426817,
+      "received_datagrams": 7277,
+      "recv_calls": 3112,
+      "actual_mean_batch": 2.338368,
+      "peak_decode_queue": [
+        1,
+        1
+      ],
+      "kernel_rx": {
+        "samples": 7277.0,
+        "min": 0.002444,
+        "mean": 0.007624,
+        "p50": 0.006591,
+        "p95": 0.011007,
+        "p99": 0.026111,
+        "max": 0.182491
+      },
+      "last_presented": [
+        120,
+        120
+      ]
+    },
+    {
+      "group": "board-matrix",
+      "name": "display-batch-32",
+      "batch_size": 32,
+      "display": true,
+      "rx_cpu_us_per_datagram": 1.2307679685381068,
+      "cpu_ms": 9.075683,
+      "received_datagrams": 7374,
+      "recv_calls": 3156,
+      "actual_mean_batch": 2.336502,
+      "peak_decode_queue": [
+        1,
+        1
+      ],
+      "kernel_rx": {
+        "samples": 7374.0,
+        "min": 0.003817,
+        "mean": 0.007161,
+        "p50": 0.006335,
+        "p95": 0.011519,
+        "p99": 0.022271,
+        "max": 0.098945
+      },
+      "last_presented": [
+        120,
+        120
+      ]
+    },
+    {
+      "group": "board-minimal",
+      "name": "headless-1-batch-1",
+      "batch_size": 1,
+      "display": false,
+      "rx_cpu_us_per_datagram": 1.734289872732196,
+      "cpu_ms": 12.809465,
+      "received_datagrams": 7386,
+      "recv_calls": 7386,
+      "actual_mean_batch": 1.0,
+      "peak_decode_queue": [
+        1,
+        1
+      ],
+      "kernel_rx": null,
+      "last_presented": null
+    },
+    {
+      "group": "board-minimal",
+      "name": "headless-1-batch-8",
+      "batch_size": 8,
+      "display": false,
+      "rx_cpu_us_per_datagram": 1.4797432524074325,
+      "cpu_ms": 10.910147,
+      "received_datagrams": 7373,
+      "recv_calls": 3133,
+      "actual_mean_batch": 2.353335,
+      "peak_decode_queue": [
+        1,
+        1
+      ],
+      "kernel_rx": null,
+      "last_presented": null
+    },
+    {
+      "group": "board-minimal",
+      "name": "headless-1-batch-16",
+      "batch_size": 16,
+      "display": false,
+      "rx_cpu_us_per_datagram": 1.4525971038029504,
+      "cpu_ms": 10.73324,
+      "received_datagrams": 7389,
+      "recv_calls": 3078,
+      "actual_mean_batch": 2.400585,
+      "peak_decode_queue": [
+        1,
+        1
+      ],
+      "kernel_rx": null,
+      "last_presented": null
+    },
+    {
+      "group": "board-minimal",
+      "name": "headless-1-batch-32",
+      "batch_size": 32,
+      "display": false,
+      "rx_cpu_us_per_datagram": 1.5371416745827113,
+      "cpu_ms": 11.327197,
+      "received_datagrams": 7369,
+      "recv_calls": 3208,
+      "actual_mean_batch": 2.29707,
+      "peak_decode_queue": [
+        1,
+        1
+      ],
+      "kernel_rx": null,
+      "last_presented": null
+    }
+  ],
+  "benefits": {
+    "metrics_enabled_rx_cpu_per_packet_reduction_percent": 24.303408997472776,
+    "metrics_disabled_rx_cpu_per_packet_reduction_percent": 16.242542458341614
+  },
+  "limits": [
+    "RX thread CPU only; not entire viewer/host",
+    "Three short headless rounds and one minimal round; no long-term optimum claim",
+    "No optical/cross-host one-way measurement",
+    "Per-batch MONOTONIC receive stamp; per-packet REALTIME RX cmsg; reassembly metric origin differs slightly",
+    "Normal RX ages are microseconds; no measured millisecond end-to-end gain",
+    "Window source content changed packet sizes; display samples for compatibility only"
+  ]
+}

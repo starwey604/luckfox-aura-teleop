@@ -25,3 +25,17 @@ target_link_libraries(host-viewer PRIVATE
 )
 target_compile_features(host-viewer PRIVATE cxx_std_20)
 target_compile_options(host-viewer PRIVATE -Wall -Wextra -Wpedantic -Wconversion)
+
+if(TELEOP_BUILD_TESTS)
+    enable_testing()
+    add_executable(receive-observer-test
+        ../../tests/latency/receive_observer_test.cpp
+        src/receive_observer.cpp
+    )
+    target_include_directories(receive-observer-test PRIVATE src)
+    target_link_libraries(receive-observer-test PRIVATE teleop-common)
+    target_compile_features(receive-observer-test PRIVATE cxx_std_20)
+    target_compile_options(receive-observer-test PRIVATE -Wall -Wextra -Wpedantic -Wconversion)
+    add_test(NAME receive-observer-test COMMAND receive-observer-test)
+    set_tests_properties(receive-observer-test PROPERTIES ENVIRONMENT "TELEOP_METRICS=1" TIMEOUT 5)
+endif()
