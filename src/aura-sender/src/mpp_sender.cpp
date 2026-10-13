@@ -193,7 +193,7 @@ void print_usage(const char* program)
         "  --venc-channel ID      VENC channel (default: 0)\n"
         "  AURA_LIFECYCLE_TRACE=1 Trace initialization/cleanup API begin/end and return codes\n"
         "  AURA_TRACE_STREAM=1    Also trace GetStream/ReleaseStream (debug only)\n"
-        "  AURA_FAIL_AFTER=PHASE  Inject failure, e.g. camera1.venc.created (debug only)\n"
+        "  AURA_FAIL_AFTER=PHASE  Inject failure, e.g. system.initialized or camera1.venc.created (debug only)\n"
         "  TELEOP_METRICS=1       Opt-in local stage timings and socket buffer diagnostics\n",
         program);
 }
@@ -746,6 +746,9 @@ int main(int argc, char* argv[])
     std::signal(SIGTERM, handle_signal);
     try {
         MppSession session;
+        // Keep this outside the constructor so a diagnostic exception runs
+        // the fully constructed session's normal SYS cleanup, without cameras.
+        checkpoint("system.initialized");
         const unsigned worker_count = options.dual ? 2U : 1U;
         std::array<Options, 2> cameras{options, options};
         if (options.dual) {

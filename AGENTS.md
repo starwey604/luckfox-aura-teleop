@@ -100,6 +100,11 @@ Order matters: apply the SDK patch stack and `select-teleop-board` before SDK bu
   (`TELEOP_BUILD_MPI_LIFECYCLE_TESTS=ON`, SDK headers required). `tools/test-aura-lifecycle`
   runs bounded real-board restart, fault-injection, process-lock and signal tests.
   Stereo uses one `aura-sender --dual` process/SYS session; do not launch two MPI sender processes.
+- For observer-effect controls, `test-aura-software-baseline --minimal` disables live
+  kernel/thread sampling and stage metrics and starts the sender directly. Netconsole
+  capture defaults to console level 1 (emergency only); do not automatically re-enable
+  verbose level 8 after its SYS_Exit lockup reproduction. `AURA_FAIL_AFTER=system.initialized`
+  probes SYS_Init/WaitFreeMB/Exit without cameras; exit 1 is expected for that injection.
 - `tests/protocol/` has the real unit test (`ctest` via `test-transport-loopback`).
 - `tests/latency/test_software_metrics.py` is a native-only dual UDP/VAAPI timing
   association test. Use `TELEOP_METRICS=1` for opt-in process-local stage histograms;

@@ -1,5 +1,7 @@
 # #16 实机：生命周期通过、netconsole 对照在 SYS_Exit 内失联
 
+后续紧急日志与最小采样对照见 [10-13定位记录](sender-observer-controls-2026-10-13.md)。
+
 用户烧写后确认板端运行 `6.1.141 #16 SMP PREEMPT Mon Oct 12 20:51:59 CST 2026`，
 启动日志有 `qspin-diag: contested-lock stack capture enabled`。
 部署上一轮同一 sender（SHA256 `36468d1e7192db7274718b181fb20d631ee27fbeed367d9c96f0f1f706cf07aa`）

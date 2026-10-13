@@ -106,6 +106,10 @@ int run(bool dual=false)
 int main()
 {
     try {
+        mock::reset(); setenv("AURA_FAIL_AFTER", "system.initialized", 1);
+        mock::require(run()!=0, "system initialization injection not detected"); mock::all_released();
+        mock::require(mock::events == std::vector<std::string>{"SYS_Init", "SYS_WaitFreeMB", "SYS_Exit"},
+                      "system-only probe opened a camera or repeated cleanup");
         for (const auto* phase : {"vi.device", "vi.enabled", "venc.created", "venc.started", "bound", "stream.acquired"}) {
             mock::reset(); setenv("AURA_FAIL_AFTER", phase, 1);
             mock::require(run()!=0, "injection not detected"); mock::all_released();

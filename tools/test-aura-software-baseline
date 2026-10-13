@@ -12,6 +12,10 @@ import sys
 import time
 
 ROOT = Path(__file__).resolve().parents[1]
+MINIMAL_SNAPSHOT = """cat /proc/uptime /proc/meminfo
+for p in /sys/class/thermal/thermal_zone*/temp; do echo "$p"; cat "$p"; done
+ps
+"""
 SNAPSHOT = """cat /proc/uptime /proc/stat /proc/meminfo /proc/net/snmp /proc/net/softnet_stat
 cat /proc/interrupts
 for p in /sys/class/thermal/thermal_zone*/temp /sys/class/devfreq/*/cur_freq; do echo "$p"; cat "$p"; done
@@ -39,6 +43,24 @@ sleep 1
 done
 """
 
+def controls_script(camera, vertical_blanking, sysfs_root="/sys/class/video4linux"):
+    # Keep wildcard prefixes active; quote the spaces in the sensor names.
+    patterns = {"0": '*"ar0234 4-0010"', "1": '*"ar0234 3-0010"',
+                "dual": '*"ar0234 4-0010"|*"ar0234 3-0010"'}
+    vblank = "" if vertical_blanking is None else (
+        f'v4l2-ctl -d "/dev/$node" --set-ctrl=vertical_blanking={vertical_blanking} || exit\n')
+    expected = 2 if camera == "dual" else 1
+    return f'''matched=0
+for p in {shlex.quote(str(sysfs_root))}/v4l-subdev*; do
+case "$(cat "$p/name")" in {patterns[camera]})
+node=$(basename "$p")
+{vblank}v4l2-ctl -d "/dev/$node" --set-ctrl=exposure=735,analogue_gain=32,digital_gain=512,test_pattern=0 || exit
+matched=$((matched + 1))
+;; esac
+done
+[ "$matched" -eq {expected} ] || {{ echo "Expected {expected} AR0234 sensor nodes, found $matched" >&2; exit 1; }}
+'''
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--camera", choices=("0", "1", "dual"), required=True)
@@ -48,6 +70,8 @@ def main():
     parser.add_argument("--vertical-blanking", type=int, help="Optional diagnostic sensor VBLANK; changes capture fps")
     parser.add_argument("--port", type=int, default=5000)
     parser.add_argument("--mode", choices=("decode", "transport"), default="decode")
+    parser.add_argument("--minimal", action="store_true",
+                        help="Direct sender, no live kernel/thread monitor or stage metrics; isolate observer effects")
     parser.add_argument("--host", default="root@192.168.1.10")
     parser.add_argument("--sender", default="/userdata/teleop-sender")
     parser.add_argument("--launcher", default="/userdata/run-ar0234-stereo", help="Board stereo launcher path")
@@ -72,7 +96,8 @@ def main():
     def remote(command, timeout=20):
         return subprocess.run(ssh + [command], text=True, stdout=subprocess.PIPE,
                               stderr=subprocess.STDOUT, timeout=timeout)
-    before = remote(SNAPSHOT)
+    snapshot = MINIMAL_SNAPSHOT if args.minimal else SNAPSHOT
+    before = remote(snapshot)
     (args.output / "board-before.txt").write_text(before.stdout)
     if before.returncode != 0:
         raise RuntimeError("Board preflight failed")
@@ -88,10 +113,11 @@ def main():
     with socket.socket(socket.AF_INET6, socket.SOCK_DGRAM) as check:
         check.bind(("::", args.port))
     result = {"camera": args.camera, "frames_per_camera": args.frames,
-              "mode": args.mode, "port": args.port, "vertical_blanking": args.vertical_blanking, "success": False}
+              "mode": args.mode, "port": args.port, "vertical_blanking": args.vertical_blanking,
+              "minimal": args.minimal, "success": False}
     limit = max(20, args.frames // 90 + 20)
     directory = "/userdata/latency-" + args.output.parent.name + "-" + args.output.name
-    if args.camera == "dual":
+    if args.camera == "dual" and not args.minimal:
         # Preserve directory metadata even if the board locks before ext4's
         # periodic journal commit. Stream log contents to the host as well.
         prepared = remote("mkdir -p " + shlex.quote(directory) + " && sync")
@@ -102,9 +128,10 @@ def main():
     mirror_log = (args.output / "board-live-logs.txt").open("w")
     started = time.monotonic()
     try:
-        monitor = subprocess.Popen(ssh + ["sh -c " + shlex.quote(MONITOR) + " aura-metrics-monitor"],
-                                   stdout=logs["monitor"], stderr=subprocess.STDOUT)
-        if args.camera == "dual":
+        if not args.minimal:
+            monitor = subprocess.Popen(ssh + ["sh -c " + shlex.quote(MONITOR) + " aura-metrics-monitor"],
+                                       stdout=logs["monitor"], stderr=subprocess.STDOUT)
+        if args.camera == "dual" and not args.minimal:
             command = ["timeout", "-s", "TERM", "-k", "2", str(limit + 20), "tail", "-n", "+1", "-F",
                        directory + "/stereo.log"]
             mirror = subprocess.Popen(ssh + [shlex.join(command)], stdout=mirror_log,
@@ -115,7 +142,8 @@ def main():
         if args.camera != "0": command += ["--dual-stream"]
         if args.mode == "transport": command += ["--transport-only"]
         result["viewer_command"] = command
-        viewer = subprocess.Popen(command, env=dict(os.environ, TELEOP_METRICS="1"),
+        metrics = "0" if args.minimal else "1"
+        viewer = subprocess.Popen(command, env=dict(os.environ, TELEOP_METRICS=metrics),
                                   stdout=logs["viewer"], stderr=subprocess.STDOUT)
         deadline = time.monotonic() + 10
         while True:
@@ -126,7 +154,7 @@ def main():
             if time.monotonic() > deadline: raise RuntimeError("Viewer bind timeout")
             time.sleep(0.01)
         print("Receiver bound; starting board test", flush=True)
-        if args.camera == "dual":
+        if args.camera == "dual" and not args.minimal:
             command = ["env", "TELEOP_METRICS=1", "AURA_LIFECYCLE_TRACE=1", "SENDER=" + args.sender,
                        "PORT=" + str(args.port), "WRAP_LINES=0",
                        "REPORT_DIR=" + directory,
@@ -134,17 +162,9 @@ def main():
             if args.vertical_blanking is not None: command.insert(2, "VERTICAL_BLANKING=" + str(args.vertical_blanking))
             controls = ""
         else:
-            bus = "4" if args.camera == "0" else "3"
-            controls = f"""for p in /sys/class/video4linux/v4l-subdev*; do
-case "$(cat "$p/name")" in *"ar0234 {bus}-0010")
-node=$(basename "$p")
-v4l2-ctl -d "/dev/$node" --set-ctrl=exposure=735,analogue_gain=32,digital_gain=512,test_pattern=0 || exit
-;; esac
-done
-"""
-            if args.vertical_blanking is not None:
-                controls = controls.replace('node=$(basename "$p")', 'node=$(basename "$p")\nv4l2-ctl -d "/dev/$node" --set-ctrl=vertical_blanking=' + str(args.vertical_blanking) + ' || exit')
-            command = ["env", "TELEOP_METRICS=1", "AURA_LIFECYCLE_TRACE=1", args.sender, "--camera", args.camera,
+            controls = controls_script(args.camera, args.vertical_blanking)
+            camera_flags = ["--dual"] if args.camera == "dual" else ["--camera", args.camera]
+            command = ["env", "TELEOP_METRICS=" + metrics, "AURA_LIFECYCLE_TRACE=" + metrics, args.sender] + camera_flags + [
                        "--width", "1280", "--height", "720", "--fps", "100",
                        "--wrap-lines", "0", "--port", str(args.port), "--frames", str(args.frames)]
         command = controls + "timeout -s INT -k 5 " + str(limit) + " " + shlex.join(command)
@@ -157,7 +177,7 @@ done
         if result["sender_exit"] != 0: raise RuntimeError("Sender/SSH failed")
         result["viewer_exit"] = viewer.wait(timeout=15)
         if result["viewer_exit"] != 0: raise RuntimeError("Viewer failed")
-        if args.camera == "dual":
+        if args.camera == "dual" and not args.minimal:
             reports = remote("cat " + shlex.quote(directory + "/stereo.log"))
             (args.output / "board-senders.txt").write_text(reports.stdout)
         logs["viewer"].flush()
@@ -193,7 +213,7 @@ done
         for log in logs.values(): log.close()
         mirror_log.close()
         try:
-            after = remote(SNAPSHOT, timeout=12)
+            after = remote(snapshot, timeout=12)
             (args.output / "board-after.txt").write_text(after.stdout)
             result["board_responds_after"] = after.returncode == 0
         except subprocess.TimeoutExpired: result["board_responds_after"] = False

@@ -1,0 +1,343 @@
+{
+  "kernel": "6.1.141 #16 SMP PREEMPT Mon Oct 12 20:51:59 CST 2026",
+  "tested_production_sender_sha256": "36468d1e7192db7274718b181fb20d631ee27fbeed367d9c96f0f1f706cf07aa",
+  "system_probe_sender_sha256": "332d6dd6e1a2aec232e006d51fe8cc51adaca04b6f8d7e956594b7a37d280f56",
+  "current_built_sender_sha256": "332d6dd6e1a2aec232e006d51fe8cc51adaca04b6f8d7e956594b7a37d280f56",
+  "frames_per_camera": 120,
+  "width": 1280,
+  "height": 720,
+  "capture_fps_approx": 99.23,
+  "kernel_diagnostic_timing_not_performance_baseline": true,
+  "evidence": {
+    "minimal_no_netconsole_mixed_restarts_20261012": [
+      {
+        "name": "01-cameradual",
+        "camera": "dual",
+        "frames_per_camera": 120,
+        "sender_command": "timeout -s INT -k 3 15 /userdata/teleop-sender --dual --width 1280 --height 720 --wrap-lines 0 --frames 120",
+        "extra_monitor": false,
+        "netconsole": false,
+        "sender_exit": 0,
+        "viewer_exit": 0,
+        "temperature_millicelsius": 39420,
+        "success": true
+      },
+      {
+        "name": "02-camera0",
+        "camera": "0",
+        "frames_per_camera": 120,
+        "sender_command": "timeout -s INT -k 3 15 /userdata/teleop-sender --camera 0 --width 1280 --height 720 --wrap-lines 0 --frames 120",
+        "extra_monitor": false,
+        "netconsole": false,
+        "sender_exit": 0,
+        "viewer_exit": 0,
+        "temperature_millicelsius": 39060,
+        "success": true
+      },
+      {
+        "name": "03-camera1",
+        "camera": "1",
+        "frames_per_camera": 120,
+        "sender_command": "timeout -s INT -k 3 15 /userdata/teleop-sender --camera 1 --width 1280 --height 720 --wrap-lines 0 --frames 120",
+        "extra_monitor": false,
+        "netconsole": false,
+        "sender_exit": 0,
+        "viewer_exit": 0,
+        "temperature_millicelsius": 39570,
+        "success": true
+      },
+      {
+        "name": "04-cameradual",
+        "camera": "dual",
+        "frames_per_camera": 120,
+        "sender_command": "timeout -s INT -k 3 15 /userdata/teleop-sender --dual --width 1280 --height 720 --wrap-lines 0 --frames 120",
+        "extra_monitor": false,
+        "netconsole": false,
+        "sender_exit": 0,
+        "viewer_exit": 0,
+        "temperature_millicelsius": 39780,
+        "success": true
+      },
+      {
+        "name": "05-camera0",
+        "camera": "0",
+        "frames_per_camera": 120,
+        "sender_command": "timeout -s INT -k 3 15 /userdata/teleop-sender --camera 0 --width 1280 --height 720 --wrap-lines 0 --frames 120",
+        "extra_monitor": false,
+        "netconsole": false,
+        "sender_exit": 0,
+        "viewer_exit": 0,
+        "temperature_millicelsius": 40020,
+        "success": true
+      },
+      {
+        "name": "06-camera1",
+        "camera": "1",
+        "frames_per_camera": 120,
+        "sender_command": "timeout -s INT -k 3 15 /userdata/teleop-sender --camera 1 --width 1280 --height 720 --wrap-lines 0 --frames 120",
+        "extra_monitor": false,
+        "netconsole": false,
+        "sender_exit": 0,
+        "viewer_exit": 0,
+        "temperature_millicelsius": 41540,
+        "success": true
+      },
+      {
+        "name": "07-cameradual",
+        "camera": "dual",
+        "frames_per_camera": 120,
+        "sender_command": "timeout -s INT -k 3 15 /userdata/teleop-sender --dual --width 1280 --height 720 --wrap-lines 0 --frames 120",
+        "extra_monitor": false,
+        "netconsole": false,
+        "sender_exit": 0,
+        "viewer_exit": 0,
+        "temperature_millicelsius": 41300,
+        "success": true
+      },
+      {
+        "name": "08-camera0",
+        "camera": "0",
+        "frames_per_camera": 120,
+        "sender_command": "timeout -s INT -k 3 15 /userdata/teleop-sender --camera 0 --width 1280 --height 720 --wrap-lines 0 --frames 120",
+        "extra_monitor": false,
+        "netconsole": false,
+        "sender_exit": 0,
+        "viewer_exit": 0,
+        "temperature_millicelsius": 40700,
+        "success": true
+      },
+      {
+        "name": "09-camera1",
+        "camera": "1",
+        "frames_per_camera": 120,
+        "sender_command": "timeout -s INT -k 3 15 /userdata/teleop-sender --camera 1 --width 1280 --height 720 --wrap-lines 0 --frames 120",
+        "extra_monitor": false,
+        "netconsole": false,
+        "sender_exit": 0,
+        "viewer_exit": 0,
+        "temperature_millicelsius": 40860,
+        "success": true
+      }
+    ],
+    "system_only_init_exit_20261012": [
+      {
+        "test": 1,
+        "exit": 1,
+        "expected_exit": 1,
+        "success": true
+      },
+      {
+        "test": 2,
+        "exit": 1,
+        "expected_exit": 1,
+        "success": true
+      },
+      {
+        "test": 3,
+        "exit": 1,
+        "expected_exit": 1,
+        "success": true
+      },
+      {
+        "test": 4,
+        "exit": 1,
+        "expected_exit": 1,
+        "success": true
+      },
+      {
+        "test": 5,
+        "exit": 1,
+        "expected_exit": 1,
+        "success": true
+      },
+      {
+        "test": 6,
+        "exit": 1,
+        "expected_exit": 1,
+        "success": true
+      }
+    ],
+    "minimal_tool_control_20261013": {
+      "camera": "dual",
+      "frames_per_camera": 120,
+      "mode": "decode",
+      "port": 5000,
+      "vertical_blanking": null,
+      "minimal": true,
+      "success": true,
+      "viewer_command": [
+        "/home/ww/codings/luckfox-aura-teleop/build/host-metrics/bin/host-viewer",
+        "--port",
+        "5000",
+        "--headless",
+        "--frames",
+        "240",
+        "--timeout-ms",
+        "60000",
+        "--dual-stream"
+      ],
+      "sender_command": "matched=0\nfor p in /sys/class/video4linux/v4l-subdev*; do\ncase \"$(cat \"$p/name\")\" in *\"ar0234 4-0010\"|*\"ar0234 3-0010\")\nnode=$(basename \"$p\")\nv4l2-ctl -d \"/dev/$node\" --set-ctrl=exposure=735,analogue_gain=32,digital_gain=512,test_pattern=0 || exit\nmatched=$((matched + 1))\n;; esac\ndone\n[ \"$matched\" -eq 2 ] || { echo \"Expected 2 AR0234 sensor nodes, found $matched\" >&2; exit 1; }\ntimeout -s INT -k 5 21 env TELEOP_METRICS=0 AURA_LIFECYCLE_TRACE=0 /userdata/teleop-sender --dual --width 1280 --height 720 --fps 100 --wrap-lines 0 --port 5000 --frames 120",
+      "sender_exit": 0,
+      "viewer_exit": 0,
+      "board_responds_after": true,
+      "elapsed_seconds": 5.1117867899999965
+    },
+    "minimal_emergency_netconsole_mixed_restarts": [
+      {
+        "name": "quiet-01-cameradual",
+        "exit": 0
+      },
+      {
+        "name": "quiet-02-camera0",
+        "exit": 0
+      },
+      {
+        "name": "quiet-03-camera1",
+        "exit": 0
+      },
+      {
+        "name": "quiet-04-cameradual",
+        "exit": 0
+      },
+      {
+        "name": "quiet-05-camera0",
+        "exit": 0
+      },
+      {
+        "name": "quiet-06-camera1",
+        "exit": 0
+      },
+      {
+        "name": "quiet-07-cameradual",
+        "exit": 0
+      },
+      {
+        "name": "quiet-08-camera0",
+        "exit": 0
+      },
+      {
+        "name": "quiet-09-camera1",
+        "exit": 0
+      }
+    ],
+    "full_monitoring_emergency_netconsole_lifecycle": [
+      {
+        "name": "dual-start",
+        "exit": 0
+      },
+      {
+        "name": "mono0",
+        "exit": 0
+      },
+      {
+        "name": "mono1",
+        "exit": 0
+      },
+      {
+        "name": "dual-after-mono",
+        "exit": 0
+      },
+      {
+        "name": "fail-camera1.vi.enabled",
+        "exit": 1
+      },
+      {
+        "name": "fail-camera1.venc.created",
+        "exit": 1
+      },
+      {
+        "name": "fail-camera0.stream.acquired",
+        "exit": 1
+      },
+      {
+        "name": "TERM-during-init",
+        "exit": 0
+      },
+      {
+        "name": "INT-after-ready",
+        "exit": 0
+      },
+      {
+        "name": "dual-recovery",
+        "exit": 0
+      }
+    ],
+    "emergency_netconsole_capture": {
+      "interface": "enp195s0",
+      "host_ip": "192.168.1.2",
+      "board_ip": "192.168.1.10",
+      "remote_mac": "38:05:25:37:c8:9a",
+      "port": 6666,
+      "console_level": 1,
+      "target": "/sys/kernel/config/netconsole/teleop_7224",
+      "marker_received": true,
+      "setup": "target_created=1\nold_loglevel=7\n",
+      "cleanup_exit": 0,
+      "cleanup_output": ""
+    },
+    "restored_default_irqs_new_sender_retry": {
+      "camera": "dual",
+      "frames_per_camera": 120,
+      "mode": "decode",
+      "port": 5000,
+      "vertical_blanking": null,
+      "minimal": true,
+      "success": true,
+      "viewer_command": [
+        "/home/ww/codings/luckfox-aura-teleop/build/host-metrics/bin/host-viewer",
+        "--port",
+        "5000",
+        "--headless",
+        "--frames",
+        "240",
+        "--timeout-ms",
+        "60000",
+        "--dual-stream"
+      ],
+      "sender_command": "matched=0\nfor p in /sys/class/video4linux/v4l-subdev*; do\ncase \"$(cat \"$p/name\")\" in *\"ar0234 4-0010\"|*\"ar0234 3-0010\")\nnode=$(basename \"$p\")\nv4l2-ctl -d \"/dev/$node\" --set-ctrl=exposure=735,analogue_gain=32,digital_gain=512,test_pattern=0 || exit\nmatched=$((matched + 1))\n;; esac\ndone\n[ \"$matched\" -eq 2 ] || { echo \"Expected 2 AR0234 sensor nodes, found $matched\" >&2; exit 1; }\ntimeout -s INT -k 5 21 env TELEOP_METRICS=0 AURA_LIFECYCLE_TRACE=0 /userdata/teleop-sender-system-probe --dual --width 1280 --height 720 --fps 100 --wrap-lines 0 --port 5000 --frames 120",
+      "sender_exit": 0,
+      "viewer_exit": 0,
+      "board_responds_after": true,
+      "elapsed_seconds": 5.153634670999963
+    },
+    "restored_default_irqs_connection_loss": {
+      "result": {
+        "camera": "dual",
+        "frames_per_camera": 120,
+        "mode": "decode",
+        "port": 5000,
+        "vertical_blanking": null,
+        "minimal": true,
+        "success": false,
+        "viewer_command": [
+          "/home/ww/codings/luckfox-aura-teleop/build/host-metrics/bin/host-viewer",
+          "--port",
+          "5000",
+          "--headless",
+          "--frames",
+          "240",
+          "--timeout-ms",
+          "60000",
+          "--dual-stream"
+        ],
+        "sender_command": "matched=0\nfor p in /sys/class/video4linux/v4l-subdev*; do\ncase \"$(cat \"$p/name\")\" in *\"ar0234 4-0010\"|*\"ar0234 3-0010\")\nnode=$(basename \"$p\")\nv4l2-ctl -d \"/dev/$node\" --set-ctrl=exposure=735,analogue_gain=32,digital_gain=512,test_pattern=0 || exit\nmatched=$((matched + 1))\n;; esac\ndone\n[ \"$matched\" -eq 2 ] || { echo \"Expected 2 AR0234 sensor nodes, found $matched\" >&2; exit 1; }\ntimeout -s INT -k 5 21 env TELEOP_METRICS=0 AURA_LIFECYCLE_TRACE=0 /userdata/teleop-sender-system-probe --dual --width 1280 --height 720 --fps 100 --wrap-lines 0 --port 5000 --frames 120",
+        "sender_exit": 255,
+        "error": "Sender/SSH failed",
+        "board_responds_after": false,
+        "elapsed_seconds": 18.69831683999996
+      },
+      "classification": "inconclusive; user reported network loss and confirmed manual board reboot; not counted as kernel fault or success"
+    }
+  },
+  "remaining_uncertainty": "No proof of exact deadlock lock/caller; prior netconsole-off #14 failure remains unexplained. Success in short tests is not long-term stability proof.",
+  "log_sha256": {
+    "setup.txt": "9370e5a8d1bb9182575b7a69d0c8f54ada91ca295bb6ded0e2ac133333a6a980",
+    "quiet-results.json": "be1670fee4451f60ceb02d453dd177a25c319478f99d99d2b41c14faacf7e756",
+    "full-quiet-suite/results.json": "0858eab4d0019b761bb4de22a266f722631bc62bec6e1694da410cbcd2f5fb04",
+    "full-quiet-netconsole.txt": "fcf44d0405853e7495572d159c86fb37ce7d2f0077b77ae7bc1320d3ee854a58",
+    "full-quiet-suite/dual-recovery/board-senders.txt": "aaa1a16e259e429c39f3261892c983deb4db127674bd2355b408c814c544128b",
+    "restore-defaults.txt": "5a73430aac59371ffb3f9a171dac78055b6ef89e07a74fb763d59d249705d100",
+    "probe-default-irqs-retry/viewer.txt": "8620361fff74dc70f0f18a867e80b20042f9e433ff24b8b7d744388fb051207b"
+  },
+  "wrap_lines": 0
+}
