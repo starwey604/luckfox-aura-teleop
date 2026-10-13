@@ -18,7 +18,12 @@ screen-to-screen 延迟仍待验收。
 再逐项裁剪、调优，保留可以复测的结果。
 
 [软件性能基线首轮](docs/software-performance-baseline-2026-10-12.md)：`TELEOP_METRICS=1`
-启用板端/主机局部阶段统计；本机回放已测出 parser 等待，实机双路编码失联仍待排查。
+启用板端/主机局部阶段统计。KMPP IRQ修复已通过
+[短测生命周期回归](docs/kmpp-meta-irqfix-runtime-2026-10-13.md)。
+
+[完整帧立即发送/解码优化](docs/frame-boundary-optimization-2026-10-13.md)：sender默认mode1，
+完整AU标记让viewer立即提交VAAPI；双路短测中移除了约17.7ms的两项软件等待。
+最终屏幕延迟与长时间稳定性仍待验收；程序更新不需要烧写镜像。
 
 [重启后实机数据与温度核对](docs/software-performance-baseline-reboot-2026-10-12.md)：
 `tools/test-aura-software-baseline` 自动配对 SSH sender 与本机 headless viewer，默认短测并检查启动温度。

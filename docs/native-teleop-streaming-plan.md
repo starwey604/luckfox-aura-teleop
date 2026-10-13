@@ -111,8 +111,10 @@ VI → VPSS crop/scale → VENC H.264 → UDP
 VPSS，也不会把原始 NV12 图像带到用户态。配合 teleop MIA1321 内核补丁，默认值为
 1280×1080、60 fps、20 Mbit/s H.264 CBR、GOP 15、VI/VENC wrap 256 行，以及
 `VENC_SLICE_SPLIT_S` 的 mode 3、120 CTU。
-mode 3 是 SDK 定义的“一个 slice 输出一个 VENC packet”；当前程序按同一PTS聚合完整AU，
-等下一PTS确认结束后才按本项目UDP协议分片发送，尚未实现逐slice发送。
+当前默认`--output-mode frame`使用mode1，所有slice在同一个完整pack返回后立即发送；
+`--output-mode slice`使用mode3按同一PTS聚合AU，等下一PTS确认结束后发送。
+两者都标记完整AU，viewer收齐后立即提交VAAPI；旧无标记输入仍使用parser。
+应用实现与实机对照见[2026-10-13优化记录](frame-boundary-optimization-2026-10-13.md)。
 `--frames 0` 持续运行，其他 VI、VENC、分辨率和编码
 参数都可以在命令行覆盖。
 
@@ -126,9 +128,9 @@ mode 3 是 SDK 定义的“一个 slice 输出一个 VENC packet”；当前程�
 ```
 
 Aura 当前 low-delay VENC 配置每次 `RK_MPI_VENC_GetStream()` 回调给出一个 Annex-B
-码流片段；它不是 FFmpeg 可直接解码的完整 H.264 access unit。当前发送端聚合整帧，
-接收端仍保留FFmpeg Annex-B parser以兼容旧字节流输入，随后送入VAAPI。
-这会在sender和parser各产生帧边界等待；具体实验与优化顺序参见
+码流片段（mode3）；它不是FFmpeg可直接解码的完整H.264 access unit。
+当前默认mode1得到整帧立即发送；接收端对有完整AU标记的payload绕过parser，
+保留Annex-B parser兼容旧字节流。原先两道帧边界等待的实验参见
 [2026-10-13探索记录](frame-boundary-wait-exploration-2026-10-13.md)。
 不能将每个slice伪装成独立图像帧，也不启用曾导致AMD VAAPI兼容问题的
 `AV_CODEC_FLAG2_CHUNKS`。
@@ -158,7 +160,7 @@ frame_id
 packet_id
 packet_count
 frame_size / fragment_offset / payload_size
-flags（当前定义 IDR）
+flags（bit0 IDR，bit1 完整AU；所有分片一致）
 capture_timestamp（`CLOCK_MONOTONIC` 域）
 ```
 

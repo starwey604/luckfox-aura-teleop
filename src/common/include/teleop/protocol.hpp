@@ -18,12 +18,19 @@ constexpr std::size_t kMaxEncodedAccessUnitSize = 2U * 1024U * 1024U;
 enum class PacketFlags : std::uint16_t {
     kNone = 0,
     kKeyFrame = 1U << 0U,
+    // The entire reassembled payload is one H.264 AU, never a single slice.
+    kCompleteAccessUnit = 1U << 1U,
 };
 
 constexpr PacketFlags operator|(PacketFlags left, PacketFlags right)
 {
     return static_cast<PacketFlags>(static_cast<std::uint16_t>(left) |
                                     static_cast<std::uint16_t>(right));
+}
+
+constexpr bool has_flag(PacketFlags value, PacketFlags flag)
+{
+    return (static_cast<std::uint16_t>(value) & static_cast<std::uint16_t>(flag)) != 0U;
 }
 
 struct PacketHeader {

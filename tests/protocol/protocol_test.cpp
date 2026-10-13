@@ -52,13 +52,14 @@ int main()
         .frame_size = static_cast<std::uint32_t>(payload.size()),
         .fragment_offset = 0U,
         .payload_size = static_cast<std::uint16_t>(payload.size()),
-        .flags = teleop::PacketFlags::kKeyFrame,
+        .flags = teleop::PacketFlags::kKeyFrame | teleop::PacketFlags::kCompleteAccessUnit,
         .capture_time_ns = 123'456U,
     };
     const auto datagram = make_datagram(header, payload);
     const auto parsed = teleop::parse_header(datagram);
     if (!check(parsed.has_value(), "valid header did not parse") ||
         !check(parsed->frame_id == header.frame_id, "frame id changed on wire") ||
+        !check(parsed->flags == header.flags, "AU flags changed on wire") ||
         !check(parsed->capture_time_ns == header.capture_time_ns, "timestamp changed on wire")) {
         return 1;
     }
@@ -96,7 +97,7 @@ int main()
                 .frame_size = static_cast<std::uint32_t>(large_payload.size()),
                 .fragment_offset = static_cast<std::uint32_t>(offset),
                 .payload_size = static_cast<std::uint16_t>(payload_size),
-                .flags = teleop::PacketFlags::kNone,
+                .flags = teleop::PacketFlags::kCompleteAccessUnit,
                 .capture_time_ns = 123'457U,
             },
             std::span<const std::byte>{large_payload}.subspan(offset, payload_size));
@@ -111,10 +112,32 @@ int main()
     }
     const auto reordered_frame = reordered_reassembler.accept(fragments[2], reordered_statistics);
     if (!check(reordered_frame.has_value(), "reordered frame did not complete") ||
+        !check(teleop::has_flag(reordered_frame->flags, teleop::PacketFlags::kCompleteAccessUnit),
+               "complete AU marker lost after reordering") ||
         !check(reordered_frame->payload == large_payload, "reordered payload changed") ||
         !check(reordered_frame->first_receive_ns == 100U,
                "frame timing did not start at the first accepted reordered fragment")) {
         return 1;
     }
+    teleop::FrameReassembler conflicting;
+    teleop::TransportStatistics conflicting_statistics;
+    if (!check(!conflicting.accept(fragments[0], conflicting_statistics), "partial AU completed")) return 1;
+    auto mismatched = fragments[1];
+    mismatched[7] = std::byte{0}; // clear complete-AU bit in the wire flags
+    if (!check(!conflicting.accept(mismatched, conflicting_statistics), "conflicting AU flags accepted") ||
+        !check(conflicting_statistics.malformed_datagrams == 1U, "flag conflict not counted") ||
+        !check(!conflicting.accept(fragments[2], conflicting_statistics), "incomplete AU reached decoder")) return 1;
+    // A corrected retransmission can complete the frame; no bytes from the
+    // rejected fragment were accepted.
+    if (!check(conflicting.accept(fragments[1], conflicting_statistics).has_value(),
+               "corrected fragment could not complete AU")) return 1;
+    teleop::FrameReassembler missing;
+    teleop::TransportStatistics missing_statistics;
+    (void)missing.accept(fragments[0], missing_statistics);
+    if (!check(!missing.accept(fragments[2], missing_statistics), "missing-fragment AU completed")) return 1;
+    auto next_header = header; next_header.stream_id = 3U; next_header.frame_id = 44U;
+    if (!check(missing.accept(make_datagram(next_header, payload), missing_statistics).has_value(),
+               "next complete AU could not recover after loss") ||
+        !check(missing_statistics.dropped_frames == 1U, "lost AU not counted")) return 1;
     return 0;
 }

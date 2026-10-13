@@ -10,10 +10,12 @@ namespace mock {
 struct Camera {
     bool device{}, vi{}, venc{}, receiving{}, bound{}, leased{};
     unsigned gets{};
+    unsigned split_mode{};
 };
 std::array<Camera, 2> cameras;
 std::mutex mutex;
 bool system{};
+bool incomplete_frame_pack{};
 unsigned init_count{}, exit_count{}, wait_count{}, release_count{};
 std::string fail_api;
 std::vector<std::string> events;
@@ -33,6 +35,7 @@ void reset()
     cameras = {};
     init_count = exit_count = wait_count = release_count = 0;
     system = false;
+    incomplete_frame_pack = false;
     events.clear();
     fail_api.clear();
     g_stop_requested.store(false);
@@ -76,7 +79,7 @@ RK_S32 RK_MPI_VENC_StopRecvFrame(VENC_CHN id) { std::lock_guard lock(mock::mutex
 RK_S32 RK_MPI_VENC_SetChnBufWrapAttr(VENC_CHN, const VENC_CHN_BUF_WRAP_S*) { std::lock_guard lock(mock::mutex); return mock::call("VENC_SetChnBufWrapAttr"); }
 RK_S32 RK_MPI_VENC_SetChnRefBufShareAttr(VENC_CHN, const VENC_CHN_REF_BUF_SHARE_S*) { std::lock_guard lock(mock::mutex); return mock::call("VENC_SetChnRefBufShareAttr"); }
 RK_S32 RK_MPI_VENC_GetSliceSplit(VENC_CHN, VENC_SLICE_SPLIT_S*) { std::lock_guard lock(mock::mutex); return mock::call("VENC_GetSliceSplit"); }
-RK_S32 RK_MPI_VENC_SetSliceSplit(VENC_CHN, const VENC_SLICE_SPLIT_S*) { std::lock_guard lock(mock::mutex); return mock::call("VENC_SetSliceSplit"); }
+RK_S32 RK_MPI_VENC_SetSliceSplit(VENC_CHN id, const VENC_SLICE_SPLIT_S* split) { std::lock_guard lock(mock::mutex); const auto r=mock::call("VENC_SetSliceSplit"); if (r==0) mock::cameras.at(static_cast<unsigned>(id)).split_mode=split->u32SplitMode; return r; }
 RK_S32 RK_MPI_VENC_QueryStatus(VENC_CHN, VENC_CHN_STATUS_S*) { return 0; }
 RK_S32 RK_MPI_VENC_GetStream(VENC_CHN id, VENC_STREAM_S* stream, RK_S32) {
     if (id==1) std::this_thread::sleep_for(std::chrono::milliseconds(1));
@@ -88,17 +91,19 @@ RK_S32 RK_MPI_VENC_GetStream(VENC_CHN id, VENC_STREAM_S* stream, RK_S32) {
     stream->u32PackCount=1;
     stream->pstPack[0].pMbBlk=reinterpret_cast<MB_BLK>(1);
     stream->pstPack[0].u32Len=4;
-    stream->pstPack[0].u64PTS=c.gets*10'000ULL;
+    stream->pstPack[0].bFrameEnd=mock::incomplete_frame_pack ? RK_FALSE : RK_TRUE;
+    stream->pstPack[0].u64PTS=(c.split_mode==3 ? (c.gets-1)/2+1 : c.gets)*10'000ULL;
     return 0;
 }
 RK_S32 RK_MPI_VENC_ReleaseStream(VENC_CHN id, VENC_STREAM_S*) { std::lock_guard lock(mock::mutex); auto& c=mock::cameras.at(static_cast<unsigned>(id)); mock::require(c.leased, "double stream release"); c.leased=false; ++mock::release_count; return mock::call("VENC_ReleaseStream"); }
 RK_VOID* RK_MPI_MB_Handle2VirAddr(MB_BLK) { static unsigned char payload[4]{0,0,0,1}; return payload; }
 }
 
-int run(bool dual=false)
+int run(bool dual=false, const char* output_mode="frame")
 {
     std::vector<std::string> arguments{"aura-sender-test", "--width", "1280", "--height", "720", "--wrap-lines", "0", "--frames", "3"};
     if (dual) arguments.emplace_back("--dual");
+    arguments.emplace_back("--output-mode"); arguments.emplace_back(output_mode);
     std::vector<char*> pointers;
     for (auto& arg : arguments) pointers.push_back(arg.data());
     return aura_sender_main(static_cast<int>(pointers.size()), pointers.data());
@@ -123,7 +128,15 @@ int main()
         mock::reset(); mock::fail_api="VENC_DestroyChn";
         mock::require(run()!=0 && g_cleanup_failed.load(), "cleanup failure not reported"); mock::all_released();
         mock::reset(); mock::require(run(true)==0, "dual worker failed"); mock::all_released();
-        mock::require(mock::cameras[0].gets>4 && mock::cameras[1].gets==4, "completed stream did not continue draining");
+        mock::require(mock::cameras[0].gets>3 && mock::cameras[1].gets==3, "completed stream did not continue draining");
+        mock::reset(); mock::require(run()==0, "frame mode failed"); mock::all_released();
+        mock::require(mock::cameras[0].split_mode==1 && mock::cameras[0].gets==3,
+                      "frame mode waited for a fourth frame before sending three");
+        mock::reset(); mock::require(run(false, "slice")==0, "slice compatibility failed"); mock::all_released();
+        mock::require(mock::cameras[0].split_mode==3 && mock::cameras[0].gets==7,
+                      "slice mode trusted per-slice bFrameEnd instead of grouping PTS");
+        mock::reset(); mock::incomplete_frame_pack=true;
+        mock::require(run()!=0, "partial frame pack accepted as complete AU"); mock::all_released();
         mock::reset();
         { MppSession first; bool rejected=false;
           try { MppSession second; } catch (const std::exception&) { rejected=true; }

@@ -90,7 +90,15 @@ time.sleep(0.3)
             self.assertIn(f'control -d {self.base}/dev/v4l-subdev{index}', calls)
         self.assertIn('sender --dual --width 1280 --height 720', calls)
         self.assertEqual(calls.count('--wrap-lines 0'), 1)
+        self.assertIn('--output-mode frame', calls)
         self.assertEqual(calls.count('exposure=735,analogue_gain=32,digital_gain=512,test_pattern=0'), 2)
+
+    def test_slice_output_control(self):
+        result = self.run_launcher('--frames', '3', OUTPUT_MODE='slice')
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertIn('--output-mode slice', self.calls.read_text())
+        result = self.run_launcher('--frames', '3', OUTPUT_MODE='unknown')
+        self.assertEqual(result.returncode, 2)
 
     def test_recordings_use_independent_paths(self):
         directory = str(self.base / 'h264')

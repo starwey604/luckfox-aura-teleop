@@ -7,6 +7,7 @@ usage() {
     echo 'Environment: DESTINATION=192.168.1.2 PORT=5000 FPS=100 BITRATE_KBPS=30000'
     echo '             EXPOSURE=735 ANALOGUE_GAIN=32 DIGITAL_GAIN=512 REPORT_DIR=/path'
     echo '             WRAP_LINES=0 (full-frame path for stereo; mono sender defaults to 256)'
+    echo '             OUTPUT_MODE=frame (SDK mode1 immediate AU); slice retains mode3 PTS grouping'
     echo '             VERTICAL_BLANKING=N (optional sensor timing diagnostic; changes capture fps)'
     echo '             H264_DIR=/path (optional per-camera Annex-B recordings)'
     echo '             STARTUP_TIMEOUT=15 (wait for the shared sender to finish initialization)'
@@ -39,6 +40,8 @@ exposure=${EXPOSURE:-735}
 analogue=${ANALOGUE_GAIN:-32}
 digital=${DIGITAL_GAIN:-512}
 wrap_lines=${WRAP_LINES:-0}
+output_mode=${OUTPUT_MODE:-frame}
+case "$output_mode" in frame|slice) ;; *) echo 'invalid OUTPUT_MODE' >&2; exit 2 ;; esac
 startup_timeout=${STARTUP_TIMEOUT:-15}
 for number in "$port" "$fps" "$bitrate" "$exposure" "$analogue" "$digital" "$wrap_lines" "$startup_timeout"; do
     case "$number" in ''|*[!0-9]*) echo 'expected decimal parameter' >&2; exit 2 ;; esac
@@ -135,7 +138,7 @@ if [ "$mode" = sender ]; then
     fi
     "$sender" --dual --width 1280 --height 720 --fps "$fps" \
         --destination "$destination" --port "$port" --bitrate-kbps "$bitrate" \
-        --wrap-lines "$wrap_lines" --slice-ctus 120 --frames "$frames" "$@" \
+        --wrap-lines "$wrap_lines" --slice-ctus 120 --output-mode "$output_mode" --frames "$frames" "$@" \
         > "$report/stereo.log" 2>&1 & pid0=$!
     deadline=$(( $(date +%s) + startup_timeout ))
     while ! grep -q 'aura-sender: VI 1/1/0' "$report/stereo.log"; do

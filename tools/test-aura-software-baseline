@@ -70,6 +70,8 @@ def main():
     parser.add_argument("--vertical-blanking", type=int, help="Optional diagnostic sensor VBLANK; changes capture fps")
     parser.add_argument("--port", type=int, default=5000)
     parser.add_argument("--mode", choices=("decode", "transport"), default="decode")
+    parser.add_argument("--output-mode", choices=("frame", "slice"), default="frame")
+    parser.add_argument("--force-stream-parser", action="store_true", help="Diagnostic viewer lookahead control")
     parser.add_argument("--minimal", action="store_true",
                         help="Direct sender, no live kernel/thread monitor or stage metrics; isolate observer effects")
     parser.add_argument("--host", default="root@192.168.1.10")
@@ -114,6 +116,7 @@ def main():
         check.bind(("::", args.port))
     result = {"camera": args.camera, "frames_per_camera": args.frames,
               "mode": args.mode, "port": args.port, "vertical_blanking": args.vertical_blanking,
+              "output_mode": args.output_mode, "force_stream_parser": args.force_stream_parser,
               "minimal": args.minimal, "success": False}
     limit = max(20, args.frames // 90 + 20)
     directory = "/userdata/latency-" + args.output.parent.name + "-" + args.output.name
@@ -141,6 +144,7 @@ def main():
                    "--frames", str(args.frames * streams), "--timeout-ms", "60000"]
         if args.camera != "0": command += ["--dual-stream"]
         if args.mode == "transport": command += ["--transport-only"]
+        if args.force_stream_parser: command += ["--force-stream-parser"]
         result["viewer_command"] = command
         metrics = "0" if args.minimal else "1"
         viewer = subprocess.Popen(command, env=dict(os.environ, TELEOP_METRICS=metrics),
@@ -157,6 +161,7 @@ def main():
         if args.camera == "dual" and not args.minimal:
             command = ["env", "TELEOP_METRICS=1", "AURA_LIFECYCLE_TRACE=1", "SENDER=" + args.sender,
                        "PORT=" + str(args.port), "WRAP_LINES=0",
+                       "OUTPUT_MODE=" + args.output_mode,
                        "REPORT_DIR=" + directory,
                        args.launcher, "--frames", str(args.frames)]
             if args.vertical_blanking is not None: command.insert(2, "VERTICAL_BLANKING=" + str(args.vertical_blanking))
@@ -167,6 +172,7 @@ def main():
             command = ["env", "TELEOP_METRICS=" + metrics, "AURA_LIFECYCLE_TRACE=" + metrics, args.sender] + camera_flags + [
                        "--width", "1280", "--height", "720", "--fps", "100",
                        "--wrap-lines", "0", "--port", str(args.port), "--frames", str(args.frames)]
+            command += ["--output-mode", args.output_mode]
         command = controls + "timeout -s INT -k 5 " + str(limit) + " " + shlex.join(command)
         result["sender_command"] = command
         sender = subprocess.Popen(ssh + [command], stdout=logs["sender"], stderr=subprocess.STDOUT)

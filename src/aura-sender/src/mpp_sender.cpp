@@ -141,6 +141,7 @@ struct Options {
     std::uint32_t gop{15U};
     std::uint32_t wrap_lines{256U};
     std::uint32_t slice_ctus{120U};
+    bool frame_output{true};
     std::string_view output_h264{};
     bool dual{false};
     int vi_device{0};
@@ -168,9 +169,8 @@ void print_usage(const char* program)
 {
     std::printf(
         "Usage: %s [options]\n\n"
-        "Capture NV12 from Aura VI, encode H.264 with RK MPI, and send every\n"
-        "VENC packet by UDP. VI/VENC buffer wrap and one-slice-per-packet\n"
-        "low-delay output are enabled by default.\n\n"
+        "Capture NV12 from Aura VI, encode H.264 with RK MPI, and send complete\n"
+        "access units by UDP as soon as the encoder returns them.\n\n"
         "  --destination ADDRESS  UDP destination (default: 192.168.1.2)\n"
         "  --port PORT            UDP destination port (default: 5000)\n"
         "  --stream-id ID         Stream identifier (default: 0)\n"
@@ -185,7 +185,8 @@ void print_usage(const char* program)
         "  --bitrate-kbps RATE    H.264 CBR rate (default: 30000)\n"
         "  --gop FRAMES           IDR interval in frames (default: 15)\n"
         "  --wrap-lines LINES     VI/VENC wrap line count; 0 disables wrap (default: 256)\n"
-        "  --slice-ctus COUNT     CTUs per slice, low-delay mode 3 (default: 120)\n"
+        "  --slice-ctus COUNT     MB/CTUs per slice (default: 120)\n"
+        "  --output-mode MODE     frame: mode 1 immediate AU (default); slice: mode 3 PTS grouping\n"
         "  --output-h264 FILE     Save Annex-B; --dual requires {camera} in FILE\n"
         "  --vi-device ID         VI device (default: 0)\n"
         "  --vi-pipe ID           VI pipe (default: 0)\n"
@@ -271,6 +272,9 @@ bool parse_options(int argc, char* argv[], Options& options)
             if (!parse_integer(value, options.wrap_lines)) return false;
         } else if (option == "--slice-ctus") {
             if (!parse_integer(value, options.slice_ctus) || options.slice_ctus == 0U) return false;
+        } else if (option == "--output-mode") {
+            if (value != "frame" && value != "slice") return false;
+            options.frame_output = value == "frame";
         } else if (option == "--output-h264") {
             options.output_h264 = value;
         } else if (option == "--vi-device") {
@@ -372,7 +376,8 @@ public:
     }
 
     // The caller owns each returned stream until ReleaseStream. With slice
-    // output, a stream may contain only part of a frame; assemble by PTS.
+    // output, a stream may contain only part of a frame; frame mode uses the
+    // SDK mode 1 whole-packet contract, slice mode must assemble by PTS.
     static constexpr std::size_t kMaximumPacks = 32U;
 
     bool get_stream(VENC_STREAM_S& stream, std::array<VENC_PACK_S, kMaximumPacks>& packs)
@@ -520,8 +525,9 @@ private:
         check(MPI_CALL(RK_MPI_VENC_GetSliceSplit(options_.venc_channel, &slice_split)),
               "RK_MPI_VENC_GetSliceSplit");
         slice_split.bSplitEnable = RK_TRUE;
-        // Mode 3 is MB/CTU based and emits each slice as an individual packet.
-        slice_split.u32SplitMode = 3U;
+        // Mode 1 returns all slices in one packet. Mode 3 emits one slice per
+        // packet and its bFrameEnd is not a reliable picture-end indicator.
+        slice_split.u32SplitMode = options_.frame_output ? 1U : 3U;
         slice_split.u32SplitSize = options_.slice_ctus;
         check(MPI_CALL(RK_MPI_VENC_SetSliceSplit(options_.venc_channel, &slice_split)),
               "RK_MPI_VENC_SetSliceSplit");
@@ -585,14 +591,14 @@ void capture_stream(const Options& options, MppPipeline& pipeline,
     bool access_unit_open = false;
 
     std::printf("aura-sender: VI %d/%d/%d -> H.264 VENC %d, %ux%u@%u, %u kbps, wrap=%u lines, "
-                "slice low-delay=%u CTUs, UDP %.*s:%u\n",
+                "output=%s, slice=%u CTUs, UDP %.*s:%u\n",
                 options.vi_device, options.vi_pipe, options.vi_channel, options.venc_channel,
                 options.width, options.height, options.frame_rate, options.bitrate_kbps,
-                options.wrap_lines, options.slice_ctus,
+                options.wrap_lines, options.frame_output ? "frame(mode1)" : "slice(mode3)", options.slice_ctus,
                 static_cast<int>(options.destination.size()), options.destination.data(), options.port);
     std::fflush(stdout);
 
-    // The low-delay slice split makes one RK_MPI_VENC_GetStream() call return
+    // In slice mode, low-delay split makes one RK_MPI_VENC_GetStream() return
     // a single VENC_PACK_S and always set bFrameEnd, so the pack boundary is
     // not the frame boundary.  Every slice of a frame shares the same
     // u64PTS, so consecutive packs are grouped into one access unit by PTS.
@@ -601,11 +607,19 @@ void capture_stream(const Options& options, MppPipeline& pipeline,
             access_unit_open = false;
             return;
         }
-        const auto flags = access_unit_is_key_frame ? teleop::PacketFlags::kKeyFrame
-                                                     : teleop::PacketFlags::kNone;
+        // Mode 1 can label its first SPS/PPS+IDR pack as PPS; inspect Annex-B
+        // NAL headers as well so the actual IDR marker is preserved.
+        for (std::size_t i = 0U; !access_unit_is_key_frame && i + 3U < access_unit.size(); ++i) {
+            if (access_unit[i] == std::byte{0} && access_unit[i + 1U] == std::byte{0} &&
+                access_unit[i + 2U] == std::byte{1} &&
+                (static_cast<unsigned>(access_unit[i + 3U]) & 0x1fU) == 5U) access_unit_is_key_frame = true;
+        }
+        const auto flags = teleop::PacketFlags::kCompleteAccessUnit |
+            (access_unit_is_key_frame ? teleop::PacketFlags::kKeyFrame : teleop::PacketFlags::kNone);
         const auto ready_ns = teleop::performance_time_ns();
         teleop::record_stage("sender.au_pack_span", first_pack_ns, last_pack_ns);
         teleop::record_stage("sender.next_pts_wait", last_pack_ns, ready_ns);
+        teleop::record_stage("sender.ready_to_send", last_pack_ns, ready_ns);
         teleop::record_stage("sender.first_pack_to_send", first_pack_ns, ready_ns);
         teleop::record_stage("sender.au_interval", previous_au_ns, ready_ns);
         previous_au_ns = ready_ns;
@@ -633,6 +647,12 @@ void capture_stream(const Options& options, MppPipeline& pipeline,
     const bool debug_packs = std::getenv("AURA_DEBUG_PACKS") != nullptr;
 
     bool finished = false;
+    const auto finish_at_limit = [&]() {
+        if (options.frame_count == 0U || encoded_frames < options.frame_count) return false;
+        finished = true;
+        if (completed.fetch_add(1U) + 1U == worker_count) g_stop_requested.store(true);
+        return true;
+    };
     while (!g_stop_requested.load()) {
         VENC_STREAM_S stream{};
         const auto get_begin = teleop::performance_time_ns();
@@ -683,6 +703,10 @@ void capture_stream(const Options& options, MppPipeline& pipeline,
             }
         }
 
+        if (options.frame_output && (stream.u32PackCount != 1U || packs[0].pMbBlk == nullptr ||
+            packs[0].u32Len == 0U || packs[0].bFrameEnd != RK_TRUE)) {
+            throw std::runtime_error("mode 1 did not return one complete frame pack; refusing partial AU");
+        }
         for (RK_U32 index = 0U; index < stream.u32PackCount; ++index) {
             const VENC_PACK_S& pack = packs[index];
             if (pack.pMbBlk == nullptr || pack.u32Len == 0U) {
@@ -691,11 +715,7 @@ void capture_stream(const Options& options, MppPipeline& pipeline,
             // A change of PTS means the previous frame is complete.
             if (access_unit_open && pack.u64PTS != access_unit_pts_us) {
                 send_access_unit();
-                if (options.frame_count != 0U && encoded_frames >= options.frame_count) {
-                    finished = true;
-                    if (completed.fetch_add(1U) + 1U == worker_count) g_stop_requested.store(true);
-                    break;
-                }
+                if (finish_at_limit()) break;
             }
             const auto* base =
                 static_cast<const std::byte*>(RK_MPI_MB_Handle2VirAddr(pack.pMbBlk));
@@ -717,6 +737,10 @@ void capture_stream(const Options& options, MppPipeline& pipeline,
             access_unit.insert(access_unit.end(), packet.begin(), packet.end());
             access_unit_is_key_frame = access_unit_is_key_frame ||
                                        pack.DataType.enH264EType == H264E_NALU_IDRSLICE;
+        }
+        if (options.frame_output && access_unit_open) {
+            send_access_unit();
+            finish_at_limit();
         }
         lease.release();
     }

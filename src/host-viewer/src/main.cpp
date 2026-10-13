@@ -43,6 +43,7 @@ struct Options {
     bool headless{false};
     bool software_decode{false};
     bool dual_stream{false};
+    bool force_stream_parser{false};
     teleop::VulkanWindowOptions window{};
 };
 
@@ -67,6 +68,7 @@ void print_usage(const char* program)
         "  --headless             Decode without creating the SDL3/Vulkan window\n"
         "  --software-decode      Decode in FFmpeg software; diagnostic fallback for VAAPI\n"
         "  --dual-stream          Receive stream IDs 0 and 1, stacked top to bottom\n"
+        "  --force-stream-parser  Diagnostic: use Annex-B lookahead even for marked complete AUs\n"
         "  --transport-only       Validate UDP reassembly without opening FFmpeg\n"
         "  --same-clock           Report source-to-receive latency; only valid when\n"
         "                         sender and viewer share CLOCK_MONOTONIC\n"
@@ -109,6 +111,10 @@ bool parse_options(int argc, char* argv[], Options& options)
         }
         if (option == "--dual-stream") {
             options.dual_stream = true;
+            continue;
+        }
+        if (option == "--force-stream-parser") {
+            options.force_stream_parser = true;
             continue;
         }
         if (option == "--borderless") {
@@ -277,6 +283,7 @@ int main(int argc, char* argv[])
         std::array<std::optional<teleop::H264VaapiDecoder>, kMaximumStreams> decoders;
         std::array<std::optional<teleop::H264AnnexBParser>, kMaximumStreams> parsers;
         std::array<std::unique_ptr<StreamPresenterSink>, kMaximumStreams> sinks;
+        std::array<std::optional<bool>, kMaximumStreams> complete_au_contracts;
         if (!options.transport_only) {
             for (std::size_t stream = 0U; stream < stream_count; ++stream) {
                 if (presenter != nullptr) {
@@ -333,7 +340,21 @@ int main(int argc, char* argv[])
             previous_ready_ns[frame->stream_id] = ready_ns;
             if (decoders[frame->stream_id].has_value()) {
                 const auto parse_begin = teleop::performance_time_ns();
-                parsers[frame->stream_id]->submit_chunk(frame->payload, ready_ns);
+                const bool complete_au = teleop::has_flag(frame->flags, teleop::PacketFlags::kCompleteAccessUnit);
+                auto& contract = complete_au_contracts[frame->stream_id];
+                if (contract.has_value() && *contract != complete_au) {
+                    throw std::runtime_error("H.264 AU contract changed midstream; restart viewer");
+                }
+                if (!contract.has_value()) {
+                    contract = complete_au;
+                    std::printf("viewer stream %u: input=%s\n", frame->stream_id,
+                                complete_au && !options.force_stream_parser ? "complete-au" : "annex-b-stream");
+                }
+                if (complete_au && !options.force_stream_parser) {
+                    decoders[frame->stream_id]->submit_access_unit(frame->payload, ready_ns);
+                } else {
+                    parsers[frame->stream_id]->submit_chunk(frame->payload, ready_ns);
+                }
                 if (parse_begin != 0U) {
                     teleop::record_stage(prefix + "parser_decode_call", parse_begin, teleop::performance_time_ns());
                 }

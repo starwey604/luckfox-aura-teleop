@@ -11,6 +11,8 @@ Software-only stage profiling is opt-in with `TELEOP_METRICS=1`. See
 for stage definitions and the incomplete hardware baseline. The native-only
 `python3 tests/latency/test_software_metrics.py` runs real dual-stream UDP/VAAPI
 tests using `build/host-metrics/bin/host-viewer` (override `TELEOP_TEST_VIEWER`).
+It checks legacy parsing, marked complete AUs, per-stream mixed compatibility,
+forced lookahead and rejection of an incomplete AU (all-IDR recovery sample).
 Stage times are process-local; VAAPI frame availability does not prove that GPU
 work or panel scanout has completed.
 

@@ -70,6 +70,7 @@ std::optional<CompletedFrame> FrameReassembler::accept(
 
     if (header->packet_count != active_header_.packet_count ||
         header->frame_size != active_header_.frame_size ||
+        header->flags != active_header_.flags ||
         header->capture_time_ns != active_header_.capture_time_ns) {
         ++statistics.malformed_datagrams;
         return std::nullopt;

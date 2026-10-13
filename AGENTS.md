@@ -123,6 +123,9 @@ Order matters: apply the SDK patch stack and `select-teleop-board` before SDK bu
   loopback gives a valid sender→receiver delay without external optical measurement.
 - `tools/test-frame-boundary-wait --output <new-dir>` is native-only: it uses the real
   VAAPI decoder with ffprobe-provided complete AU boundaries to measure parser lookahead.
-  Production mode3 packs still report bFrameEnd on every slice; never mark such slices
-  as complete AUs. SDK split mode1 returned whole frames in a bounded diagnostic run,
-  but changing split mode alone does not remove the sender's next-PTS wait.
+  Mode3 packs still report bFrameEnd on every slice; never mark such slices as complete AUs.
+  Sender now defaults to `--output-mode frame` (SDK mode1): one nonempty whole-frame pack
+  is sent immediately with CompleteAccessUnit flag bit1. `--output-mode slice` retains
+  next-PTS grouping and marks only the assembled AU. Viewer directly submits marked
+  AUs, retains the parser for unmarked legacy chunks/files, and rejects per-stream
+  contract changes. `--force-stream-parser` is an A/B diagnostic only.
