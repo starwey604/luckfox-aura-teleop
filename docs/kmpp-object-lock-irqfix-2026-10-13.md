@@ -1,5 +1,8 @@
 # KMPP对象锁IRQ重入风险：实机证据与候选镜像
 
+后续实机复测发现另一把meta锁，上一版修复不完整。最新候选见
+[meta锁与内存记账修复](kmpp-meta-lock-irqfix-2026-10-13.md)。以下保留首次候选的证据和哈希。
+
 现在已定位到实际等待锁：KMPP对象definition的list_obj链表锁。
 CPU0在slice回调申请packet/meta对象时等待该锁，源码却在get/put两侧使用普通spin_lock，
 存在同CPU中断打断持锁线程后再次获取该锁的风险。已保存针对两处短临界区的IRQ-save

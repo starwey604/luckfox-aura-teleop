@@ -1,0 +1,165 @@
+From 99355854bc4bc78924a505c74677ce87fc2dc70a Mon Sep 17 00:00:00 2001
+From: Starwey <moonbite233@gmail.com>
+Date: Tue, 13 Oct 2026 15:15:04 +0800
+Subject: [PATCH] kmpp: snapshot pool diagnostics under IRQ-safe locking before
+ formatting
+
+---
+ sys/kmpp_mem_pool.c | 121 ++++++++++++++++++++++++++++++++++++--------
+ 1 file changed, 99 insertions(+), 22 deletions(-)
+
+diff --git a/sys/kmpp_mem_pool.c b/sys/kmpp_mem_pool.c
+index 1d671438..f119558d 100644
+--- a/sys/kmpp_mem_pool.c
++++ b/sys/kmpp_mem_pool.c
+@@ -5,6 +5,8 @@
+ 
+ #define MODULE_TAG "kmpp_mem_pool"
+ 
++#include <linux/minmax.h>
++
+ #include "kmpp_env.h"
+ #include "kmpp_log.h"
+ #include "kmpp_mem.h"
+@@ -84,46 +86,121 @@ static KmppMemPoolSrv *srv_mempool = NULL;
+ 
+ static const rk_u8 space_12[13] = "            ";
+ 
++/* Private debug snapshot: keep formatting outside the IRQ-shared pool lock. */
++#define POOL_SNAPSHOT_MAX_ROWS 4096
++
++typedef struct KmppMemPoolSnapshot_t {
++    rk_u32 kind; /* 0: pool, 1: used node, 2: unused node */
++    rk_u32 id;
++    void *ptr;
++    rk_s32 size;
++    rk_s32 unused;
++    rk_s32 used;
++    rk_u32 max;
++    rk_u8 name[64];
++} KmppMemPoolSnapshot;
++
+ static void kmpp_mem_pool_show(KmppEnvNode env, void *data)
+ {
+     KmppMemPoolSrv *srv = get_pool_srv_f();
+     KmppMemPoolImpl *pool, *m;
++    KmppMemPoolSnapshot *rows;
++    rk_u32 capacity = 0, count = 0, i;
++    rk_s32 total;
++    rk_ul flags = 0;
++    rk_u32 truncated = 0;
+ 
+-    kmpp_env_log(env, "\n------------------------------------- total %d mem pool -------------------------------------\n", srv->pool_cnt);
+-
+-    if (!srv->pool_cnt)
++    if (!srv)
+         return;
+ 
++    /* Size the allocation while protected, then allocate in process context. */
++    osal_spin_lock_irqsave(srv->lock, &flags);
++    osal_list_for_each_entry_safe(pool, m, &srv->list_pool, KmppMemPoolImpl, list_srv) {
++        if (capacity >= POOL_SNAPSHOT_MAX_ROWS)
++            break;
++        capacity++;
++        capacity += min_t(rk_u32, max_t(rk_s32, 0, pool->used_count),
++                          POOL_SNAPSHOT_MAX_ROWS - capacity);
++        capacity += min_t(rk_u32, max_t(rk_s32, 0, pool->unused_count),
++                          POOL_SNAPSHOT_MAX_ROWS - capacity);
++    }
++    osal_spin_unlock_irqrestore(srv->lock, &flags);
+ 
+-    osal_spin_lock(srv->lock);
+-
+-    kmpp_env_log(env, "|%-4s|%-3s|%-16s|%-12s|%-12s|%-12s|%-12s|%-12s|\n",
+-                 "pool", "mem", "name", "size", "unused", "used", "total", "max");
++    /* The list may grow between the two acquisitions; bounds remain fixed. */
++    if (!capacity) {
++        kmpp_env_log(env, "no mem pools at snapshot time\n");
++        return;
++    }
++    rows = kmpp_calloc(capacity * sizeof(*rows));
++    if (!rows) {
++        kmpp_env_log(env, "mem pool snapshot allocation failed\n");
++        return;
++    }
+ 
++    osal_spin_lock_irqsave(srv->lock, &flags);
++    total = srv->pool_cnt;
+     osal_list_for_each_entry_safe(pool, m, &srv->list_pool, KmppMemPoolImpl, list_srv) {
+         KmppMemPoolNode *node, *n;
++        KmppMemPoolSnapshot *row;
+ 
+-        kmpp_env_log(env, "--------------------------------------------------------------------------------------------\n");
+-        kmpp_env_log(env, "|%-4d|   |%-16s|%-12d|%-12d|%-12d|%-12d|%-12d|\n",
+-                     pool->pool_id, pool->name, pool->size, pool->unused_count, pool->used_count,
+-                     pool->unused_count + pool->used_count, pool->max_cnt);
+-
+-        if (pool->used_count) {
+-            osal_list_for_each_entry_safe(node, n, &pool->used, KmppMemPoolNode, list) {
+-                kmpp_env_log(env, "|    |%-3d|%-16px|%-12d|%-12s|%-12s|%-12s|%-12s|\n",
+-                             node->id, node->ptr, node->size, space_12, "used", space_12, space_12);
++        if (count >= capacity) {
++            truncated = 1;
++            goto COPIED;
++        }
++        row = &rows[count++];
++        row->id = pool->pool_id;
++        row->size = pool->size;
++        row->unused = pool->unused_count;
++        row->used = pool->used_count;
++        row->max = pool->max_cnt;
++        osal_strlcpy(row->name, pool->name, sizeof(row->name));
++
++        osal_list_for_each_entry_safe(node, n, &pool->used, KmppMemPoolNode, list) {
++            if (count >= capacity) {
++                truncated = 1;
++                goto COPIED;
+             }
++            row = &rows[count++];
++            row->kind = 1;
++            row->id = node->id;
++            row->ptr = node->ptr;
++            row->size = node->size;
+         }
+-
+-        if (pool->unused_count) {
+-            osal_list_for_each_entry_safe(node, n, &pool->unused, KmppMemPoolNode, list) {
+-                kmpp_env_log(env, "|    |%-3d|%-16px|%-12d|%-12s|%-12s|%-12s|%-12s|\n",
+-                             node->id, node->ptr, node->size, "unused", space_12, space_12, space_12);
++        osal_list_for_each_entry_safe(node, n, &pool->unused, KmppMemPoolNode, list) {
++            if (count >= capacity) {
++                truncated = 1;
++                goto COPIED;
+             }
++            row = &rows[count++];
++            row->kind = 2;
++            row->id = node->id;
++            row->ptr = node->ptr;
++            row->size = node->size;
+         }
+     }
++COPIED:
++    osal_spin_unlock_irqrestore(srv->lock, &flags);
+ 
+-    osal_spin_unlock(srv->lock);
++    kmpp_env_log(env, "\n------------------------------------- total %d mem pool -------------------------------------\n", total);
++    kmpp_env_log(env, "|%-4s|%-3s|%-16s|%-12s|%-12s|%-12s|%-12s|%-12s|\n",
++                 "pool", "mem", "name", "size", "unused", "used", "total", "max");
++    for (i = 0; i < count; i++) {
++        KmppMemPoolSnapshot *row = &rows[i];
++        if (!row->kind) {
++            kmpp_env_log(env, "--------------------------------------------------------------------------------------------\n");
++            kmpp_env_log(env, "|%-4d|   |%-16s|%-12d|%-12d|%-12d|%-12d|%-12d|\n",
++                         row->id, row->name, row->size, row->unused, row->used,
++                         row->unused + row->used, row->max);
++        } else {
++            kmpp_env_log(env, "|    |%-3d|%-16px|%-12d|%-12s|%-12s|%-12s|%-12s|\n",
++                         row->id, row->ptr, row->size,
++                         row->kind == 2 ? "unused" : (const char *)space_12,
++                         row->kind == 1 ? "used" : (const char *)space_12, space_12, space_12);
++        }
++    }
++    if (truncated)
++        kmpp_env_log(env, "snapshot truncated (pool growth or %u-row limit); reread for fresh statistics\n", POOL_SNAPSHOT_MAX_ROWS);
++    kmpp_free(rows);
+ }

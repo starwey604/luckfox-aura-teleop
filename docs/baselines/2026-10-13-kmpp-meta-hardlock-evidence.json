@@ -1,0 +1,117 @@
+{
+  "kernel": "6.1.141 #16 SMP PREEMPT Mon Oct 12 20:51:59 CST 2026",
+  "tested_module_sha256": "8f027a309020f6aec514eaf4556f906a94686e8ea3436b8bb86e096bcc23babe",
+  "sender_sha256": "332d6dd6e1a2aec232e006d51fe8cc51adaca04b6f8d7e956594b7a37d280f56",
+  "netconsole_enabled": false,
+  "ethernet_irq_affinity": "0-3 (boot default)",
+  "usb_irq_affinity": "2 (diagnostic only)",
+  "watchdog_thresh": 3,
+  "frames_per_camera": 120,
+  "minimal_results": [
+    {
+      "name": "minimal-01-cameradual",
+      "exit": 0
+    },
+    {
+      "name": "minimal-02-camera0",
+      "exit": 0
+    },
+    {
+      "name": "minimal-03-camera1",
+      "exit": 0
+    },
+    {
+      "name": "minimal-04-cameradual",
+      "exit": 0
+    },
+    {
+      "name": "minimal-05-cameradual",
+      "exit": 0
+    },
+    {
+      "name": "minimal-06-cameradual",
+      "exit": 0
+    },
+    {
+      "name": "minimal-07-cameradual",
+      "exit": 0
+    },
+    {
+      "name": "minimal-08-cameradual",
+      "exit": 0
+    },
+    {
+      "name": "minimal-09-cameradual",
+      "exit": 0
+    }
+  ],
+  "lifecycle_results": [
+    {
+      "name": "dual-start",
+      "exit": 0
+    },
+    {
+      "name": "mono0",
+      "exit": 0
+    },
+    {
+      "name": "mono1",
+      "exit": 1
+    },
+    {
+      "error": "mono1 failed; stopped remaining tests"
+    }
+  ],
+  "failed_test": {
+    "camera": "1",
+    "frames_per_camera": 120,
+    "mode": "decode",
+    "port": 5000,
+    "vertical_blanking": null,
+    "minimal": false,
+    "success": false,
+    "viewer_command": [
+      "/home/ww/codings/luckfox-aura-teleop/build/host-metrics/bin/host-viewer",
+      "--port",
+      "5000",
+      "--headless",
+      "--frames",
+      "120",
+      "--timeout-ms",
+      "60000",
+      "--dual-stream"
+    ],
+    "sender_command": "matched=0\nfor p in /sys/class/video4linux/v4l-subdev*; do\ncase \"$(cat \"$p/name\")\" in *\"ar0234 3-0010\")\nnode=$(basename \"$p\")\nv4l2-ctl -d \"/dev/$node\" --set-ctrl=exposure=735,analogue_gain=32,digital_gain=512,test_pattern=0 || exit\nmatched=$((matched + 1))\n;; esac\ndone\n[ \"$matched\" -eq 1 ] || { echo \"Expected 1 AR0234 sensor nodes, found $matched\" >&2; exit 1; }\ntimeout -s INT -k 5 21 env TELEOP_METRICS=1 AURA_LIFECYCLE_TRACE=1 /userdata/teleop-sender --camera 1 --width 1280 --height 720 --fps 100 --wrap-lines 0 --port 5000 --frames 120",
+    "sender_exit": 255,
+    "error": "Sender/SSH failed",
+    "board_responds_after": false,
+    "elapsed_seconds": 23.145287522000217
+  },
+  "qspin_records": [
+    "qspin-diag: hardlocked CPU0 slowpath-depth=1",
+    "qspin-diag: cpu=0 slot=0 lock=ffffff80051b9380 initial=0x1 pid=3959 comm=teleop-sender irq-off=1",
+    "qspin-diag: frame=0 _raw_spin_lock+0x44/0x50",
+    "qspin-diag: frame=1 osal_spin_lock+0x18/0x30 [kmpp]",
+    "qspin-diag: frame=2 kmpp_meta_impl_init+0x80/0x100 [kmpp]",
+    "qspin-diag: frame=3 kmpp_obj_get+0x6c/0x120 [kmpp]",
+    "qspin-diag: frame=4 kmpp_meta_get+0x28/0x60 [kmpp]",
+    "qspin-diag: frame=5 kmpp_packet_impl_init+0x60/0x90 [kmpp]",
+    "qspin-diag: frame=6 kmpp_obj_get+0x6c/0x120 [kmpp]",
+    "qspin-diag: frame=7 kmpp_packet_get+0x1c/0x30 [kmpp]",
+    "qspin-diag: frame=8 mpp_enc_alloc_packet_with_ring_buf+0x2c/0x110 [kmpp]",
+    "qspin-diag: frame=9 mpp_enc_impl_slice_info+0xf8/0x210 [kmpp]",
+    "qspin-diag: frame=10 mpp_enc_slice_info+0x1c/0x30 [kmpp]",
+    "qspin-diag: frame=11 mpp_vcodec_enc_int_handle+0x154/0x2c0 [kmpp]"
+  ],
+  "candidate_module_sha256": "b75dda4ef396acac8ca8eacdef2203c2bb540fd783a564cc2577788079c618aa",
+  "candidate_hardware_validation_pending": true,
+  "log_sha256": {
+    "preflight.txt": "07d4274cb8ed62fee630a38015b13faffe57538cd934524347cdca23de1dc862",
+    "runtime-settings.txt": "7cfd7baf32a5e9c2946cf385fd23272f7dcb04ba321d7686b30f952d52030988",
+    "minimal-results.json": "73f5f857e1a6c98d6e317ceb2c7fdfe26a58666678e247659c768ce4adfc22ed",
+    "minimal-usb-kernel.txt": "3d131c02cb7b91fb0e5e2763b11a604b615196aa1c99a770ec3df4fcfb4ffc7c",
+    "lifecycle-usb-kernel.txt": "00f7198601a6454fe488b994d41499d1799b73e44791f7d07ab94938fc48b545",
+    "lifecycle-no-netconsole/mono1/sender.txt": "243e04eddc669d4a53bdb81a901326edd2f877155d8f0e5d76ab2c4b515331d6",
+    "lifecycle-no-netconsole/mono1/monitor.txt": "1bb4e983c90bcdb054309d6eb43887d3ef03bbf0347df6016d390f6924bb343a"
+  }
+}

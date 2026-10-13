@@ -1,0 +1,127 @@
+From d5d13f821d7a155f430088f0681e6bd610d58241 Mon Sep 17 00:00:00 2001
+From: Starwey <moonbite233@gmail.com>
+Date: Tue, 13 Oct 2026 15:12:40 +0800
+Subject: [PATCH 2/3] kmpp: protect meta and allocation lists against slice IRQ
+ reentry
+
+---
+ kmpp/objs/kmpp_meta.c | 16 ++++++++++------
+ osal/kmpp_mem.c       | 19 ++++++++++++-------
+ 2 files changed, 22 insertions(+), 13 deletions(-)
+
+diff --git a/kmpp/objs/kmpp_meta.c b/kmpp/objs/kmpp_meta.c
+index b6f04ec0..9a667e88 100644
+--- a/kmpp/objs/kmpp_meta.c
++++ b/kmpp/objs/kmpp_meta.c
+@@ -66,6 +66,7 @@ static rk_s32 kmpp_meta_impl_init(void *entry, KmppObj obj, osal_fs_dev *file, c
+     KmppMetaSrv *srv = kmpp_meta_srv;
+     KmppMetaPriv *priv = (KmppMetaPriv *)kmpp_obj_to_priv(obj);
+     KmppMetaImpl *impl = (KmppMetaImpl*)entry;
++    rk_ul flags = 0;
+ 
+     if (!impl || !srv) {
+         kmpp_loge_f("invalid entry %px srv %px\n", entry, srv);
+@@ -81,9 +82,10 @@ static rk_s32 kmpp_meta_impl_init(void *entry, KmppObj obj, osal_fs_dev *file, c
+     priv->obj = obj;
+     OSAL_INIT_LIST_HEAD(&priv->list);
+ 
+-    osal_spin_lock(srv->lock);
++    /* Packet slice IRQs share this list with process-context get/put. */
++    osal_spin_lock_irqsave(srv->lock, &flags);
+     osal_list_add_tail(&priv->list, &srv->list);
+-    osal_spin_unlock(srv->lock);
++    osal_spin_unlock_irqrestore(srv->lock, &flags);
+     KMPP_FETCH_ADD(&srv->meta_count, 1);
+ 
+     meta_dbg_flow("meta %d obj %px entry %px at %s\n",
+@@ -99,6 +101,7 @@ static rk_s32 kmpp_meta_impl_deinit(void *entry, KmppObj obj, const rk_u8 *calle
+     KmppMetaPriv *priv = impl->priv;
+     rk_s32 ref_count;
+     rk_s32 old;
++    rk_ul flags = 0;
+     (void)obj;
+ 
+     if (srv->finished)
+@@ -119,9 +122,9 @@ static rk_s32 kmpp_meta_impl_deinit(void *entry, KmppObj obj, const rk_u8 *calle
+         return rk_nok;
+     }
+ 
+-    osal_spin_lock(srv->lock);
++    osal_spin_lock_irqsave(srv->lock, &flags);
+     osal_list_del_init(&priv->list);
+-    osal_spin_unlock(srv->lock);
++    osal_spin_unlock_irqrestore(srv->lock, &flags);
+     KMPP_FETCH_SUB(&srv->meta_count, 1);
+ 
+     return rk_ok;
+@@ -263,12 +266,13 @@ static rk_s32 kmpp_meta_deinit(void)
+     KmppMetaSrv *srv = kmpp_meta_srv;
+     KmppMetaPriv *meta, *n;
+     OSAL_LIST_HEAD(list);
++    rk_ul flags = 0;
+ 
+-    osal_spin_lock(srv->lock);
++    osal_spin_lock_irqsave(srv->lock, &flags);
+     osal_list_for_each_entry_safe(meta, n, &srv->list, KmppMetaPriv, list) {
+         osal_list_move_tail(&meta->list, &list);
+     }
+-    osal_spin_unlock(srv->lock);
++    osal_spin_unlock_irqrestore(srv->lock, &flags);
+ 
+     osal_list_for_each_entry_safe(meta, n, &list, KmppMetaPriv, list) {
+         osal_list_del_init(&meta->list);
+diff --git a/osal/kmpp_mem.c b/osal/kmpp_mem.c
+index 03048e62..6844c228 100644
+--- a/osal/kmpp_mem.c
++++ b/osal/kmpp_mem.c
+@@ -113,6 +113,7 @@ static inline void *kmem_add(void *p, const char *func, rk_u32 size)
+ {
+     KmppMemNode *node = (KmppMemNode *)p;
+     KmppMemSrv *srv = get_mem_srv(func);
++    unsigned long flags;
+ 
+     node->ptr = p + sizeof(KmppMemNode);
+     node->size = size;
+@@ -120,10 +121,10 @@ static inline void *kmem_add(void *p, const char *func, rk_u32 size)
+     snprintf(node->func, sizeof(node->func) - 1, "%s", func);
+ 
+     if (srv) {
+-        spin_lock(&srv->lock);
++        spin_lock_irqsave(&srv->lock, flags);
+         osal_list_add_tail(&node->list, &srv->list);
+         KMPP_FETCH_ADD(&srv->mem_size, size);
+-        spin_unlock(&srv->lock);
++        spin_unlock_irqrestore(&srv->lock, flags);
+     }
+ 
+     mem_dbg_flow("kmem_add %px size %d at %s\n", p, size, func);
+@@ -135,21 +136,25 @@ static inline void *kmem_del(void *p, const char *func)
+ {
+     KmppMemNode *node = (KmppMemNode *)((rk_u8 *)p - sizeof(KmppMemNode));
+     KmppMemSrv *srv = get_mem_srv(func);
++    unsigned long flags;
++    bool mismatch = false;
+ 
+     mem_dbg_flow("kmem_del %px size %d at %s from %s\n",
+                  node, node->size, node->func, func);
+ 
+     if (srv) {
+-        spin_lock(&srv->lock);
+-        if (node->ptr != p)
+-            kmpp_loge("kmem_del mismatch: node %px input %px at %s\n",
+-                    node->ptr, p, func);
++        spin_lock_irqsave(&srv->lock, flags);
++        mismatch = node->ptr != p;
+ 
+         osal_list_del_init(&node->list);
+         KMPP_FETCH_SUB(&srv->mem_size, node->size);
+-        spin_unlock(&srv->lock);
++        spin_unlock_irqrestore(&srv->lock, flags);
+     }
+ 
++    if (mismatch)
++        kmpp_loge("kmem_del mismatch: node %px input %px at %s\n",
++                  node->ptr, p, func);
++
+     return node;
+ }

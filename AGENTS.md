@@ -53,6 +53,10 @@ Order matters: apply the SDK patch stack and `select-teleop-board` before SDK bu
   The fifth patch target is `sysdrv/drv_ko/kmpp/kmpp` (`teleop/kmpp-irq-locks`):
   object-definition get/put lists are also accessed by slice IRQ callbacks, so their
   paired locks must save/restore local IRQ state. Preserve the opaque OSAL layouts.
+  Meta-server and allocation-accounting lists have the same IRQ-sharing requirement;
+  pool diagnostics must snapshot under IRQ-safe locking and format after unlocking.
+  `tests/aura/test_kmpp_pool_snapshot.py` extracts the real SDK snapshot function for
+  ASan/UBSan host testing in Distrobox; it does not simulate hardware IRQ execution.
   Only `export` pulls from the listed `teleop/*` branches; don't commit one-off SDK experiments.
 - After changing SDK config, prefer editing the source locations under `sysdrv/tools/...` /
   the BoardConfig patch. Do not edit `sysdrv/source/buildroot/buildroot-2025.02.6`, which is
