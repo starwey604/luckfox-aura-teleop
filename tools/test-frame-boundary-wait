@@ -1,0 +1,89 @@
+#!/usr/bin/env python3
+"""Native VAAPI: compare bytestream lookahead with externally known complete AUs."""
+import argparse
+import hashlib
+import json
+import os
+from pathlib import Path
+import re
+import shlex
+import subprocess
+
+ROOT = Path(__file__).resolve().parents[1]
+
+
+def run(command, **kwargs):
+    return subprocess.run(command, check=True, text=True, stdout=subprocess.PIPE,
+                          stderr=subprocess.STDOUT, timeout=60, **kwargs).stdout
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('--input', type=Path, action='append', default=[], help='Recorded Annex-B file; repeatable')
+    parser.add_argument('--output', type=Path, required=True, help='New directory for probe and evidence')
+    parser.add_argument('--frames', type=int, default=120, help='Maximum AUs per input (1..300)')
+    parser.add_argument('--period-us', type=int, default=10000, help='Synthetic delivery interval, not sensor timing')
+    args = parser.parse_args()
+    if Path('/run/.containerenv').exists() or Path('/.dockerenv').exists():
+        parser.error('Run VAAPI on native CachyOS, not in Distrobox')
+    if not 1 <= args.frames <= 300 or not 0 <= args.period_us <= 100000:
+        parser.error('Invalid frames or period')
+    args.output.mkdir(parents=True, exist_ok=False)
+    probe = args.output.resolve() / 'frame-boundary-probe'
+    flags = shlex.split(run(['pkg-config', '--cflags', '--libs', 'libavcodec', 'libavutil']))
+    build = [os.environ.get('CXX', 'c++'), '-std=c++20', '-O2', '-Wall', '-Wextra',
+             '-Wpedantic', '-Wconversion', '-pthread',
+             '-I' + str(ROOT / 'src/common/include'), '-I' + str(ROOT / 'src/host-viewer/src'),
+             str(ROOT / 'tests/latency/frame_boundary_probe.cpp'),
+             str(ROOT / 'src/host-viewer/src/h264_decoder.cpp'),
+             str(ROOT / 'src/common/performance.cpp'), '-o', str(probe)] + flags
+    (args.output / 'build.txt').write_text(run(build))
+    sample = args.output / 'multislice.h264'
+    run(['ffmpeg', '-v', 'error', '-f', 'lavfi', '-i', 'testsrc2=size=320x180:rate=100',
+         '-frames:v', '12', '-c:v', 'libx264', '-preset', 'ultrafast', '-tune', 'zerolatency',
+         '-x264-params', 'bframes=0:keyint=12:scenecut=0:slices=4', '-f', 'h264', str(sample)])
+    inputs = [sample] + args.input
+    results = []
+    for index, path in enumerate(inputs):
+        metadata = json.loads(run(['ffprobe', '-v', 'error', '-select_streams', 'v:0',
+                                   '-show_packets', '-show_streams', '-of', 'json', str(path)]))
+        packets = metadata['packets'][:args.frames]
+        if not packets:
+            raise RuntimeError('No complete AUs found in ' + str(path))
+        if metadata['streams'][0].get('has_b_frames') != 0:
+            raise RuntimeError('This immediate-output experiment requires no B-frame reordering')
+        offsets = args.output / f'input-{index}-offsets.txt'
+        offsets.write_text(''.join(f"{p['pos']} {p['size']}\n" for p in packets))
+        record = {'path': str(path.resolve()), 'sha256': hashlib.sha256(path.read_bytes()).hexdigest(),
+                  'metadata': metadata, 'modes': {}}
+        for mode in ['stream', 'complete-parser', 'direct']:
+            output = run([str(probe), mode, str(path), str(offsets), str(args.period_us)],
+                         env=dict(os.environ, TELEOP_METRICS='1'))
+            (args.output / f'input-{index}-{mode}.txt').write_text(output)
+            if re.search(r'\[h264 @|host-viewer:', output):
+                raise RuntimeError('Decoder warning: ' + output)
+            result = json.loads(re.search(r'^boundary-probe: (.+)$', output, re.M)[1])
+            count = len(packets)
+            expected = list(range(count)) if mode == 'stream' else list(range(1, count + 1))
+            if result['decoded_after_inputs'] != expected or result['hardware_frames'] != count:
+                raise RuntimeError('Unexpected parser/decode boundary: ' + output)
+            result['metrics'] = {
+                name: {key: float(value) for key, value in re.findall(r'(\w+)=([\d.]+)', data)}
+                for name, data in re.findall(r'^metric: stage=(\S+) (.*)$', output, re.M)}
+            for stage in ('parser_wait', 'submit_to_frame', 'au_ready_to_frame'):
+                if result['metrics'].get('host.stream0.' + stage, {}).get('samples') != count:
+                    raise RuntimeError('Lost AU timestamp association: ' + output)
+            record['modes'][mode] = result
+            print(f'{path.name}: {mode}, before flush={result["before_flush"]}/{count}, '
+                  f'first AU output={result["decoded_after_inputs"][0]}', flush=True)
+        results.append(record)
+    (args.output / 'results.json').write_text(json.dumps({
+        'period_us': args.period_us, 'ffmpeg': run(['ffmpeg', '-version']).splitlines()[0],
+        'inputs': results, 'limitations': ['AU offsets supplied by ffprobe offline',
+                                         'Does not modify live sender/viewer or validate arbitrary chunks']},
+        ensure_ascii=False, indent=2) + '\n')
+    print('PASS: production byte-stream parser waits for next AU; complete-AU paths emit immediately')
+
+
+if __name__ == '__main__':
+    main()

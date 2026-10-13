@@ -14,6 +14,14 @@ tests using `build/host-metrics/bin/host-viewer` (override `TELEOP_TEST_VIEWER`)
 Stage times are process-local; VAAPI frame availability does not prove that GPU
 work or panel scanout has completed.
 
+`tools/test-frame-boundary-wait --output logs/frame-boundary/new-run` is a native
+VAAPI boundary experiment. It links the production parser/decoder and compares
+normal byte-stream parsing, explicitly complete-AU parsing and direct complete-AU
+submission on a generated multi-slice stream. Repeat `--input path.h264` to also
+check recordings (no B-frame reordering). The offset oracle is offline ffprobe;
+this does not change live viewer defaults or license treating slices as frames.
+See [`docs/frame-boundary-wait-exploration-2026-10-13.md`](../../docs/frame-boundary-wait-exploration-2026-10-13.md).
+
 The first optical stimulus is built on the CachyOS host only:
 
 ```sh

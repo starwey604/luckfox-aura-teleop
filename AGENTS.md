@@ -121,3 +121,8 @@ Order matters: apply the SDK patch stack and `select-teleop-board` before SDK bu
   (`hardware_frames == frames`, `presenter: frames=...`, zero malformed/dropped).
 - Keep internal software timestamps separate from screen-to-screen numbers; only `--same-clock`
   loopback gives a valid sender→receiver delay without external optical measurement.
+- `tools/test-frame-boundary-wait --output <new-dir>` is native-only: it uses the real
+  VAAPI decoder with ffprobe-provided complete AU boundaries to measure parser lookahead.
+  Production mode3 packs still report bFrameEnd on every slice; never mark such slices
+  as complete AUs. SDK split mode1 returned whole frames in a bounded diagnostic run,
+  but changing split mode alone does not remove the sender's next-PTS wait.
