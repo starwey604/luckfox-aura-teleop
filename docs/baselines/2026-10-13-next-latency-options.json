@@ -1,0 +1,131 @@
+{
+  "date": "2026-10-13",
+  "scope": "read-only audit, isolated compatibility builds; no deployments, runtime tuning or camera runs",
+  "performance_gain_measured": false,
+  "host": {
+    "kernel": "7.2.9-2-cachyos",
+    "cpu": "AMD Ryzen AI 9 HX 470",
+    "GPU_node": "/dev/dri/renderD128",
+    "nic": "r8169 / RTL8125B",
+    "queues": "1 RX / 1 TX",
+    "coalescing": "get unsupported",
+    "EEE": "enabled - inactive",
+    "cpu_driver": "amd-pstate-epp",
+    "governor": "powersave",
+    "EPP": "balance_performance",
+    "GPU_level": "auto",
+    "native_arch": "znver5",
+    "NET_RX_BUSY_POLL": true,
+    "busy_poll": 0,
+    "hardware_timestamp": "none"
+  },
+  "board": {
+    "kernel": "6.1.141 #16, A",
+    "cpu": "Cortex-A53 (implementer 0x41 part 0xd03)",
+    "queues": "1 RX / 1 TX",
+    "rx_usecs": 327,
+    "tx_usecs": 1000,
+    "tx_frames": 25,
+    "EEE": "disabled",
+    "rps_cpus": "0",
+    "xps_cpus": "0",
+    "cpufreq_sysfs": "absent",
+    "DMC_sysfs": "absent",
+    "available_governors": [
+      "venc_ondemand",
+      "rknpu_ondemand",
+      "userspace",
+      "simple_ondemand"
+    ],
+    "VENC_governor": "venc_ondemand",
+    "NET_SCHED": false,
+    "PHC": "0, host peer has no PHC"
+  },
+  "current_compilation": {
+    "sender": "GCC12.4 O3 DNDEBUG no IPO no CPU tune",
+    "viewer": "GCC16.2.1 O3 DNDEBUG no IPO no native arch",
+    "kernel": "GCC12.4 O2 no LTO",
+    "Buildroot": "Os no LTO"
+  },
+  "probes": {
+    "host_gcc": {
+      "path": "build/probes/host-gcc-ipo-native",
+      "flags": "O3, CMake IPO, march=native",
+      "build": "pass",
+      "ctest": 2,
+      "native_VAAPI_tests": 2,
+      "hardware_frames": 125,
+      "warnings": 0
+    },
+    "host_clang": {
+      "path": "build/probes/host-clang-thinlto-native",
+      "flags": "O3, flto=thin, march=native, fuse-ld=lld",
+      "build": "pass",
+      "ctest": 2,
+      "native_VAAPI_tests": 2,
+      "hardware_frames": 125,
+      "warnings": [
+        "protocol.cpp:32 integer precision conversion",
+        "performance.cpp:19 signedness conversion"
+      ]
+    },
+    "aura_ipo": {
+      "path": "build/probes/aura-gcc-ipo-a53",
+      "build": "failed: fno-fat-lto-objects only supported with linker plugin",
+      "configure": "enable-lto, disable-plugin",
+      "liblto_plugin_so": "not found, static archive present",
+      "CheckIPOSupported": "NO",
+      "interpretation": "tiny direct LTO link does not prove standard CMake IPO/static library support"
+    },
+    "aura_tune": {
+      "path": "build/probes/aura-gcc-a53",
+      "flags": "O3, mtune=cortex-a53, no IPO",
+      "Distrobox_build": "pass",
+      "AArch64_ELF_RUNPATH_runtime_check": "pass",
+      "board_execution": "not run"
+    }
+  },
+  "priority": [
+    "viewer RX/decode/render separation and latest decoded mailbox",
+    "kernel RX timestamp and SO_RXQ_OVFL observability",
+    "recvmmsg and network queue experiments",
+    "compiler options measured individually",
+    "wireless/display/NPU/Buildroot trimming",
+    "vendor slice/dual-wrap research"
+  ],
+  "binaries": {
+    "sender_current": {
+      "bytes": 157824,
+      "sha256": "06583eb5ab52c824f2d8fab1cbea24839fb81aef547060e9d84eb900456a33bd"
+    },
+    "viewer_current": {
+      "bytes": 134096,
+      "sha256": "46e89a46514fe9eecb6a5a8e3f56a3fc9fc27d7335c6f2308f4a3aba02807d86"
+    },
+    "viewer_gcc_probe": {
+      "bytes": 107008,
+      "sha256": "a0d0c85bdaa93707768fa53e21b7e8ce15bbab80c940a9378798b59203babb03"
+    },
+    "viewer_clang_probe": {
+      "bytes": 93512,
+      "sha256": "a6251bd8ba75191d5d7e3932c263fd2805a870b43f339b6cc03553bdccb6a179"
+    },
+    "sender_tune_probe": {
+      "bytes": 157824,
+      "sha256": "3a23ab93cf23851dbf5e13b6868c44e05029807651ae41f1ebec917f7f56aabd"
+    }
+  },
+  "hardware_frame_count_basis": "Each passed suite: five dual 24-frame cases plus one 5-frame missing-fragment case; only four enabled cases print decoder summaries.",
+  "audit_logs_sha256": {
+    "logs/next-latency-options/20261013/host-gcc-ipo.txt": "8937d19403fc3750e6bca67f3f70ef6bf0afb949e26ffdc43264c9338d1d4ef7",
+    "logs/next-latency-options/20261013/host-gcc-ipo-vaapi.txt": "054b8df9220910f6ab49f9a99e91753f19b0b74cf9d02e8fcdac49c4b0992a0c",
+    "logs/next-latency-options/20261013/host-network.txt": "50352ac4d0f74b2ba9bc0ae12753ece25c575865a86fca3d8fdb5e36e56c25e5",
+    "logs/next-latency-options/20261013/board-network.txt": "fb0bd10f7506db79b28ce841b0f6447415651ccea38a3d05540721d090c4abf9",
+    "logs/next-latency-options/20261013/host-clang-thinlto.txt": "e114381e4c3e6ca5addd81890745a47dbb0883117b62ff1619f26da27577850b",
+    "logs/next-latency-options/20261013/aura-gcc-ipo-a53.txt": "1810bd106e11da7fa76d7f8ad71539ee54faf44c2317d903b0b08b6e02c33e72",
+    "logs/next-latency-options/20261013/aura-lto-capability.txt": "8c114fbba1dfab46f97ba77676e12e12882afaef90677167db82f09839df15c7",
+    "logs/next-latency-options/20261013/aura-gcc-a53.txt": "3ff3ed2986c3c209e3be0fae0b257fad88030b57f020e5299c0be4be5075a423",
+    "logs/next-latency-options/20261013/host-clang-thinlto-vaapi.txt": "16e05a68c2d23f052e95a4964ebb3261b473503847b0b24aa5fac2f3dd877f0b",
+    "logs/next-latency-options/20261013/aura-ipo-check.txt": "8bf4c4088fc846b5af026a5b3be35d2af17f521e2e34925c61fe5a5bff799b89"
+  }
+}

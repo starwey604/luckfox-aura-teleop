@@ -2,6 +2,7 @@
 
 2026-10-12。依据当前 SDK 有效配置、生成的根文件系统、ELF 依赖和程序源码审计。
 后续实施状态见 [K1 候选与 A/B](kernel-k1-ab-2026-10-13.md)：A→B→A-return 已完成，K1 短测通过，整体延迟收益未证明；体积/内存收益已确认，板子当前保留 A。
+下一轮候选及实际编译探针见 [延迟优化选项](next-latency-optimization-options-2026-10-13.md)。更新：本机GCC/Clang LTO viewer兼容性通过，但SDK标准CMake IPO因缺少linker plugin失败；原先小型LTO示例不能代替这个检查。
 第一组先裁音频、无关 sensor/UVC、网络功能；无线需要配套服务/模块处理，分到下一组。USB/ADB暂保留。
 目标为双路 AR0234 1280×720、约 99.23 fps → MPP H.264 → 直连千兆网 → CachyOS VAAPI/Vulkan。
 本轮只做探索、配置依赖验证和基线归档，没有修改正在使用的 SDK 配置，也没有构建或烧写新的镜像。
