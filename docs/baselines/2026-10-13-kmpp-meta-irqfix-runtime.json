@@ -1,0 +1,1004 @@
+{
+  "date": "2026-10-13",
+  "image": "kmpp-meta-irqfix-20261013",
+  "kernel": "6.1.141 #16 SMP PREEMPT Mon Oct 12 20:51:59 CST 2026",
+  "module_sha256": "b75dda4ef396acac8ca8eacdef2203c2bb540fd783a564cc2577788079c618aa",
+  "sender_sha256": "332d6dd6e1a2aec232e006d51fe8cc51adaca04b6f8d7e956594b7a37d280f56",
+  "log_root": "logs/lifecycle/20261013-meta-runtime",
+  "netconsole": false,
+  "watchdog_initial_diagnostic": {
+    "threshold": 3,
+    "all_cpu_backtrace": 1,
+    "usb_irq_cpu": "2",
+    "ethernet_irq_cpu": "0-3"
+  },
+  "restored": {
+    "threshold": 10,
+    "all_cpu_backtrace": 0,
+    "usb_irq_cpu": "0-3",
+    "ethernet_irq_cpu": "0-3"
+  },
+  "normal_tests": [
+    {
+      "test": "default-01-dual",
+      "camera": "dual",
+      "frames_per_camera": 120,
+      "hardware_frames": 240,
+      "success": true
+    },
+    {
+      "test": "default-02-0",
+      "camera": "0",
+      "frames_per_camera": 120,
+      "hardware_frames": 120,
+      "success": true
+    },
+    {
+      "test": "default-03-1",
+      "camera": "1",
+      "frames_per_camera": 120,
+      "hardware_frames": 120,
+      "success": true
+    },
+    {
+      "test": "lifecycle-no-netconsole/dual-after-mono",
+      "camera": "dual",
+      "frames_per_camera": 120,
+      "hardware_frames": 240,
+      "success": true
+    },
+    {
+      "test": "lifecycle-no-netconsole/dual-recovery",
+      "camera": "dual",
+      "frames_per_camera": 120,
+      "hardware_frames": 240,
+      "success": true
+    },
+    {
+      "test": "lifecycle-no-netconsole/dual-start",
+      "camera": "dual",
+      "frames_per_camera": 120,
+      "hardware_frames": 240,
+      "success": true
+    },
+    {
+      "test": "lifecycle-no-netconsole/mono0",
+      "camera": "0",
+      "frames_per_camera": 120,
+      "hardware_frames": 120,
+      "success": true
+    },
+    {
+      "test": "lifecycle-no-netconsole/mono1",
+      "camera": "1",
+      "frames_per_camera": 120,
+      "hardware_frames": 120,
+      "success": true
+    },
+    {
+      "test": "minimal-01-dual",
+      "camera": "dual",
+      "frames_per_camera": 120,
+      "hardware_frames": 240,
+      "success": true
+    },
+    {
+      "test": "minimal-02-0",
+      "camera": "0",
+      "frames_per_camera": 120,
+      "hardware_frames": 120,
+      "success": true
+    },
+    {
+      "test": "minimal-03-1",
+      "camera": "1",
+      "frames_per_camera": 120,
+      "hardware_frames": 120,
+      "success": true
+    },
+    {
+      "test": "pool-read-dual",
+      "camera": "dual",
+      "frames_per_camera": 120,
+      "hardware_frames": 240,
+      "success": true
+    },
+    {
+      "test": "repeat-01-dual",
+      "camera": "dual",
+      "frames_per_camera": 120,
+      "hardware_frames": 240,
+      "success": true
+    },
+    {
+      "test": "repeat-02-0",
+      "camera": "0",
+      "frames_per_camera": 120,
+      "hardware_frames": 120,
+      "success": true
+    },
+    {
+      "test": "repeat-03-1",
+      "camera": "1",
+      "frames_per_camera": 120,
+      "hardware_frames": 120,
+      "success": true
+    },
+    {
+      "test": "repeat-04-dual",
+      "camera": "dual",
+      "frames_per_camera": 120,
+      "hardware_frames": 240,
+      "success": true
+    },
+    {
+      "test": "active-pool-read-dual",
+      "camera": "dual",
+      "frames_per_camera": 120,
+      "hardware_frames": 240,
+      "success": true
+    }
+  ],
+  "lifecycle_suite": [
+    {
+      "name": "dual-start",
+      "exit": 0
+    },
+    {
+      "name": "mono0",
+      "exit": 0
+    },
+    {
+      "name": "mono1",
+      "exit": 0
+    },
+    {
+      "name": "dual-after-mono",
+      "exit": 0
+    },
+    {
+      "name": "fail-camera1.vi.enabled",
+      "exit": 1
+    },
+    {
+      "name": "fail-camera1.venc.created",
+      "exit": 1
+    },
+    {
+      "name": "fail-camera0.stream.acquired",
+      "exit": 1
+    },
+    {
+      "name": "TERM-during-init",
+      "exit": 0
+    },
+    {
+      "name": "INT-after-ready",
+      "exit": 0
+    },
+    {
+      "name": "dual-recovery",
+      "exit": 0
+    }
+  ],
+  "cleanup_checks": [
+    {
+      "test": "default-01-dual",
+      "wait_free_mb": true,
+      "sys_exit": true
+    },
+    {
+      "test": "default-02-0",
+      "wait_free_mb": true,
+      "sys_exit": true
+    },
+    {
+      "test": "default-03-1",
+      "wait_free_mb": true,
+      "sys_exit": true
+    },
+    {
+      "test": "lifecycle-no-netconsole/dual-after-mono",
+      "wait_free_mb": true,
+      "sys_exit": true
+    },
+    {
+      "test": "lifecycle-no-netconsole/dual-recovery",
+      "wait_free_mb": true,
+      "sys_exit": true
+    },
+    {
+      "test": "lifecycle-no-netconsole/dual-start",
+      "wait_free_mb": true,
+      "sys_exit": true
+    },
+    {
+      "test": "lifecycle-no-netconsole/mono0",
+      "wait_free_mb": true,
+      "sys_exit": true
+    },
+    {
+      "test": "lifecycle-no-netconsole/mono1",
+      "wait_free_mb": true,
+      "sys_exit": true
+    },
+    {
+      "test": "pool-read-dual",
+      "wait_free_mb": true,
+      "sys_exit": true
+    },
+    {
+      "test": "repeat-01-dual",
+      "wait_free_mb": true,
+      "sys_exit": true
+    },
+    {
+      "test": "repeat-02-0",
+      "wait_free_mb": true,
+      "sys_exit": true
+    },
+    {
+      "test": "repeat-03-1",
+      "wait_free_mb": true,
+      "sys_exit": true
+    },
+    {
+      "test": "repeat-04-dual",
+      "wait_free_mb": true,
+      "sys_exit": true
+    },
+    {
+      "test": "lifecycle-no-netconsole/fail-camera1.vi.enabled",
+      "wait_free_mb": true,
+      "sys_exit": true
+    },
+    {
+      "test": "lifecycle-no-netconsole/fail-camera1.venc.created",
+      "wait_free_mb": true,
+      "sys_exit": true
+    },
+    {
+      "test": "lifecycle-no-netconsole/fail-camera0.stream.acquired",
+      "wait_free_mb": true,
+      "sys_exit": true
+    },
+    {
+      "test": "lifecycle-no-netconsole/TERM-during-init",
+      "wait_free_mb": true,
+      "sys_exit": true
+    },
+    {
+      "test": "lifecycle-no-netconsole/INT-after-ready",
+      "wait_free_mb": true,
+      "sys_exit": true
+    },
+    {
+      "test": "active-pool-read-dual",
+      "wait_free_mb": true,
+      "sys_exit": true
+    }
+  ],
+  "concurrent_pool_reads": {
+    "initialization": 20,
+    "confirmed_encoding": 30,
+    "encoding_packet_used_range": [
+      4,
+      8
+    ]
+  },
+  "normal_hardware_frames": 3120,
+  "accepted_cases": 22,
+  "snapshot_temperature_c": {
+    "min": 44.16,
+    "max": 46.88,
+    "source": "Non-interleaved before/after snapshots only"
+  },
+  "pools_initial": [
+    {
+      "id": 0,
+      "name": "kmpp_obj_head",
+      "size": 88,
+      "unused": 0,
+      "used": 0,
+      "total": 0
+    },
+    {
+      "id": 1,
+      "name": "KmppIoc",
+      "size": 136,
+      "unused": 0,
+      "used": 0,
+      "total": 0
+    },
+    {
+      "id": 2,
+      "name": "KmppBufGrp",
+      "size": 436,
+      "unused": 0,
+      "used": 1,
+      "total": 1
+    },
+    {
+      "id": 3,
+      "name": "KmppBufGrpCfg",
+      "size": 168,
+      "unused": 0,
+      "used": 1,
+      "total": 1
+    },
+    {
+      "id": 4,
+      "name": "KmppBuffer",
+      "size": 456,
+      "unused": 0,
+      "used": 0,
+      "total": 0
+    },
+    {
+      "id": 5,
+      "name": "KmppBufCfg",
+      "size": 248,
+      "unused": 0,
+      "used": 0,
+      "total": 0
+    },
+    {
+      "id": 6,
+      "name": "KmppMeta",
+      "size": 120,
+      "unused": 0,
+      "used": 0,
+      "total": 0
+    },
+    {
+      "id": 7,
+      "name": "KmppMeta",
+      "size": 952,
+      "unused": 0,
+      "used": 0,
+      "total": 0
+    },
+    {
+      "id": 8,
+      "name": "KmppFrame",
+      "size": 240,
+      "unused": 0,
+      "used": 0,
+      "total": 0
+    },
+    {
+      "id": 9,
+      "name": "KmppPacket",
+      "size": 240,
+      "unused": 0,
+      "used": 0,
+      "total": 0
+    },
+    {
+      "id": 10,
+      "name": "KmppVencInitCfg",
+      "size": 184,
+      "unused": 0,
+      "used": 0,
+      "total": 0
+    },
+    {
+      "id": 11,
+      "name": "KmppVencStCfg",
+      "size": 4464,
+      "unused": 0,
+      "used": 0,
+      "total": 0
+    },
+    {
+      "id": 12,
+      "name": "KmppVencNtfy",
+      "size": 160,
+      "unused": 0,
+      "used": 0,
+      "total": 0
+    },
+    {
+      "id": 13,
+      "name": "KmppVspInitCfg",
+      "size": 120,
+      "unused": 0,
+      "used": 0,
+      "total": 0
+    },
+    {
+      "id": 14,
+      "name": "KmppVspRtCfg",
+      "size": 164,
+      "unused": 0,
+      "used": 0,
+      "total": 0
+    },
+    {
+      "id": 15,
+      "name": "KmppVspRtOut",
+      "size": 96,
+      "unused": 0,
+      "used": 0,
+      "total": 0
+    },
+    {
+      "id": 16,
+      "name": "mpp_buffer",
+      "size": 112,
+      "unused": 0,
+      "used": 0,
+      "total": 0
+    }
+  ],
+  "pools_final": [
+    {
+      "id": 0,
+      "name": "kmpp_obj_head",
+      "size": 88,
+      "unused": 4,
+      "used": 0,
+      "total": 4
+    },
+    {
+      "id": 1,
+      "name": "KmppIoc",
+      "size": 136,
+      "unused": 0,
+      "used": 0,
+      "total": 0
+    },
+    {
+      "id": 2,
+      "name": "KmppBufGrp",
+      "size": 436,
+      "unused": 0,
+      "used": 1,
+      "total": 1
+    },
+    {
+      "id": 3,
+      "name": "KmppBufGrpCfg",
+      "size": 168,
+      "unused": 0,
+      "used": 1,
+      "total": 1
+    },
+    {
+      "id": 4,
+      "name": "KmppBuffer",
+      "size": 456,
+      "unused": 15,
+      "used": 0,
+      "total": 15
+    },
+    {
+      "id": 5,
+      "name": "KmppBufCfg",
+      "size": 248,
+      "unused": 15,
+      "used": 0,
+      "total": 15
+    },
+    {
+      "id": 6,
+      "name": "KmppMeta",
+      "size": 120,
+      "unused": 0,
+      "used": 0,
+      "total": 0
+    },
+    {
+      "id": 7,
+      "name": "KmppMeta",
+      "size": 952,
+      "unused": 19,
+      "used": 0,
+      "total": 19
+    },
+    {
+      "id": 8,
+      "name": "KmppFrame",
+      "size": 240,
+      "unused": 2,
+      "used": 0,
+      "total": 2
+    },
+    {
+      "id": 9,
+      "name": "KmppPacket",
+      "size": 240,
+      "unused": 18,
+      "used": 0,
+      "total": 18
+    },
+    {
+      "id": 10,
+      "name": "KmppVencInitCfg",
+      "size": 184,
+      "unused": 0,
+      "used": 0,
+      "total": 0
+    },
+    {
+      "id": 11,
+      "name": "KmppVencStCfg",
+      "size": 4464,
+      "unused": 4,
+      "used": 0,
+      "total": 4
+    },
+    {
+      "id": 12,
+      "name": "KmppVencNtfy",
+      "size": 160,
+      "unused": 2,
+      "used": 0,
+      "total": 2
+    },
+    {
+      "id": 13,
+      "name": "KmppVspInitCfg",
+      "size": 120,
+      "unused": 0,
+      "used": 0,
+      "total": 0
+    },
+    {
+      "id": 14,
+      "name": "KmppVspRtCfg",
+      "size": 164,
+      "unused": 0,
+      "used": 0,
+      "total": 0
+    },
+    {
+      "id": 15,
+      "name": "KmppVspRtOut",
+      "size": 96,
+      "unused": 0,
+      "used": 0,
+      "total": 0
+    },
+    {
+      "id": 16,
+      "name": "mpp_buffer",
+      "size": 112,
+      "unused": 15,
+      "used": 0,
+      "total": 15
+    }
+  ],
+  "kernel_captures": [
+    {
+      "file": "usb-kernel.txt",
+      "hardlock": false,
+      "softlock": false,
+      "kernel_warning_stack": false,
+      "cif_vblank_warning_count": 60
+    },
+    {
+      "file": "usb-kernel-default-settings.txt",
+      "hardlock": false,
+      "softlock": false,
+      "kernel_warning_stack": false,
+      "cif_vblank_warning_count": 68
+    },
+    {
+      "file": "usb-kernel-active-pools.txt",
+      "hardlock": false,
+      "softlock": false,
+      "kernel_warning_stack": false,
+      "cif_vblank_warning_count": 72
+    }
+  ],
+  "metrics_default_dual": {
+    "source": "default-01-dual",
+    "clock": "CLOCK_MONOTONIC process-local only",
+    "units": "ms",
+    "quantiles": "upper histogram bin bounds",
+    "values": {
+      "stream0.sender.au_interval": {
+        "samples": 119,
+        "min": 9.67925,
+        "mean": 10.071733,
+        "p50": 10.092543,
+        "p95": 10.223615,
+        "p99": 10.223615,
+        "max": 10.235167
+      },
+      "stream0.sender.au_pack_span": {
+        "samples": 120,
+        "min": 1.7185,
+        "mean": 2.240046,
+        "p50": 2.260991,
+        "p95": 2.293759,
+        "p99": 2.392063,
+        "max": 2.400125
+      },
+      "stream0.sender.first_pack_to_send": {
+        "samples": 120,
+        "min": 9.681583,
+        "mean": 10.072008,
+        "p50": 10.092543,
+        "p95": 10.223615,
+        "p99": 10.223615,
+        "max": 10.242167
+      },
+      "stream0.sender.get_stream_wait": {
+        "samples": 961,
+        "min": 0.024791,
+        "mean": 1.208971,
+        "p50": 0.290815,
+        "p95": 7.864319,
+        "p99": 7.995391,
+        "max": 8.214209
+      },
+      "stream0.sender.next_pts_wait": {
+        "samples": 120,
+        "min": 7.307416,
+        "mean": 7.831962,
+        "p50": 7.864319,
+        "p95": 8.126463,
+        "p99": 8.191999,
+        "max": 8.230833
+      },
+      "stream0.sender.udp_queue": {
+        "samples": 120,
+        "min": 0.263958,
+        "mean": 0.337458,
+        "p50": 0.311295,
+        "p95": 0.647167,
+        "p99": 0.704511,
+        "max": 0.741708
+      },
+      "stream1.sender.au_interval": {
+        "samples": 119,
+        "min": 9.705208,
+        "mean": 10.072184,
+        "p50": 10.092543,
+        "p95": 10.223615,
+        "p99": 10.223615,
+        "max": 10.22525
+      },
+      "stream1.sender.au_pack_span": {
+        "samples": 120,
+        "min": 1.525125,
+        "mean": 2.204402,
+        "p50": 2.228223,
+        "p95": 2.293759,
+        "p99": 2.385833,
+        "max": 2.385833
+      },
+      "stream1.sender.first_pack_to_send": {
+        "samples": 120,
+        "min": 9.534292,
+        "mean": 10.072295,
+        "p50": 10.092543,
+        "p95": 10.223615,
+        "p99": 10.223615,
+        "max": 10.229042
+      },
+      "stream1.sender.get_stream_wait": {
+        "samples": 961,
+        "min": 0.024208,
+        "mean": 1.201559,
+        "p50": 0.294911,
+        "p95": 7.864319,
+        "p99": 7.995391,
+        "max": 8.237833
+      },
+      "stream1.sender.next_pts_wait": {
+        "samples": 120,
+        "min": 7.499916,
+        "mean": 7.867893,
+        "p50": 7.864319,
+        "p95": 8.060927,
+        "p99": 8.253583,
+        "max": 8.253583
+      },
+      "stream1.sender.udp_queue": {
+        "samples": 120,
+        "min": 0.14,
+        "mean": 0.358118,
+        "p50": 0.339967,
+        "p95": 0.598015,
+        "p99": 0.696319,
+        "max": 0.863625
+      },
+      "host.recv_syscall": {
+        "samples": 7040,
+        "min": 0.00015,
+        "mean": 0.000432,
+        "p50": 0.000371,
+        "p95": 0.000647,
+        "p99": 0.001535,
+        "max": 0.017724
+      },
+      "host.stream0.au_interval": {
+        "samples": 119,
+        "min": 9.558134,
+        "mean": 10.068507,
+        "p50": 10.092543,
+        "p95": 10.485759,
+        "p99": 10.553814,
+        "max": 10.553814
+      },
+      "host.stream0.au_ready_to_frame": {
+        "samples": 120,
+        "min": 0.13107,
+        "mean": 10.09196,
+        "p50": 10.223615,
+        "p95": 10.616831,
+        "p99": 10.616831,
+        "max": 12.158605
+      },
+      "host.stream0.parser_decode_call": {
+        "samples": 120,
+        "min": 0.039285,
+        "mean": 0.116333,
+        "p50": 0.079871,
+        "p95": 0.184319,
+        "p99": 0.335871,
+        "max": 2.523384
+      },
+      "host.stream0.parser_wait": {
+        "samples": 120,
+        "min": 0.08373,
+        "mean": 9.995029,
+        "p50": 10.092543,
+        "p95": 10.485759,
+        "p99": 10.560516,
+        "max": 10.560516
+      },
+      "host.stream0.reassembly": {
+        "samples": 120,
+        "min": 0.017413,
+        "mean": 0.29241,
+        "p50": 0.274431,
+        "p95": 0.614399,
+        "p99": 0.647167,
+        "max": 0.703913
+      },
+      "host.stream0.submit_to_frame": {
+        "samples": 120,
+        "min": 0.045166,
+        "mean": 0.096931,
+        "p50": 0.064511,
+        "p95": 0.143359,
+        "p99": 0.274431,
+        "max": 2.456115
+      },
+      "host.stream1.au_interval": {
+        "samples": 119,
+        "min": 9.504001,
+        "mean": 10.071929,
+        "p50": 10.092543,
+        "p95": 10.485759,
+        "p99": 10.600132,
+        "max": 10.600132
+      },
+      "host.stream1.au_ready_to_frame": {
+        "samples": 120,
+        "min": 3.385949,
+        "mean": 10.15241,
+        "p50": 10.223615,
+        "p95": 10.616831,
+        "p99": 10.878975,
+        "max": 13.177368
+      },
+      "host.stream1.parser_decode_call": {
+        "samples": 120,
+        "min": 0.022533,
+        "mean": 0.146575,
+        "p50": 0.092159,
+        "p95": 0.247807,
+        "p99": 0.466943,
+        "max": 3.683327
+      },
+      "host.stream1.parser_wait": {
+        "samples": 120,
+        "min": 3.296919,
+        "mean": 10.028125,
+        "p50": 10.092543,
+        "p95": 10.485759,
+        "p99": 10.616831,
+        "max": 10.646721
+      },
+      "host.stream1.reassembly": {
+        "samples": 120,
+        "min": 0.070594,
+        "mean": 0.292766,
+        "p50": 0.278527,
+        "p95": 0.507903,
+        "p99": 0.638975,
+        "max": 0.792031
+      },
+      "host.stream1.submit_to_frame": {
+        "samples": 120,
+        "min": 0.045697,
+        "mean": 0.124285,
+        "p50": 0.073727,
+        "p95": 0.204799,
+        "p99": 0.360447,
+        "max": 3.59602
+      }
+    }
+  },
+  "limitations": [
+    "Short bounded tests, no long-duration stability proof",
+    "No netconsole enabled; prior verbose netpoll warning remains separate",
+    "No screen-to-screen or cross-machine timestamp subtraction",
+    "Cached pool totals can grow with high-water mark; no active-object leak seen"
+  ],
+  "raw_log_sha256": {
+    "active-pool-read-console.txt": "fa50e5f85650ded24e95dccad8a124dd6ea40428636a088b4798ee1335b22f0a",
+    "active-pool-read-dual/board-after.txt": "e3229052ded51a7a31ab94df9f3e4b244e778fa1eb249dd3aa6266ea3027b97a",
+    "active-pool-read-dual/board-before.txt": "6a2355f04d33c87d5af02d85914f791df4a83694c6b2f1790376e3e4e1c81a20",
+    "active-pool-read-dual/board-live-logs.txt": "3e7cae2c4764cb641892b30cea009fc6849f64f096ffe60e60cdcb80c06b3a5e",
+    "active-pool-read-dual/board-senders.txt": "bce3568de48a9401951724bb5aed76570f1ef1821efe8d7c2df624e69edb999b",
+    "active-pool-read-dual/monitor.txt": "1ddff7057a07c3203f797eeb043f981570b963b5cde520663da6aaae13643583",
+    "active-pool-read-dual/result.json": "992ac6ec0678465af5b55b552c80027494e674a44dedfab66f45433f8ddc915f",
+    "active-pool-read-dual/sender.txt": "9abda2950fa2df712794c37450c24e28d5f1f586ecb33a24846d4b5dfb3f5c44",
+    "active-pool-read-dual/viewer.txt": "477e1f4a8e1040b957101f84d03bc6c514c9752ad58e105b13f13a78d4fba947",
+    "active-pool-read-result.json": "e83d6e0b01e7ab5d5c3fa03c179014fa30eef4570d28a42d1fc24a84194ff8ca",
+    "active-pools.txt": "c0d1b212ae2ca737d05d0c78fe25f0964ad587de069d4f527ecbd56a19a9a6ba",
+    "concurrent-pools.txt": "0a913791808e4343fd3a44544d133ff704256b2094a3eec9972e1913f59ed66d",
+    "default-01-console.txt": "31ad405e848a1b410b2e6ef3f9309a1e1d72fb7e1931a0c202e69e3c0c90501c",
+    "default-01-dual/board-after.txt": "47d4cea69927d93a62f9d609bc4eec474ee064972af11191e43090d6f669a42f",
+    "default-01-dual/board-before.txt": "4bb5a1eec964b74ef0484c35e8272108af55f0491cc65e9ba1e7f778d4a8d921",
+    "default-01-dual/board-live-logs.txt": "784d50ac2c81da49f4c46452e5e8f13ab0687f03381596b66c08106f2f02a654",
+    "default-01-dual/board-senders.txt": "6fa88863d0ced0ed43b70d99457add1a919c16f68a68d55329ed71c8c328e9f7",
+    "default-01-dual/monitor.txt": "a3054f0701abcf596f463605bc8fec2fd5b8102273b1a34ec9512d8d898edcec",
+    "default-01-dual/result.json": "6c17c68fe7d51fd3a87d97389b7286b8973524e93d17f47ea17a2cc5509386f6",
+    "default-01-dual/sender.txt": "63d053a1e614754807b6182ff30bf7e28efbc344ce8d3de895ab890ae9eabb27",
+    "default-01-dual/viewer.txt": "eb0a564e596a5be7dd9505136748504b427ea18be597fbdd9bd3bdddad335027",
+    "default-02-0/board-after.txt": "3da05c2413cb99d51b0b1f676a49846f077665ab8a62a59c11fd8619933150b7",
+    "default-02-0/board-before.txt": "527ac221d59788c689492b834f1a2e0c53390691fc478b89768cea591bc72ad3",
+    "default-02-0/board-live-logs.txt": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "default-02-0/monitor.txt": "ad0893e3c67ee852532222c7b4c1075f5b07b95830562caf7b84174ae02d5556",
+    "default-02-0/result.json": "e81f0f70d4d32ae907cc2139a219f8bff20f1c2699ba60ed2a83f932f262aa6a",
+    "default-02-0/sender.txt": "fdd596457cad3a3c2f01276d4f18e1d3a4ff20b81af49d722ac5b79990dcea70",
+    "default-02-0/viewer.txt": "cbf9ed3f4cd7a95bbbf09d2161ae26090933525307931475bad08065135fec2f",
+    "default-02-console.txt": "ec741514702299f0804148715422f4782b1b432a1e553bccffd36dee5bcbf0af",
+    "default-03-1/board-after.txt": "8b7d62eb98e819445782e25183d32f74e4ba23f1453e7ba7d9bf4b60b9dc3890",
+    "default-03-1/board-before.txt": "d97441a7e71decd45315b2cedace5f9aa56483510248f8bfed76a50ebd7716e0",
+    "default-03-1/board-live-logs.txt": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "default-03-1/monitor.txt": "42b1d432dfa16bd96b9efac80e84d6b8de73245aec12f34bb6a8f6c447d914d2",
+    "default-03-1/result.json": "19f9c134f141af54be28eee967ee31304c840489b9ca4cb62b6736fee908ed5a",
+    "default-03-1/sender.txt": "7fb6bda436b32def2eb8b3348a80cd5868a6183fab978da9655471e5c5bb4028",
+    "default-03-1/viewer.txt": "4285599009785793b24dc3016e311539e666c1e37df251c78b489bf0a8f666f9",
+    "default-03-console.txt": "ae8b42f9cad508c7b16159553956fca2922a036f8dd25effe6a9d4b0b4bad022",
+    "default-results.json": "a87de9bc46cec142c2ad1234db1aeaff1a88d3f36bca121030d4be2af35df0e2",
+    "final-board.txt": "ca1bdc4fc8449103065a8f6ac4098f0c71548e5940cefead3007461a782ee924",
+    "lifecycle-console.txt": "56707a654f82541852af174392479e39ec5a2e2afa40797566f384406b64f439",
+    "lifecycle-no-netconsole/INT-after-ready/board-after.txt": "a0ab2d62bf3430278e10b0526cec28c5f8c15c42b7cfbf28e01a6db5e606dde3",
+    "lifecycle-no-netconsole/INT-after-ready/kernel-live.txt": "af391f3c93eb037b4508ee0793d5093f89cb7b901e1cab2d63f080fe797b5e67",
+    "lifecycle-no-netconsole/INT-after-ready/sender.txt": "75ba0321f164f237c7f2469f1852885928d01ae0b0ef72c151824f18452224b4",
+    "lifecycle-no-netconsole/TERM-during-init/board-after.txt": "79737ff4bb0759d3708c1fa569ea649db5879dc63eae83a0271c5dbf564648d5",
+    "lifecycle-no-netconsole/TERM-during-init/kernel-live.txt": "5a83f9d728e3ebb55d8e5f6781d5338eca56717bc26d7e21f2d29dbdb3fa32dc",
+    "lifecycle-no-netconsole/TERM-during-init/sender.txt": "4521c7a19cf10fcc656ee452532e5e5bd6f9b343779a1275922ab8281472c2e3",
+    "lifecycle-no-netconsole/dual-after-mono/board-after.txt": "e91a7f4f97609708d5b606fe8c31eabfc277f4964e98d8e698a4fad0aaf0da07",
+    "lifecycle-no-netconsole/dual-after-mono/board-before.txt": "c0843f07b0caee61c067c0f7f7948cf1f5f9b330a110c5514d06fb81ce265298",
+    "lifecycle-no-netconsole/dual-after-mono/board-live-logs.txt": "b8b5cd6d0ee2c7ad78f951e21976a4444aaa6f93ae034b7ad4c2642f8d379acf",
+    "lifecycle-no-netconsole/dual-after-mono/board-senders.txt": "1835ca1387eb309318b77f99f05eeabf1b39bc984501418872760b1d0fd40086",
+    "lifecycle-no-netconsole/dual-after-mono/monitor.txt": "16ad0f83d8049d6ab4298393f3ba8ded7342a8b56b76a73eae15ef356e3233af",
+    "lifecycle-no-netconsole/dual-after-mono/result.json": "f85e6f5d30268b40245b0a246635e5be503eb2af7d1998f0018d7371a5522123",
+    "lifecycle-no-netconsole/dual-after-mono/sender.txt": "b94ea9897c61d41997806cbb303ef816b1cceaad13ceb66f9128e82f552adf8a",
+    "lifecycle-no-netconsole/dual-after-mono/viewer.txt": "5a48949d61aa551cf0b94c6094c2dcf24ab502ad15b605af25e68479517db4f5",
+    "lifecycle-no-netconsole/dual-recovery/board-after.txt": "f5c54dd204c489b6d2e261dd21085dfef55472403be9f01b22a3be9bea0269e5",
+    "lifecycle-no-netconsole/dual-recovery/board-before.txt": "a1ea8e755ec01014f30c700190e2dfd9edafbc501c8f99f1f4c17b253c874d39",
+    "lifecycle-no-netconsole/dual-recovery/board-live-logs.txt": "c3e48013e8c526c3c4927b58c7f07386290a9ac3d87c898a6281cbd8bfeb5ae8",
+    "lifecycle-no-netconsole/dual-recovery/board-senders.txt": "af7ddf1b81b4a5a43eb774435ebe1d32635c80ff507b357f6eb5c71cd43b252f",
+    "lifecycle-no-netconsole/dual-recovery/monitor.txt": "7a46a344f91cf2f8e0591f93793e3898d95058d018df9e2b1f51aa10450c31e4",
+    "lifecycle-no-netconsole/dual-recovery/result.json": "a08204a46eadca4f7035f4676c1bba7a8788d74e8e98c1f768cd5ddf42f5c100",
+    "lifecycle-no-netconsole/dual-recovery/sender.txt": "3e8699b53092ed0171338127b108d7fbf5466081d3a4a8cb52cb15d24ee229c7",
+    "lifecycle-no-netconsole/dual-recovery/viewer.txt": "a7bbb6d9a1926ec1ca15b4895bc680e0db57d0f1c76c5cf2acb269554de30fa7",
+    "lifecycle-no-netconsole/dual-start/board-after.txt": "7ccd2f1851c0e3d5bdbed6a88ad152c5809c5ce37dfc1a9972c8bbd6bd24de1a",
+    "lifecycle-no-netconsole/dual-start/board-before.txt": "d42b6c23a8a5eac7e7797c1247231fb4374edd2068c64b7490da769837d49eb4",
+    "lifecycle-no-netconsole/dual-start/board-live-logs.txt": "efaf2c16eb09ac8799a3ae147fd8d19f0fe557c7ac98bfd127a972877441f93b",
+    "lifecycle-no-netconsole/dual-start/board-senders.txt": "90f35b3994d9d670ea1302b3bdb71be4b07d3b321703b4d8428585f5d9738ff5",
+    "lifecycle-no-netconsole/dual-start/monitor.txt": "86f2f71fb22748f977a98b5d2f883adfbc0da1ce07821b0f606ef8ce374fbae2",
+    "lifecycle-no-netconsole/dual-start/result.json": "936f641ce309b7416882df61018251525d567e87cf084ee4d5c90ee538ed4866",
+    "lifecycle-no-netconsole/dual-start/sender.txt": "6301aff7a6e3219dfbfa2bfdffafa6beb0e4b0f77691ea3a49bc7408352a45f7",
+    "lifecycle-no-netconsole/dual-start/viewer.txt": "0792f3fb9a87fd1a91a2e56b2630bbb77f9c0d2e96a90730401ffc4c7f998d45",
+    "lifecycle-no-netconsole/fail-camera0.stream.acquired/board-after.txt": "9308c051b2fbfb622d627cb0c374a8793c294f3b07e187ac5020c06dc1baecd6",
+    "lifecycle-no-netconsole/fail-camera0.stream.acquired/kernel-live.txt": "d0a9051bc3d5082c1d7e79d5ba9b0177653ffc179515f372909f0c6d11cfa54a",
+    "lifecycle-no-netconsole/fail-camera0.stream.acquired/sender.txt": "873789e4533b8a8472ef4a8c8d1ab8e4b72614e18bd17963a5e54384f01db1c7",
+    "lifecycle-no-netconsole/fail-camera1.venc.created/board-after.txt": "e7a18a5a4b16cb700e0d478e72111ac3bb060f9ded34d1acb348a5eaea1991f3",
+    "lifecycle-no-netconsole/fail-camera1.venc.created/kernel-live.txt": "6c8e847b9a19a00b094160b728bad2249717ec4c0c3bf9e5df14d44b896dc4fa",
+    "lifecycle-no-netconsole/fail-camera1.venc.created/sender.txt": "4b5d16efb1833aaf5f1b59869461488f537d023b1711567e5b34738e602acb32",
+    "lifecycle-no-netconsole/fail-camera1.vi.enabled/board-after.txt": "2665a4871fa3467520f8942db3932f96f4d11c924581bb55a8d9cf311abb917e",
+    "lifecycle-no-netconsole/fail-camera1.vi.enabled/kernel-live.txt": "957d553f9a12af9aa813880f66cc5138f30f12b9de7f35d2d003adff6ed264e5",
+    "lifecycle-no-netconsole/fail-camera1.vi.enabled/sender.txt": "bfeb38a74e5b6c9f5d284fc8183b40771c614210bedc2c41a608a092a59bff4d",
+    "lifecycle-no-netconsole/mono0/board-after.txt": "23a1962e9ec9f9ce92061ec33403bb4a6564ec974e1beee4a71db6c719511eb4",
+    "lifecycle-no-netconsole/mono0/board-before.txt": "e4fa64c8903c813c9e3139bb9c5d7c3bb10eb644b36e9c8922e798c986d7edfb",
+    "lifecycle-no-netconsole/mono0/board-live-logs.txt": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "lifecycle-no-netconsole/mono0/monitor.txt": "8e8ed0240b3600148e03e57fdb4bd3e9f4c5894ba473950572ec82f824b9682d",
+    "lifecycle-no-netconsole/mono0/result.json": "b377a1b56f7f566b7979637aa42c79a761dbc07e77f36cb87c2bef060ec65183",
+    "lifecycle-no-netconsole/mono0/sender.txt": "e22b62979980bd2877ecc3120ec09c2b277cabb3a5d7e3370eca886a41669081",
+    "lifecycle-no-netconsole/mono0/viewer.txt": "d4c8ed17858b7e7456690d367309e22cb7c5df1f564425bbde4a16f9e706ed4c",
+    "lifecycle-no-netconsole/mono1/board-after.txt": "04505d2e7d91ab739c5118ff24b181403cc09d22d52b97752e3509a0029d8fe8",
+    "lifecycle-no-netconsole/mono1/board-before.txt": "9c95437daf5a70f49658347b8c2c99204b77612ea37437c79b7581162bb48176",
+    "lifecycle-no-netconsole/mono1/board-live-logs.txt": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "lifecycle-no-netconsole/mono1/monitor.txt": "b3afea5ad843e364d01bacb3cb1251b0337db6d4c9a5ce7aa23f716a19031762",
+    "lifecycle-no-netconsole/mono1/result.json": "c6ae63ec65b8787c916b1307e37266cfdc80c3057dfada6d2d6114ff3157da5d",
+    "lifecycle-no-netconsole/mono1/sender.txt": "0839e80bddd42adc1b297507729be0f802118e9b09d8ffcb64beaf602ea0d0c0",
+    "lifecycle-no-netconsole/mono1/viewer.txt": "e2e1265bcc65f61b4cf96a49d4d383c282dd9ca434026e492586b1114734f1b1",
+    "lifecycle-no-netconsole/results.json": "0858eab4d0019b761bb4de22a266f722631bc62bec6e1694da410cbcd2f5fb04",
+    "minimal-01-dual/board-after.txt": "40f5db5e120b2a94599e70d69a1eed86d69f387f1bce33611d490c3533c2f6a0",
+    "minimal-01-dual/board-before.txt": "0b2c55f49c542b0f684b4530ddf5a28c866b3d3b3678a0550965f68703edbe04",
+    "minimal-01-dual/board-live-logs.txt": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "minimal-01-dual/monitor.txt": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "minimal-01-dual/result.json": "a1527070fd73c728b3809e06d013446a9c3164ff36fb025babc28e04c0df4131",
+    "minimal-01-dual/sender.txt": "6ecb98b118e3477c124e5271d8305ca6ddc5c7d46f9a9eb359e60b841b73860e",
+    "minimal-01-dual/viewer.txt": "b94788f72f998c80b16371ad3fc45f873035cbda6a1d455a2fa1010c703d4d46",
+    "minimal-02-0/board-after.txt": "b09b0744e3b3a0e152e0cfdf374e789bbf74cadf3fcfcbbe9a0f3c479ec4bc91",
+    "minimal-02-0/board-before.txt": "b5a79237e518061ce51a94e6cf0b823e752a6a33c27e098d2a0f8b895c6db44b",
+    "minimal-02-0/board-live-logs.txt": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "minimal-02-0/monitor.txt": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "minimal-02-0/result.json": "816bcaa8f13183767f2d2b9c6c423011004e9bb6ead5dae189a08924b6f75b4d",
+    "minimal-02-0/sender.txt": "21465205af0b1b5219796d26238f7e5bf41156ddaa8217657faf442a9be1e93d",
+    "minimal-02-0/viewer.txt": "673e1c2e2c4e684797a6bf6a87038bf2ce2ff0a7cd6fb1fd54ba0b0aae8fd79f",
+    "minimal-03-1/board-after.txt": "1a3985900496eda70b4e8ddc3314778e599917322bdcd73138d29e3d9bfe7626",
+    "minimal-03-1/board-before.txt": "bfb0207c76683248a0406862bcdc6892d126ad96ac4f29ef320ec85b75ee8777",
+    "minimal-03-1/board-live-logs.txt": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "minimal-03-1/monitor.txt": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "minimal-03-1/result.json": "1c10b6e957d5261c76ece0d380ed058a31f0ce4132477772d76d0bad469c1cb0",
+    "minimal-03-1/sender.txt": "e16c8b5e065efd5cf4954421b0856e30ca2c770abeb312c9ce1cbeeb7bc400d5",
+    "minimal-03-1/viewer.txt": "808d8b52ce813165fac7b9b76c3ebc48f6af7ad61bb737c5175f329b9c8190bf",
+    "minimal-results.json": "a87de9bc46cec142c2ad1234db1aeaff1a88d3f36bca121030d4be2af35df0e2",
+    "pool-read-console.txt": "a6b5a8e6c2441c7dd4e1d1b136a509b942acc16b706f769ae99f25d99a92fe75",
+    "pool-read-dual/board-after.txt": "4afd77d8711cb9dad66ff105a1edbac60dbaf627410022ce52b45c6dd30ccb97",
+    "pool-read-dual/board-before.txt": "dbfa62666c475d5f70ded41a51c89779030f2d906a73fcc5211ff80c32e21b87",
+    "pool-read-dual/board-live-logs.txt": "f18464f08994e8284d3132cf318ad181554e6f81faf04d3ec52901fa1feb7c00",
+    "pool-read-dual/board-senders.txt": "a42cd0e4a84cd115d26685614d86ff12668afe84d4f3ef9699768f41d6a8dff9",
+    "pool-read-dual/monitor.txt": "7abf2ab947100108f0922b2e1f7c10cb81f1fc3ae1a5ef68175acc3874c790c0",
+    "pool-read-dual/result.json": "3d4e9b15ce758ab5b0a88a470f52fbedb5c6c40c2434674a65d6200672680f15",
+    "pool-read-dual/sender.txt": "fdbb87a32ae315a97bc2269171533c8e6bd57a579685d6b445d12764a7f85030",
+    "pool-read-dual/viewer.txt": "3072300e22411980dbbaae1b7eb8f62927648c6ed74155c051130a95c78d3aac",
+    "pool-read-result.json": "e83d6e0b01e7ab5d5c3fa03c179014fa30eef4570d28a42d1fc24a84194ff8ca",
+    "post-test-settings.txt": "0b38ce77902fbde430b8b425f2a949657b25b0c7f1e1ba346f95c95a62c41ee2",
+    "preflight.txt": "33528a70f6b834ce38dc7e82d7258c64c3e4a9f6873de2b0cade1880a6d3a0d8",
+    "repeat-01-console.txt": "dbcc826d8d488f390dc443b6521189e54ee130a9d658c3f55a6ba800a2ab2037",
+    "repeat-01-dual/board-after.txt": "fb28037525459aba99b7600154ab754952aaac79633aad3b2c2fbb7d57738af8",
+    "repeat-01-dual/board-before.txt": "16e30fbeb4ed1ce02999cd3832dc51a43ea09bfe1c3eda0a20de1842aa7cb131",
+    "repeat-01-dual/board-live-logs.txt": "155e1f7d8b6b2f81ccf7424dbe20a9d67fbe22e0d45ac97f4d8e0964676d91af",
+    "repeat-01-dual/board-senders.txt": "d2a741b8628060016b10baabd64c229c06883cb5d950058b6d23d22245a4a06d",
+    "repeat-01-dual/monitor.txt": "fa1fbaa72af20545e7915d291428c93efa44d94aad1d1296a5799eec3ea5b0bd",
+    "repeat-01-dual/result.json": "9dd45799cfa84c38ec0d227545ffa8987e1d7515c94a2377eecca46b49642333",
+    "repeat-01-dual/sender.txt": "4a03fc8eb11bb65b5f9af8112c3d7f03d7212126b77d3ce2671ac50bcb33289f",
+    "repeat-01-dual/viewer.txt": "e7631f3330cc46823c1e21b490b007550e9e1c29a8c2a8918f1edba1f1b6055d",
+    "repeat-02-0/board-after.txt": "5c9eb57825671339afa0ce1e3bc5ed2fb0489115d60ae584abcaeb1ab84cb205",
+    "repeat-02-0/board-before.txt": "73c2cd061e0307f9362bf1ef2693cfb417af6c88486123f7fc10a48fc9d2e027",
+    "repeat-02-0/board-live-logs.txt": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "repeat-02-0/monitor.txt": "dafb0beed53c18f0592fd28aad146371808a6c5d2f68cb9b3c607fac54b376e3",
+    "repeat-02-0/result.json": "0dc3cbd06ce278867f03335053d9d98359b9db4031053cadc7ccf7dd881c2c0d",
+    "repeat-02-0/sender.txt": "65e1d242749a19175976a613f376ca35f354dafaf76a0e1c5728ee2884db002e",
+    "repeat-02-0/viewer.txt": "31c96659b1cd9c8e13de464e634c53cb2bb69189305558ac6c21aaad76a3644e",
+    "repeat-02-console.txt": "7f6216efb9ee9b57388fa311dff9aa47197718565ce1fcd4b24ca90b9e4ed4b8",
+    "repeat-03-1/board-after.txt": "cafc1db00b945267c16baa0e81c8e32c04c741e689fec7363005065a47341a8b",
+    "repeat-03-1/board-before.txt": "db6c84addeb7e54f693df8382ef96a48dd03a982c8a246791e0ded333cf73a4f",
+    "repeat-03-1/board-live-logs.txt": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "repeat-03-1/monitor.txt": "f065e9988c621c14077d9300d9050c789d636f457dcc3a316f082c15d6a69b05",
+    "repeat-03-1/result.json": "42d4c4424fd0acd47f55ca57bea70345231392deb3f000276b120220b9784498",
+    "repeat-03-1/sender.txt": "9d100d55784f07f1b50e59938414e07f6df60736adf2b69036268bca250cccf3",
+    "repeat-03-1/viewer.txt": "26c029219425c970421ea5a16c0c6284abc18c3d0aa30f7c3d9fdc1200f2a5d2",
+    "repeat-03-console.txt": "d87c6e902a49ba12cf7d9922805189690a6d5e68ab77143c0127ecade7450c66",
+    "repeat-04-console.txt": "6a18f25bdc08e7b638bd3de2ed4caedc2eddc6e8f11486bd15ca98fc680aaff1",
+    "repeat-04-dual/board-after.txt": "638e5f941f86c6e8c2c1ada50c9be99af0ecba245a66bac13b30e5e555e8e02b",
+    "repeat-04-dual/board-before.txt": "e9b856c7d077063d89ca31ce757a9542acd69ed314f8c82f3a9daeb4f8537a92",
+    "repeat-04-dual/board-live-logs.txt": "9c4f982928c7e500a0eb469b82d0b476157a9a3408f03aeb892196aa2bfffde7",
+    "repeat-04-dual/board-senders.txt": "c564b46a5968740b88f26575bbe6c451f82975f45eba0fe6b188facd8d9d06c9",
+    "repeat-04-dual/monitor.txt": "393e6dda8251933f6ec67cacab5c4ade744eb135a62aae1e6ac948c296056b5a",
+    "repeat-04-dual/result.json": "08a8219e9b2fc40636f18b13dc23298718abcb215d779d64ba99a9379a6fa4da",
+    "repeat-04-dual/sender.txt": "6069dc61030f7a82cd219394b73d7cefd34ea1c0864d355f95f9ec45777236e6",
+    "repeat-04-dual/viewer.txt": "40cbbad942f9b065dda4794075ffb43dfaace4315cdc11435428cb115f408dae",
+    "repeat-results.json": "16691c3c291698bd5b4b2f016551ddb8d769ddb7d6b6c2548273a3ba739f2be9",
+    "restored-settings.txt": "ace8e82114d9aad4832d2e7a7990667a6baad73d63a1a4d65a08920dd5181553",
+    "settings-and-initial-pools.txt": "d5279a7d74b93a19893e9e77a637319c80ff9c6f75116164a444a5e1831aaf8b",
+    "usb-kernel-active-pools.txt": "f2e14ecb952ffe60b741108d74bd7e950c2d1a3c2bebd9cdf1f5924536071bf7",
+    "usb-kernel-default-settings.txt": "51a379333db52de3bb4e621f41f1a348937b64528b16418e16d5db8bde8a2a72",
+    "usb-kernel.txt": "8c2c3a0329cf5e6624f1530906ca9213f95bab4ced009f619edaafc839a95fc5"
+  }
+}
