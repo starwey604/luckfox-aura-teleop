@@ -1,0 +1,74 @@
+{
+  "System.map": {
+    "bytes": 3018464,
+    "sha256": "959de2c79d9b422b15bf7c355f4b159a3185db697c5c25816937162d87e4135c"
+  },
+  "aura-sender": {
+    "bytes": 157544,
+    "sha256": "332d6dd6e1a2aec232e006d51fe8cc51adaca04b6f8d7e956594b7a37d280f56"
+  },
+  "image/boot.img": {
+    "bytes": 11390976,
+    "sha256": "831439e8044fab813133e707a156be19c8f512bee36cf9fc0826edb61792b20a"
+  },
+  "image/download.bin": {
+    "bytes": 448960,
+    "sha256": "f8c0118ed361448e83d7bef12f6d4983d8891f1d9e130219a7ce325fa4251642"
+  },
+  "image/env.img": {
+    "bytes": 32768,
+    "sha256": "b328c39b437d60a7d21f005efebc0624c5d9fb8b4ad65da45bbdeeb143922b04"
+  },
+  "image/idblock.img": {
+    "bytes": 311296,
+    "sha256": "f91ad48bb4d6925a71c30b2fdaa9d3bc1b24bfdf5a1d3da927882575007e22a3"
+  },
+  "image/oem.img": {
+    "bytes": 263884800,
+    "sha256": "ed3816f5dc32ac58300e4653bc4811eea18662d6dcc43ac7927dc16b33c39eec"
+  },
+  "image/rootfs.img": {
+    "bytes": 397290496,
+    "sha256": "d0465702c2788c504895e3f89340bee305c81b52ed0300fb9e26df175324b8d7"
+  },
+  "image/uboot.img": {
+    "bytes": 524288,
+    "sha256": "c766c45355c7b33477167b2be21bd5bfdcd734f15a25004fb65eaa35c251b323"
+  },
+  "image/update.img": {
+    "bytes": 313240138,
+    "sha256": "9ebf98f4f5422adc35d8c511a4f0ff7c50e39861822816fe1f92bb6ffd2afde0"
+  },
+  "image/userdata.img": {
+    "bytes": 36192256,
+    "sha256": "5cd229394b43ccce69b6b16ece4b22cb825d31ff17fdc0259043f69b68ef0acd"
+  },
+  "kernel.config": {
+    "bytes": 172153,
+    "sha256": "f8743b202a6a8aed9051b842555e832824d0cc42c87f5d45482ec6b235f19b4e"
+  },
+  "modules/kmpp.ko": {
+    "bytes": 3143552,
+    "sha256": "8f027a309020f6aec514eaf4556f906a94686e8ea3436b8bb86e096bcc23babe"
+  },
+  "modules/kmpp_smart.ko": {
+    "bytes": 99096,
+    "sha256": "fc2c41d9f02c4859b41e7cb189352b1d03fb431924b8a032aa6bda0832265684"
+  },
+  "modules/rockit.ko": {
+    "bytes": 9064,
+    "sha256": "41d2003aede46c180dd0fcbdaf333c296ac6aaad8496f82e7fd4c08442965a73"
+  },
+  "modules/rockit_base.ko": {
+    "bytes": 797440,
+    "sha256": "d2648e8ba3e85a69e22fc0ff0a2ac1cbd03b49da5cd212889c00eb0877c543ef"
+  },
+  "modules/rockit_osal.ko": {
+    "bytes": 113472,
+    "sha256": "65313526c8724da7916eb0162734a8d32db5d82f243875caa6f4d87ecba39d6a"
+  },
+  "vmlinux": {
+    "bytes": 249348928,
+    "sha256": "8b67905d9220613ed60faec0fc3e8d0dc5bb67b2f6e3094b447cfbc1926bdc78"
+  }
+}

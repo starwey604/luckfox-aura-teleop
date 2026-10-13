@@ -10,7 +10,7 @@ sender、viewer、诊断和双摄启动脚本直接保存在本仓库源码中�
 
 支持的厂商基线是 `luckfox_aura_v1.0.1_20260518`，内核 6.1.141、
 Buildroot 2025.02.6。`sdk/manifest.lock.xml` 锁定全部 63 个厂商子仓库，
-`sdk/series.tsv` 定义 4 个补丁目标及其基线。
+`sdk/series.tsv` 定义 5 个补丁目标及其基线（10-13增加KMPP对象锁修复）。
 
 “旧 SDK”需要区分：
 
@@ -130,3 +130,13 @@ pull 保证镜像 SHA-256 相同。内核构建时间、构建用户名/主机�
 [CPU0 hardlock 诊断及 #16 镜像](sender-hardlock-debug-2026-10-12.md)。
 当前 kernel patch 共19条，新增 netpoll 的 RCU 同步修复和仅诊断 profile 启用的
 `CONFIG_TELEOP_QSPINLOCK_DIAG`；hung-task 自动超时改为0，保留按需启用能力。
+
+## KMPP对象锁候选修复（2026-10-13）
+
+新增第5个补丁目标 `sysdrv/drv_ko/kmpp/kmpp`，基线
+`72ff932e755fee79672ec19d2714369ea8ffed84` 已在原63项manifest中锁定。
+对象definition链表的get/put临界区改为IRQ-save配对，保留所有结构布局和接口。
+`sdk-patch apply`和同一构建步骤会一起应用/构建该模块，不需要手动复制模块源码。
+新候选保持内核#16，不能仅凭uname判断模块是否更新；烧写后核对kmpp.ko哈希。
+源码重放、模块/镜像编译已通过，实机验证尚待用户烧写，见
+[KMPP锁定位与镜像交付记录](kmpp-object-lock-irqfix-2026-10-13.md)。

@@ -1,0 +1,83 @@
+{
+  "kernel": "6.1.141 #16 SMP PREEMPT Mon Oct 12 20:51:59 CST 2026",
+  "failing_sender_sha256": "36468d1e7192db7274718b181fb20d631ee27fbeed367d9c96f0f1f706cf07aa",
+  "frames_per_camera": 120,
+  "verbose_minimal_controls": [
+    {
+      "name": "01-cameradual",
+      "exit": 0
+    },
+    {
+      "name": "02-camera0",
+      "exit": 0
+    },
+    {
+      "name": "03-camera1",
+      "exit": 0
+    }
+  ],
+  "verbose_full_lifecycle": [
+    {
+      "name": "dual-start",
+      "exit": 1
+    },
+    {
+      "error": "dual-start failed; stopped remaining tests"
+    }
+  ],
+  "failing_test": {
+    "camera": "dual",
+    "frames_per_camera": 120,
+    "mode": "decode",
+    "port": 5000,
+    "vertical_blanking": null,
+    "minimal": false,
+    "success": false,
+    "viewer_command": [
+      "/home/ww/codings/luckfox-aura-teleop/build/host-metrics/bin/host-viewer",
+      "--port",
+      "5000",
+      "--headless",
+      "--frames",
+      "240",
+      "--timeout-ms",
+      "60000",
+      "--dual-stream"
+    ],
+    "sender_command": "timeout -s INT -k 5 21 env TELEOP_METRICS=1 AURA_LIFECYCLE_TRACE=1 SENDER=/userdata/teleop-sender PORT=5000 WRAP_LINES=0 REPORT_DIR=/userdata/latency-full-verbose-suite-dual-start /userdata/run-ar0234-stereo --frames 120",
+    "sender_exit": 255,
+    "error": "Sender/SSH failed",
+    "board_responds_after": false,
+    "elapsed_seconds": 36.54988100499986
+  },
+  "qspin_records_shared_by_usb_and_netconsole": [
+    "qspin-diag: hardlocked CPU0 slowpath-depth=1",
+    "qspin-diag: cpu=0 slot=0 lock=ffffff8002fe3510 initial=0x1 pid=1467 comm=teleop-sender irq-off=1",
+    "qspin-diag: frame=0 _raw_spin_lock+0x44/0x50",
+    "qspin-diag: frame=1 osal_spin_lock+0x18/0x30 [kmpp]",
+    "qspin-diag: frame=2 get_obj_from_def+0x88/0x100 [kmpp]",
+    "qspin-diag: frame=3 kmpp_obj_get+0x48/0x120 [kmpp]",
+    "qspin-diag: frame=4 kmpp_meta_get+0x28/0x60 [kmpp]",
+    "qspin-diag: frame=5 kmpp_packet_impl_init+0x60/0x90 [kmpp]",
+    "qspin-diag: frame=6 kmpp_obj_get+0x6c/0x120 [kmpp]",
+    "qspin-diag: frame=7 kmpp_packet_get+0x1c/0x30 [kmpp]",
+    "qspin-diag: frame=8 mpp_enc_alloc_packet_with_ring_buf+0x2c/0x110 [kmpp]",
+    "qspin-diag: frame=9 mpp_enc_impl_slice_info+0xf8/0x210 [kmpp]",
+    "qspin-diag: frame=10 mpp_enc_slice_info+0x1c/0x30 [kmpp]",
+    "qspin-diag: frame=11 mpp_vcodec_enc_int_handle+0x154/0x2c0 [kmpp]"
+  ],
+  "early_warning": "hardirq -> rkcif_check_vblank_value -> printk -> netconsole -> netpoll_poll_dev -> stmmac_tx_clean -> _raw_spin_unlock_bh -> __local_bh_enable_ip WARN_ON_ONCE(in_hardirq())",
+  "usb_stream_method": "adb shell timeout ... cat /dev/kmsg; verified unique live marker; legacy adbd exec-out unsupported",
+  "usb_post_failure_probe": "timed out; early dump saved; no forced recovery",
+  "kernel_candidate_unchanged_uts": true,
+  "kmpp_candidate_commit": "60b6a55c1c19df09c896976ed0e88e7e53f67ff9",
+  "hardware_validation_pending": true,
+  "log_sha256": {
+    "setup.txt": "fdd87601d88ec7d75b15b278e30bc94c42bdff85d6b09d25a88033a3efa3d94d",
+    "usb-full-kernel-live.txt": "dd843b553801058a19eddef3a1318192a2dfa6c3694a0078b496cb881268165c",
+    "full-netconsole.txt": "11faeaac483796ed81db4631bee181fa05faa05880e6d9198706a6fbf79f9964",
+    "full-verbose-suite/dual-start/sender.txt": "058b1c2b18dc845c61637d59695646d24d08242241d45056b43a6175743c682f",
+    "irqfix-image-build.txt": "4dfa60b9291bef876313844900a5d4f2dcefa4e40f9b8fd9689d89375ad8510d",
+    "irqfix-sdk-tests.txt": "0756b7ec2b6b662085b2d0ad3e54079e3ccce5c57b334ea9734b3507d3dfe4a5"
+  }
+}

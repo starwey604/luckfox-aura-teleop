@@ -1,0 +1,56 @@
+From 60b6a55c1c19df09c896976ed0e88e7e53f67ff9 Mon Sep 17 00:00:00 2001
+From: Starwey <moonbite233@gmail.com>
+Date: Tue, 13 Oct 2026 14:36:52 +0800
+Subject: [PATCH] kmpp: protect object definition lists from slice IRQ reentry
+
+---
+ sys/kmpp_obj.c | 13 +++++++++----
+ 1 file changed, 9 insertions(+), 4 deletions(-)
+
+diff --git a/sys/kmpp_obj.c b/sys/kmpp_obj.c
+index 149383d0..6533cade 100644
+--- a/sys/kmpp_obj.c
++++ b/sys/kmpp_obj.c
+@@ -1147,6 +1147,7 @@ static KmppObjImpl *get_obj_from_def(KmppObjDefImpl *def, rk_u32 full, const rk_
+ {
+     KmppMemPool pool = full ? def->pool : def->head;
+     KmppObjImpl *obj = (KmppObjImpl *)kmpp_mem_pool_get(pool, caller);
++    rk_ul flags = 0;
+ 
+     if (!obj) {
+         kmpp_loge("can not get obj from def %s at %s\n", def->name, caller);
+@@ -1166,9 +1167,12 @@ static KmppObjImpl *get_obj_from_def(KmppObjDefImpl *def, rk_u32 full, const rk_
+ 
+     OSAL_INIT_LIST_HEAD(&obj->list_objdef);
+     OSAL_INIT_LIST_HEAD(&obj->list_ext);
+-    osal_spin_lock(def->lock);
++    /* Slice IRQs allocate packet/meta objects from this same definition.
++     * Keep a process-context holder from being interrupted by another get/put.
++     */
++    osal_spin_lock_irqsave(def->lock, &flags);
+     osal_list_add_tail(&obj->list_objdef, &def->list_obj);
+-    osal_spin_unlock(def->lock);
++    osal_spin_unlock_irqrestore(def->lock, &flags);
+ 
+     return obj;
+ }
+@@ -1367,6 +1371,7 @@ rk_s32 kmpp_obj_put(KmppObj obj, const rk_u8 *caller)
+     if (obj) {
+         KmppObjImpl *impl = (KmppObjImpl *)obj;
+         KmppObjDefImpl *def = impl->def;
++        rk_ul flags = 0;
+ 
+         if (!def) {
+             kmpp_loge_f("obj %px has empty def at %s\n", impl, caller);
+@@ -1383,9 +1388,9 @@ rk_s32 kmpp_obj_put(KmppObj obj, const rk_u8 *caller)
+ 
+         obj_dbg_access("obj %s %px:%px put\n", def->name, impl, impl->entry);
+ 
+-        osal_spin_lock(def->lock);
++        osal_spin_lock_irqsave(def->lock, &flags);
+         osal_list_del_init(&impl->list_objdef);
+-        osal_spin_unlock(def->lock);
++        osal_spin_unlock_irqrestore(def->lock, &flags);
+ 
+         if (!osal_list_empty(&impl->list_ext)) {
+             kmpp_logw_f("obj %s %px is still used by external user on deinit at %s\n",

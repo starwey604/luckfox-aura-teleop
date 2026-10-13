@@ -3,3 +3,4 @@ sysdrv/source/kernel|b8187ea6c6dbd97deee68cfe121bedc66219262e|teleop/kernel-low-
 sysdrv|409e2453c14560081f3e7299b6b13b364a8f086a|teleop/buildroot
 project|5bbb44615deacd038f659baa8f9d06f3eeb6162e|teleop/bootargs
 project/cfg/BoardConfig_Aura|b5a3608941ca6f64ee670e8d2a2a652d26734724|teleop/aura-board
+sysdrv/drv_ko/kmpp/kmpp|72ff932e755fee79672ec19d2714369ea8ffed84|teleop/kmpp-irq-locks

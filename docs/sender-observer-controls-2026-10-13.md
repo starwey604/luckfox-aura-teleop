@@ -1,5 +1,9 @@
 # Sender 测试干扰对照（2026-10-12～13）
 
+后续通过USB实时采集抓到了KMPP对象链表锁等待，候选修复已编译：
+[KMPP锁定位记录](kmpp-object-lock-irqfix-2026-10-13.md)。以下保留这轮对照时的判断；
+不能再把失联仅归为netconsole本身。
+
 用户反馈持续运行 sender + viewer 稳定，失联集中在测试时。持续推流只初始化一次，
 反复短测会重复经过 VI/VENC 创建、销毁、SYS_Exit，并额外使用日志和线程栈采集，
 所以二者覆盖的路径不同。当前最强线索是 verbose netconsole 对锁路径的干扰，

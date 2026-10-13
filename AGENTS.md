@@ -50,6 +50,9 @@ Order matters: apply the SDK patch stack and `select-teleop-board` before SDK bu
   index; `apply` preflights all projects, accepts the baseline or an exact saved patch prefix,
   applies only missing patches with `git am --3way`, and never runs `reset`/`clean`.
   Other vendor SDK versions need a separate matching checkout or an explicit port.
+  The fifth patch target is `sysdrv/drv_ko/kmpp/kmpp` (`teleop/kmpp-irq-locks`):
+  object-definition get/put lists are also accessed by slice IRQ callbacks, so their
+  paired locks must save/restore local IRQ state. Preserve the opaque OSAL layouts.
   Only `export` pulls from the listed `teleop/*` branches; don't commit one-off SDK experiments.
 - After changing SDK config, prefer editing the source locations under `sysdrv/tools/...` /
   the BoardConfig patch. Do not edit `sysdrv/source/buildroot/buildroot-2025.02.6`, which is
