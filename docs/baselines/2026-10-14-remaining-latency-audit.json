@@ -1,0 +1,61 @@
+{
+  "date": "2026-10-14",
+  "scope": "read-only sensor/desktop and source audit; no new streaming or optical test",
+  "sensors": {
+    "camera0": "/dev/v4l-subdev3",
+    "camera1": "/dev/v4l-subdev6",
+    "width": 1280,
+    "height": 720,
+    "hblank": 1168,
+    "vblank": 21,
+    "pixel_rate": 180000000,
+    "exposure_lines": 735,
+    "line_period_us": 13.6,
+    "exposure_ms": 9.996,
+    "frame_period_ms": 10.0776,
+    "active_rows_budget_ms_not_measured_readout": 9.792
+  },
+  "desktop": {
+    "session": "wayland",
+    "primary": "1920x1080@100Hz, scale1",
+    "test_display": "DP-1 1920x1080@144.02Hz, rotation2, scale1.35",
+    "test_display_logical_geometry": "800x1423",
+    "refresh_period_ms": 6.943480072212192,
+    "configuration_changed": false
+  },
+  "dma_buf": {
+    "sender": "VI_V4L2_MEMORY_TYPE_DMABUF; VI SYS_Bind VENC, no raw NV12 CPU copy in application",
+    "viewer": "VAAPI -> DRM_PRIME MAP_READ|MAP_DIRECT -> PL_HANDLE_DMA_BUF Vk texture imports",
+    "cpu_decoded_pixel_roundtrip": false,
+    "driver_internal_blit_or_detiling_excluded": false,
+    "cpu_synchronization": "FFmpeg n9.0.2 read-only VAAPI->DRM export calls vaSyncSurface before vaExportSurfaceHandle",
+    "other_copies": "sender encoded AU vector; host encoded reassembly and AVPacket; normal UDP kernel/user copies"
+  },
+  "queues": {
+    "VI_buffer_count": 3,
+    "VI_depth": 0,
+    "VENC_stream_buffer_count": 5,
+    "async_encoded_queue_max_default": 4,
+    "decoded_mailbox_latest": 1,
+    "swapchain_preferred_mode": "MAILBOX",
+    "swapchain_render_inflight_depth": 1,
+    "actual_compositor_backlog_known": false,
+    "buffer_count_is_not_frame_delay": true
+  },
+  "uncertainties": [
+    "capture SOF/EOF to VENC output not measured",
+    "actual present mode and final compositor presentation not instrumented",
+    "physical scan direction/position must be calibrated after rotation",
+    "normal path map timing overlaps GPU decode wait, not additive",
+    "exposure timing alone does not give exact optical age"
+  ],
+  "artifacts": "artifacts/remaining-latency-audit-20261014/",
+  "changes": {
+    "sdk": false,
+    "application": false,
+    "sensor_controls": false,
+    "desktop": false,
+    "flash": false,
+    "reboot": false
+  }
+}
