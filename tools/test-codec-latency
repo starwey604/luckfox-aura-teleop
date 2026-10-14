@@ -1,0 +1,221 @@
+#!/usr/bin/env python3
+"""Native VAAPI completion probe; optional bounded Aura encoder IRQ timing/control."""
+import argparse
+import csv
+import hashlib
+import io
+import json
+import math
+import os
+from pathlib import Path
+import re
+import shlex
+import statistics
+import subprocess
+import time
+
+ROOT = Path(__file__).resolve().parents[1]
+DEBUG = '/sys/module/kmpp/parameters/mpp_dev_debug'
+
+
+def run(command, timeout=60, **kwargs):
+    return subprocess.check_output(command, text=True, stderr=subprocess.STDOUT, timeout=timeout, **kwargs)
+
+
+def distribution(values):
+    ordered = sorted(values)
+    if not ordered: return None
+    return {'samples': len(ordered), 'min': ordered[0], 'mean': statistics.mean(ordered),
+            **{f'p{p}': ordered[max(0, math.ceil(len(ordered) * p / 100) - 1)] for p in (50, 95, 99)},
+            'max': ordered[-1]}
+
+
+def stage_metrics(text):
+    return {name: {key: float(value) for key, value in re.findall(r'(\w+)=([\d.]+)', data)}
+            for name, data in re.findall(r'^metric: stage=(\S+) (.*)$', text, re.M)}
+
+
+def encoder_samples(text):
+    wall, cycles = {}, {}
+    for pid, session, us, hw_us in re.findall(
+            r'21f40000\.rkvenc:\d+ session (\d+):(\d+) time: (\d+) us hw (\d+) us', text):
+        key = pid + ':' + session
+        wall.setdefault(key, []).append(int(us) / 1000)
+        cycles.setdefault(key, []).append(int(hw_us) / 1000)
+    return wall, cycles
+
+
+def board_tests(args):
+    ssh = ['ssh', '-o', 'ConnectTimeout=5', '-o', 'ServerAliveInterval=3', '-o', 'ServerAliveCountMax=2', args.host]
+    scp = ['scp', '-o', 'ConnectTimeout=5']
+    if 'SSHPASS' in os.environ:
+        ssh = ['sshpass', '-e', *ssh]; scp = ['sshpass', '-e', *scp]
+    adb = ['adb', '-s', args.adb_serial, 'shell']
+    def remote(command):
+        try: return run([*ssh, command], timeout=15).strip()
+        except (subprocess.TimeoutExpired, subprocess.CalledProcessError):
+            return run([*adb, command], timeout=10).strip()
+    boot = remote('cat /proc/sys/kernel/random/boot_id')
+    debug = remote('cat ' + DEBUG)
+    console = remote('cat /proc/sys/kernel/printk')
+    if int(debug, 0) & 0x100: raise RuntimeError('Encoder timing already active; no observer-effect control')
+    identity = remote('uname -a; sha256sum /userdata/teleop-sender /userdata/run-ar0234-stereo; ps')
+    if re.search(r'^\s*\d+\s+\S+\s+\S+\s+(?:/\S*/)?(?:teleop-sender\S*|v4l2-ctl|rkipc)(?:\s|$)', identity, re.M):
+        raise RuntimeError('Existing camera application; no camera started')
+    (args.output / 'board-identity.txt').write_text(identity + '\n')
+    capture = None; reader_pid = None; cases = []; files = []
+    log_path = args.output / 'usb-kmsg.txt'
+    marker = f'teleop-codec-{time.monotonic_ns()}'
+    def wait_marker(value):
+        deadline = time.monotonic() + 5
+        while value not in log_path.read_text(errors='replace'):
+            if capture.poll() is not None or time.monotonic() >= deadline:
+                raise RuntimeError('USB marker missing; no further camera tests')
+            time.sleep(.05)
+    with log_path.open('w') as log:
+        try:
+            command = "timeout 180 sh -c 'echo usb_reader_pid=$$; cat /dev/kmsg & child=$!; " \
+                      "trap \"kill $child 2>/dev/null; wait $child 2>/dev/null; exit 0\" TERM INT HUP; wait $child'"
+            capture = subprocess.Popen([*adb, command], stdout=log, stderr=subprocess.STDOUT)
+            time.sleep(.3)
+            remote(f'echo {marker} >/dev/kmsg')
+            wait_marker(marker)
+            reader_pid = re.search(r'^usb_reader_pid=(\d+)', log_path.read_text(), re.M)[1]
+            # Ring-buffer-only timing output; serial/netconsole output must not enter IRQ timing.
+            remote("echo 1 >/proc/sys/kernel/printk")
+            for name, timed, recording in [('control-before', False, False), ('encoder-timed', True, False),
+                                           ('control-after', False, False), ('recording', False, True)]:
+                if remote('cat /proc/sys/kernel/random/boot_id') != boot: raise RuntimeError('Board rebooted; stop')
+                if int(remote('cat /sys/class/thermal/thermal_zone0/temp')) >= 70000: raise RuntimeError('Board too warm; stop')
+                flags = str(int(debug, 0) | (0x100 if timed else 0))
+                remote(f'echo {flags} >{DEBUG}')
+                if int(remote('cat ' + DEBUG), 0) != int(flags): raise RuntimeError('Timing flag not applied')
+                begin, end = marker + '-' + name + '-begin', marker + '-' + name + '-end'
+                remote(f'echo {begin} >/dev/kmsg'); wait_marker(begin)
+                path = args.output / name
+                command = [str(ROOT / 'tools/test-aura-software-baseline'), '--camera', 'dual', '--frames', str(args.frames),
+                           '--viewer', str(args.viewer), '--output', str(path), '--host', args.host]
+                if recording: command += ['--record-h264']
+                print('board:', name, flush=True)
+                (args.output / (name + '-driver.txt')).write_text(run(command))
+                remote(f'echo {end} >/dev/kmsg'); wait_marker(end)
+                section = log_path.read_text(errors='replace').split(begin, 1)[1].split(end, 1)[0]
+                if re.search(r'BUG:|WARNING:|soft lockup|hard LOCKUP|processing time out', section):
+                    raise RuntimeError('Kernel fault after marker; stop')
+                grouped, cycles = encoder_samples(section)
+                # A bound VI source may encode additional pictures already in
+                # flight while the application stops after its requested AUs.
+                # Keep those real timings, never truncate them to pretend exact
+                # frame/IRQ association. Five is the configured stream depth.
+                if timed and (len(grouped) != 2 or any(not args.frames <= len(x) <= args.frames + 5 for x in grouped.values())):
+                    raise RuntimeError('Unexpected completion IRQ count: ' + str({k: len(v) for k, v in grouped.items()}))
+                viewer = (path / 'viewer.txt').read_text()
+                if 'rxq_overflow=0 truncated=0 clock_discontinuities=0' not in viewer:
+                    raise RuntimeError('RX observation failure')
+                cases.append({'name': name, 'timing_enabled': timed, 'recording': recording,
+                              'encoder_run_to_done_irq_ms': {k: distribution(v) for k, v in grouped.items()},
+                              'encoder_hw_cycles_ms': {k: distribution(v) for k, v in cycles.items()},
+                              'encoder_samples_ms': grouped, 'encoder_hw_cycle_samples_ms': cycles,
+                              'host_metrics': stage_metrics(viewer),
+                              'sender_metrics': stage_metrics((path / 'board-senders.txt').read_text())})
+                (args.output / 'board-cases.json').write_text(json.dumps(cases, indent=2) + '\n')
+                if recording:
+                    board_dir = json.loads((path / 'result.json').read_text())['record_h264_directory']
+                    for camera in (0, 1):
+                        local = args.output / f'camera{camera}.h264'
+                        run([*scp, args.host + ':' + board_dir + f'/camera{camera}.h264', str(local)])
+                        files.append(local)
+            if remote('cat /proc/sys/kernel/random/boot_id') != boot:
+                raise RuntimeError('Board rebooted during final recording; stop')
+        finally:
+            try:
+                remote(f'echo {shlex.quote(debug)} >{DEBUG}; echo {shlex.quote(console)} >/proc/sys/kernel/printk')
+                if remote('cat ' + DEBUG) != debug or remote('cat /proc/sys/kernel/printk').split() != console.split():
+                    raise RuntimeError('Board debug/console settings not restored')
+            finally:
+                if reader_pid:
+                    run([*adb, f'kill {reader_pid}'], timeout=10)
+                if capture and capture.poll() is None: capture.terminate(); capture.wait(timeout=10)
+    return files, {'boot_id': boot, 'debug_original': debug, 'console_original': console,
+                   'debug_restored': remote('cat ' + DEBUG), 'console_restored': remote('cat /proc/sys/kernel/printk'),
+                   'boot_restored': remote('cat /proc/sys/kernel/random/boot_id'),
+                   'final_temperature_mC': int(remote('cat /sys/class/thermal/thermal_zone0/temp')), 'cases': cases}
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('--output', type=Path, required=True)
+    parser.add_argument('--board', action='store_true', help='Explicitly run four short real-board tests with USB logs')
+    parser.add_argument('--frames', type=int, default=120)
+    parser.add_argument('--rounds', type=int, default=3, choices=range(1, 4))
+    parser.add_argument('--input', type=Path, action='append', default=[], help='Existing no-B-frame H.264 recordings')
+    parser.add_argument('--host', default='root@192.168.1.10')
+    parser.add_argument('--adb-serial', default='4a988b5514157df5')
+    parser.add_argument('--viewer', type=Path, default=ROOT / 'build/host/bin/host-viewer')
+    args = parser.parse_args()
+    if Path('/run/.containerenv').exists() or Path('/.dockerenv').exists(): parser.error('Run natively on CachyOS')
+    if not 12 <= args.frames <= 120: parser.error('Use 12..120 frames; this tool never performs long camera runs')
+    args.output = args.output.resolve(); args.output.mkdir(parents=True, exist_ok=False)
+    probe = args.output / 'vaapi-completion-probe'
+    build = [os.environ.get('CXX', 'c++'), '-std=c++20', '-O2', '-Wall', '-Wextra', '-Wpedantic', '-Wconversion', '-pthread',
+             '-I' + str(ROOT / 'src/common/include'), '-I' + str(ROOT / 'src/host-viewer/src'),
+             str(ROOT / 'tests/latency/vaapi_completion_probe.cpp'), str(ROOT / 'src/host-viewer/src/h264_decoder.cpp'),
+             str(ROOT / 'src/common/performance.cpp'), '-o', str(probe)]
+    build += shlex.split(run(['pkg-config', '--cflags', '--libs', 'libavcodec', 'libavutil', 'libva']))
+    (args.output / 'build.txt').write_text(run(build))
+    inputs = list(args.input); board = None
+    if args.board:
+        recordings, board = board_tests(args); inputs += recordings
+    for width, height in [(1280, 720), (1920, 1080), (3840, 2160)]:
+        path = args.output / f'testsrc2-{width}x{height}.h264'
+        run(['ffmpeg', '-v', 'error', '-f', 'lavfi', '-i', f'testsrc2=size={width}x{height}:rate=100',
+             '-frames:v', str(args.frames), '-c:v', 'libx264', '-preset', 'ultrafast', '-tune', 'zerolatency',
+             '-b:v', '30M', '-x264-params', 'bframes=0:keyint=15:scenecut=0:slices=4', '-f', 'h264', str(path)])
+        inputs.append(path)
+    prepared = []
+    for i, path in enumerate(inputs):
+        metadata = json.loads(run(['ffprobe', '-v', 'error', '-show_packets', '-show_streams', '-of', 'json', str(path)]))
+        if metadata['streams'][0].get('has_b_frames') != 0: raise RuntimeError('Reordering input not allowed')
+        packets = metadata['packets'][:args.frames]
+        if len(packets) != args.frames: raise RuntimeError('Incomplete input recording')
+        offsets = args.output / f'input-{i}-offsets.txt'
+        offsets.write_text(''.join(f"{p['pos']} {p['size']}\n" for p in packets))
+        prepared.append((path, offsets, metadata))
+    cases = [(path.name + '-solo', [item]) for item in prepared for path in [item[0]]]
+    if args.board:
+        camera = [x for x in prepared if x[0].name in ('camera0.h264', 'camera1.h264')]
+        cases.append(('board-recordings-dual', camera))
+    runs = []
+    for label, items in cases:
+        for repeat in range(args.rounds):
+            # Alternate order to avoid treating cache/order effects as synchronization cost.
+            for mode in (('async', 'sync') if repeat % 2 == 0 else ('sync', 'async')):
+                command = [str(probe), mode, '10000']
+                for path, offsets, _ in items: command += [str(path), str(offsets)]
+                output = run(command, env=dict(os.environ, TELEOP_METRICS='1'))
+                name = f'{label}-{repeat + 1}-{mode}'
+                (args.output / (name + '.csv')).write_text(output)
+                if '[h264 @' in output: raise RuntimeError('H.264 warning in probe')
+                samples = list(csv.DictReader(io.StringIO(output)))
+                if len(samples) != len(items) * args.frames: raise RuntimeError('Completion sample mismatch')
+                streams = {}
+                for stream in range(len(items)):
+                    rows = [x for x in samples if int(x['stream']) == stream]
+                    streams[str(stream)] = {'all': {}, 'steady_after_10': {}, 'first': rows[0],
+                                           'not_ready_before_sync': sum(int(x['status_before']) != 4 for x in rows)}
+                    for subset, selected in [('all', rows), ('steady_after_10', rows[10:])]:
+                        for field in ('available_ms', 'query_ms', 'sync_wait_ms', 'ready_to_completion_ms'):
+                            streams[str(stream)][subset][field] = distribution([float(x[field]) for x in selected])
+                runs.append({'label': label, 'repeat': repeat + 1, 'mode': mode, 'streams': streams})
+                print('host:', name, 'PASS', flush=True)
+    summary = {'board': board, 'host_runs': runs, 'probe_sha256': hashlib.sha256(probe.read_bytes()).hexdigest(),
+               'viewer_sha256': hashlib.sha256(args.viewer.read_bytes()).hexdigest(),
+               'ffmpeg': run(['ffmpeg', '-version']).splitlines()[0],
+               'inputs': [{'path': str(path), 'sha256': hashlib.sha256(path.read_bytes()).hexdigest(),
+                           'stream': metadata['streams'][0]} for path, _, metadata in prepared],
+               'measurement': 'Explicit CPU wait for GPU surface completion; not pure GPU timestamps or optical delay',
+               'async_completion_field_is_not_gpu_completion': True, 'steady_excludes_first_frames': 10}
+    (args.output / 'summary.json').write_text(json.dumps(summary, indent=2) + '\n')
+
+
+if __name__ == '__main__': main()

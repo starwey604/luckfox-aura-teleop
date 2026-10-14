@@ -92,6 +92,8 @@ def main():
     parser.add_argument("--force-stream-parser", action="store_true", help="Diagnostic viewer lookahead control")
     parser.add_argument("--minimal", action="store_true",
                         help="Direct sender, no live kernel/thread monitor or stage metrics; isolate observer effects")
+    parser.add_argument("--record-h264", action="store_true",
+                        help="Save both Annex-B streams in the board report directory (dual diagnostic only)")
     parser.add_argument("--host", default="root@192.168.1.10")
     parser.add_argument("--sender", default="/userdata/teleop-sender")
     parser.add_argument("--launcher", default="/userdata/run-ar0234-stereo", help="Board stereo launcher path")
@@ -117,6 +119,8 @@ def main():
     if args.queue_report_ms < 0 or args.queue_report_ms > 60000 or (args.viewer_pipeline == "sync" and args.queue_report_ms):
         parser.error("Queue reports need async and 0..60000 ms")
     if args.display and args.mode == "transport": parser.error("Display requires decode mode")
+    if args.record_h264 and (args.camera != "dual" or args.minimal):
+        parser.error("H.264 recording requires non-minimal dual launcher")
     if args.vertical_blanking is not None and args.vertical_blanking < 21:
         parser.error("AR0234 VBLANK must be >=21")
     if args.frames <= 0 or not 0 < args.port < 65536:
@@ -161,6 +165,7 @@ def main():
               "minimal": args.minimal, "success": False}
     limit = max(20, args.frames // 90 + 20)
     directory = "/userdata/latency-" + args.output.parent.name + "-" + args.output.name
+    result["record_h264_directory"] = directory + "/h264" if args.record_h264 else None
     if args.camera == "dual" and not args.minimal:
         # Preserve directory metadata even if the board locks before ext4's
         # periodic journal commit. Stream log contents to the host as well.
@@ -212,6 +217,8 @@ def main():
                        "OUTPUT_MODE=" + args.output_mode,
                        "REPORT_DIR=" + directory,
                        args.launcher, "--frames", str(args.frames)]
+            if args.record_h264:
+                command.insert(2, "H264_DIR=" + directory + "/h264")
             if args.vertical_blanking is not None: command.insert(2, "VERTICAL_BLANKING=" + str(args.vertical_blanking))
             controls = ""
         else:

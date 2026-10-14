@@ -9,6 +9,11 @@
 没有启动摄像头。板端 SSH banner exchange 超时，ADB 无设备，因此没有本轮板端
 运行证据，也没有在本机编译/跑 PyroWave；不能把能力检查写成编解码性能测试。
 
+后续同日已恢复 SSH/USB 并完成当前 H.264 链路实测：编码硬件约2.51ms，
+双路AU提交到VAAPI实际完成约1.83ms。新的收益预算见
+[编解码完成时间与PyroWave预算](codec-completion-and-pyrowave-budget-2026-10-14.md)；
+本页保留初次调研时的检查范围，不将后续实测混入上游PyroWave benchmark。
+
 ## 已核实的上游信息
 
 截至 2026-10-14，Valve 的 Remote Play 官方说明支持手动设置 **100–500 Mbit/s**，
