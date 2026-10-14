@@ -1,0 +1,108 @@
+{
+  "date": "2026-10-14",
+  "runtime_exposure_applied": true,
+  "exposure_lines": 74,
+  "exposure_ms": 1.0064,
+  "gains_unchanged": true,
+  "sensor_timing_unchanged": true,
+  "boot_id": "1b8b1e86-5302-4765-93f0-e50436335f6b",
+  "original_controls": {
+    "0": {
+      "exposure": 735,
+      "analogue_gain": 32,
+      "horizontal_blanking": 1168,
+      "vertical_blanking": 21,
+      "digital_gain": 512,
+      "pixel_rate": 180000000
+    },
+    "1": {
+      "exposure": 735,
+      "analogue_gain": 32,
+      "horizontal_blanking": 1168,
+      "vertical_blanking": 21,
+      "digital_gain": 512,
+      "pixel_rate": 180000000
+    }
+  },
+  "capture_nodes": {
+    "0": "/dev/video24",
+    "1": "/dev/video32"
+  },
+  "captures": [
+    {
+      "camera": 0,
+      "exposure_lines": 735,
+      "exposure_ms": 9.996,
+      "label": "10ms",
+      "mean_luma": 83.17241970486111,
+      "PNG": "/home/ww/codings/luckfox-aura-teleop/captures/ar0234/exposure-1ms-20261014/camera0-10ms.png",
+      "controls_after": {
+        "exposure": 735,
+        "analogue_gain": 32,
+        "horizontal_blanking": 1168,
+        "vertical_blanking": 21,
+        "digital_gain": 512,
+        "pixel_rate": 180000000
+      }
+    },
+    {
+      "camera": 1,
+      "exposure_lines": 735,
+      "exposure_ms": 9.996,
+      "label": "10ms",
+      "mean_luma": 126.89367296006944,
+      "PNG": "/home/ww/codings/luckfox-aura-teleop/captures/ar0234/exposure-1ms-20261014/camera1-10ms.png",
+      "controls_after": {
+        "exposure": 735,
+        "analogue_gain": 32,
+        "horizontal_blanking": 1168,
+        "vertical_blanking": 21,
+        "digital_gain": 512,
+        "pixel_rate": 180000000
+      }
+    },
+    {
+      "camera": 0,
+      "exposure_lines": 74,
+      "exposure_ms": 1.0064,
+      "label": "1ms",
+      "mean_luma": 28.859547526041666,
+      "PNG": "/home/ww/codings/luckfox-aura-teleop/captures/ar0234/exposure-1ms-20261014/camera0-1ms.png",
+      "controls_after": {
+        "exposure": 74,
+        "analogue_gain": 32,
+        "horizontal_blanking": 1168,
+        "vertical_blanking": 21,
+        "digital_gain": 512,
+        "pixel_rate": 180000000
+      }
+    },
+    {
+      "camera": 1,
+      "exposure_lines": 74,
+      "exposure_ms": 1.0064,
+      "label": "1ms",
+      "mean_luma": 22.934220920138888,
+      "PNG": "/home/ww/codings/luckfox-aura-teleop/captures/ar0234/exposure-1ms-20261014/camera1-1ms.png",
+      "controls_after": {
+        "exposure": 74,
+        "analogue_gain": 32,
+        "horizontal_blanking": 1168,
+        "vertical_blanking": 21,
+        "digital_gain": 512,
+        "pixel_rate": 180000000
+      }
+    }
+  ],
+  "strict_capture_validation_passed": false,
+  "kernel_warning": "dma_buf_put during rkisp_stop_streaming, first observed with original 735-line exposure, three warning stacks",
+  "automatic_rollback_after_warning": true,
+  "subsequent_control_only_application_readback_passed": true,
+  "images_directory": "captures/ar0234/exposure-1ms-20261014",
+  "artifacts": "artifacts/exposure-1ms-20261014/",
+  "default_launcher_exposure_unchanged": 735,
+  "flash_or_sdk_change": false,
+  "no_further_streaming_after_warning_detected": true,
+  "warning_detected_during_end_of_capture_log_review": true,
+  "UI_open_status": "queued"
+}
