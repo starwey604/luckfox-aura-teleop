@@ -79,6 +79,16 @@ Order matters: apply the SDK patch stack and `select-teleop-board` before SDK bu
 - `host-viewer` defaults to VAAPI hardware decode (`/dev/dri/renderD128`) and refuses
   automatic software fallback; `--software-decode` is an explicit diagnostic. It needs
   ffmpeg, SDL3, Vulkan, and libplacebo dev packages on the host.
+- Sender codec overrides are opt-in: `--rc-mode fixqp --qp-i/--qp-p`, entropy,
+  transform, deblock, profile, max-reencode and `--codec-report`; `--slice-ctus 0`
+  disables splitting in frame mode. Explicit setters must survive readback; invalid
+  profile/tool combinations fail before MPI. Launcher forwards the matching named
+  environment variables. Normal codec defaults remain High/CBR30Mbps/GOP15/slice120.
+  `tools/test-aura-codec-parameters` runs one USB-logged 120-frame/camera case then
+  native paced VAAPI surface-completion replay; use a freshly native-built `--probe`.
+  2026-10-15 candidates CAVLC/4x4/no-split and GOP1/CAVLC/no-split save ~0.44ms in
+  separate stage means; not optical or quality-equivalent proof. Baseline profile66
+  triggered a CABAC init normalization warning and was rejected. See codec results docs.
 - UDP viewer defaults to independent RX + per-stream decoder workers + SDL/Vulkan main
   thread (`--pipeline async`; `sync` is the A/B control). Encoded queues are bounded;
   overflow fails explicitly rather than dropping H.264 reference pictures. Only decoded

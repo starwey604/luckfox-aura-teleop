@@ -1,0 +1,3702 @@
+{
+  "date": "2026-10-15",
+  "kernel": "6.1.141 #19 SMP PREEMPT Thu Oct 15 13:06:22 CST 2026",
+  "boot_ids": [
+    "9183cb9c-73b7-47ff-a8c6-f22ada820f7a"
+  ],
+  "sensor_controls": {
+    "exposure": 735,
+    "analogue_gain": 48,
+    "digital_gain": 512,
+    "vertical_blanking": 506
+  },
+  "sensor_period_us": 8336.8,
+  "encoder_fps": 120,
+  "measurement": {
+    "encoder": "KMPP hardware cycle counter / actual driver clock; includes all completed tasks, including in-flight extras at stop",
+    "decoder": "native Radeon 890M VAAPI paced synchronous surface completion replay, two streams phase-aligned, three rounds per recording; first 10 frames excluded from steady stats",
+    "sum": "sum of separately measured means; not real-time same-frame end-to-end latency; includes no sensor/network/display",
+    "payload_rate": "recorded H.264 bytes divided by frame count times sensor period; short-run realized rate, not a long-run CBR guarantee"
+  },
+  "total_attempts_including_launcher_check": 44,
+  "successful_attempts_including_launcher_check": 42,
+  "board_frames_hardware_decoded_including_rejected_profile": 8640,
+  "native_probe_frames": 24120,
+  "temperature_end_snapshots_mC": {
+    "samples": 43,
+    "min": 46290,
+    "mean": 47548.13953488372,
+    "p50": 47510,
+    "p95": 48430,
+    "p99": 48620,
+    "max": 48620
+  },
+  "comparison": {
+    "4x4": {
+      "encoder_hw_ms": {
+        "samples": 241,
+        "min": 2.221,
+        "mean": 2.317941908713693,
+        "p50": 2.325,
+        "p95": 2.338,
+        "p99": 2.345,
+        "max": 2.355
+      },
+      "decoder_completion_steady_ms": {
+        "samples": 660,
+        "min": 1.134605,
+        "mean": 1.7760236803030303,
+        "p50": 1.770993,
+        "p95": 2.42815,
+        "p99": 2.962977,
+        "max": 4.086101
+      },
+      "stage_mean_sum_ms": 4.093965589016723,
+      "payload_total_mbps_mean": 59.45463487189329,
+      "payload_total_mbps_runs": [
+        59.45463487189329
+      ],
+      "runs": [
+        "dual-4x4"
+      ],
+      "estimated_stage_mean_saving_ms": 0.26297163816169977
+    },
+    "baseline": {
+      "encoder_hw_ms": {
+        "samples": 964,
+        "min": 2.177,
+        "mean": 2.5149854771784232,
+        "p50": 2.537,
+        "p95": 2.558,
+        "p99": 2.573,
+        "max": 2.602
+      },
+      "decoder_completion_steady_ms": {
+        "samples": 2640,
+        "min": 1.157236,
+        "mean": 1.84195175,
+        "p50": 1.809165,
+        "p95": 2.507295,
+        "p99": 3.092597,
+        "max": 5.647198
+      },
+      "stage_mean_sum_ms": 4.356937227178423,
+      "payload_total_mbps_mean": 58.20712383648402,
+      "payload_total_mbps_runs": [
+        59.226121933275756,
+        58.15487157342545,
+        57.64545948885264,
+        57.80204235038224
+      ],
+      "runs": [
+        "dual-baseline",
+        "dual-baseline-r2",
+        "dual-baseline-r3",
+        "dual-baseline-r4"
+      ],
+      "estimated_stage_mean_saving_ms": 0.0
+    },
+    "cavlc": {
+      "encoder_hw_ms": {
+        "samples": 241,
+        "min": 2.188,
+        "mean": 2.4958796680497923,
+        "p50": 2.517,
+        "p95": 2.54,
+        "p99": 2.559,
+        "max": 2.586
+      },
+      "decoder_completion_steady_ms": {
+        "samples": 660,
+        "min": 1.151408,
+        "mean": 1.7060552863636365,
+        "p50": 1.707725,
+        "p95": 2.298767,
+        "p99": 2.593332,
+        "max": 3.191588
+      },
+      "stage_mean_sum_ms": 4.201934954413429,
+      "payload_total_mbps_mean": 58.50382240987749,
+      "payload_total_mbps_runs": [
+        58.50382240987749
+      ],
+      "runs": [
+        "dual-cavlc"
+      ],
+      "estimated_stage_mean_saving_ms": 0.15500227276499423
+    },
+    "cavlc-4x4": {
+      "encoder_hw_ms": {
+        "samples": 241,
+        "min": 2.221,
+        "mean": 2.3114813278008297,
+        "p50": 2.318,
+        "p95": 2.332,
+        "p99": 2.34,
+        "max": 2.349
+      },
+      "decoder_completion_steady_ms": {
+        "samples": 660,
+        "min": 0.858895,
+        "mean": 1.7604002424242424,
+        "p50": 1.725605,
+        "p95": 2.339139,
+        "p99": 3.158911,
+        "max": 10.758794
+      },
+      "stage_mean_sum_ms": 4.071881570225072,
+      "payload_total_mbps_mean": 60.11479224642549,
+      "payload_total_mbps_runs": [
+        60.11479224642549
+      ],
+      "runs": [
+        "dual-cavlc-4x4"
+      ],
+      "estimated_stage_mean_saving_ms": 0.2850556569533511
+    },
+    "cavlc-4x4-slice-off": {
+      "encoder_hw_ms": {
+        "samples": 482,
+        "min": 2.234,
+        "mean": 2.3147759336099587,
+        "p50": 2.321,
+        "p95": 2.331,
+        "p99": 2.338,
+        "max": 2.349
+      },
+      "decoder_completion_steady_ms": {
+        "samples": 1320,
+        "min": 0.985202,
+        "mean": 1.6068612681818182,
+        "p50": 1.612462,
+        "p95": 2.274697,
+        "p99": 2.814883,
+        "max": 3.715677
+      },
+      "stage_mean_sum_ms": 3.9216372017917767,
+      "payload_total_mbps_mean": 59.20733774749704,
+      "payload_total_mbps_runs": [
+        59.741467549499404,
+        58.67320794549468
+      ],
+      "runs": [
+        "dual-cavlc-4x4-slice-off",
+        "dual-cavlc-4x4-slice-off-r2"
+      ],
+      "estimated_stage_mean_saving_ms": 0.43530002538664636
+    },
+    "cbr40": {
+      "encoder_hw_ms": {
+        "samples": 241,
+        "min": 2.184,
+        "mean": 2.527394190871369,
+        "p50": 2.551,
+        "p95": 2.571,
+        "p99": 2.583,
+        "max": 2.601
+      },
+      "decoder_completion_steady_ms": {
+        "samples": 660,
+        "min": 1.263497,
+        "mean": 1.9603406575757576,
+        "p50": 1.91929,
+        "p95": 2.595762,
+        "p99": 3.316388,
+        "max": 3.813873
+      },
+      "stage_mean_sum_ms": 4.4877348484471264,
+      "payload_total_mbps_mean": 73.6818683427694,
+      "payload_total_mbps_runs": [
+        73.6818683427694
+      ],
+      "runs": [
+        "dual-cbr40"
+      ],
+      "estimated_stage_mean_saving_ms": -0.13079762126870342
+    },
+    "cbr60": {
+      "encoder_hw_ms": {
+        "samples": 241,
+        "min": 2.185,
+        "mean": 2.5451203319502076,
+        "p50": 2.572,
+        "p95": 2.585,
+        "p99": 2.593,
+        "max": 2.601
+      },
+      "decoder_completion_steady_ms": {
+        "samples": 660,
+        "min": 1.3985,
+        "mean": 2.138941221212121,
+        "p50": 2.10576,
+        "p95": 2.747307,
+        "p99": 3.380638,
+        "max": 4.320316
+      },
+      "stage_mean_sum_ms": 4.684061553162328,
+      "payload_total_mbps_mean": 103.85436458433293,
+      "payload_total_mbps_runs": [
+        103.85436458433293
+      ],
+      "runs": [
+        "dual-cbr60"
+      ],
+      "estimated_stage_mean_saving_ms": -0.3271243259839052
+    },
+    "deblock-off": {
+      "encoder_hw_ms": {
+        "samples": 241,
+        "min": 2.09,
+        "mean": 2.53445643153527,
+        "p50": 2.567,
+        "p95": 2.583,
+        "p99": 2.591,
+        "max": 2.61
+      },
+      "decoder_completion_steady_ms": {
+        "samples": 660,
+        "min": 1.152519,
+        "mean": 1.7853090575757575,
+        "p50": 1.748622,
+        "p95": 2.389057,
+        "p99": 2.817142,
+        "max": 3.543139
+      },
+      "stage_mean_sum_ms": 4.3197654891110275,
+      "payload_total_mbps_mean": 57.89624316284426,
+      "payload_total_mbps_runs": [
+        57.89624316284426
+      ],
+      "runs": [
+        "dual-deblock-off"
+      ],
+      "estimated_stage_mean_saving_ms": 0.03717173806739549
+    },
+    "fixqp26": {
+      "encoder_hw_ms": {
+        "samples": 241,
+        "min": 2.191,
+        "mean": 2.549904564315353,
+        "p50": 2.574,
+        "p95": 2.585,
+        "p99": 2.587,
+        "max": 2.587
+      },
+      "decoder_completion_steady_ms": {
+        "samples": 660,
+        "min": 1.239213,
+        "mean": 2.231743534848485,
+        "p50": 2.160538,
+        "p95": 2.869854,
+        "p99": 3.297549,
+        "max": 9.978279
+      },
+      "stage_mean_sum_ms": 4.781648099163838,
+      "payload_total_mbps_mean": 110.72726545756964,
+      "payload_total_mbps_runs": [
+        110.72726545756964
+      ],
+      "runs": [
+        "dual-fixqp26"
+      ],
+      "estimated_stage_mean_saving_ms": -0.4247108719854147
+    },
+    "fixqp30": {
+      "encoder_hw_ms": {
+        "samples": 241,
+        "min": 2.184,
+        "mean": 2.449253112033195,
+        "p50": 2.469,
+        "p95": 2.481,
+        "p99": 2.488,
+        "max": 2.508
+      },
+      "decoder_completion_steady_ms": {
+        "samples": 660,
+        "min": 1.09508,
+        "mean": 1.7376077121212121,
+        "p50": 1.682384,
+        "p95": 2.379335,
+        "p99": 4.382543,
+        "max": 5.488564
+      },
+      "stage_mean_sum_ms": 4.186860824154407,
+      "payload_total_mbps_mean": 30.594720596231966,
+      "payload_total_mbps_runs": [
+        30.594720596231966
+      ],
+      "runs": [
+        "dual-fixqp30"
+      ],
+      "estimated_stage_mean_saving_ms": 0.17007640302401583
+    },
+    "gop1": {
+      "encoder_hw_ms": {
+        "samples": 241,
+        "min": 2.173,
+        "mean": 2.178825726141079,
+        "p50": 2.179,
+        "p95": 2.183,
+        "p99": 2.184,
+        "max": 2.206
+      },
+      "decoder_completion_steady_ms": {
+        "samples": 660,
+        "min": 1.244233,
+        "mean": 1.8529067318181818,
+        "p50": 1.775394,
+        "p95": 2.354865,
+        "p99": 2.558538,
+        "max": 3.877533
+      },
+      "stage_mean_sum_ms": 4.031732457959261,
+      "payload_total_mbps_mean": 61.6141924959217,
+      "payload_total_mbps_runs": [
+        61.6141924959217
+      ],
+      "runs": [
+        "dual-gop1"
+      ],
+      "estimated_stage_mean_saving_ms": 0.3252047692191624
+    },
+    "gop1-cavlc": {
+      "encoder_hw_ms": {
+        "samples": 241,
+        "min": 2.181,
+        "mean": 2.183576763485477,
+        "p50": 2.183,
+        "p95": 2.187,
+        "p99": 2.189,
+        "max": 2.21
+      },
+      "decoder_completion_steady_ms": {
+        "samples": 660,
+        "min": 1.263857,
+        "mean": 1.8576009863636365,
+        "p50": 1.810885,
+        "p95": 2.382841,
+        "p99": 2.519859,
+        "max": 2.636779
+      },
+      "stage_mean_sum_ms": 4.041177749849114,
+      "payload_total_mbps_mean": 61.61559191376388,
+      "payload_total_mbps_runs": [
+        61.61559191376388
+      ],
+      "runs": [
+        "dual-gop1-cavlc"
+      ],
+      "estimated_stage_mean_saving_ms": 0.3157594773293093
+    },
+    "gop1-cavlc-slice-off": {
+      "encoder_hw_ms": {
+        "samples": 482,
+        "min": 2.183,
+        "mean": 2.1888340248962654,
+        "p50": 2.189,
+        "p95": 2.192,
+        "p99": 2.193,
+        "max": 2.21
+      },
+      "decoder_completion_steady_ms": {
+        "samples": 1320,
+        "min": 1.082085,
+        "mean": 1.7226606386363637,
+        "p50": 1.67025,
+        "p95": 2.275429,
+        "p99": 2.573358,
+        "max": 3.767664
+      },
+      "stage_mean_sum_ms": 3.911494663532629,
+      "payload_total_mbps_mean": 61.55047100406231,
+      "payload_total_mbps_runs": [
+        61.527060742731024,
+        61.573881265393595
+      ],
+      "runs": [
+        "dual-gop1-cavlc-slice-off",
+        "dual-gop1-cavlc-slice-off-r2"
+      ],
+      "estimated_stage_mean_saving_ms": 0.44544256364579393
+    },
+    "gop1-cbr60": {
+      "encoder_hw_ms": {
+        "samples": 241,
+        "min": 2.18,
+        "mean": 2.183784232365145,
+        "p50": 2.184,
+        "p95": 2.186,
+        "p99": 2.187,
+        "max": 2.205
+      },
+      "decoder_completion_steady_ms": {
+        "samples": 660,
+        "min": 1.424429,
+        "mean": 2.1873354363636364,
+        "p50": 2.128334,
+        "p95": 2.799396,
+        "p99": 3.13666,
+        "max": 4.651989
+      },
+      "stage_mean_sum_ms": 4.371119668728781,
+      "payload_total_mbps_mean": 119.5482999072386,
+      "payload_total_mbps_runs": [
+        119.5482999072386
+      ],
+      "runs": [
+        "dual-gop1-cbr60"
+      ],
+      "estimated_stage_mean_saving_ms": -0.014182441550357971
+    },
+    "gop1-fixqp26": {
+      "encoder_hw_ms": {
+        "samples": 241,
+        "min": 2.183,
+        "mean": 2.19103734439834,
+        "p50": 2.191,
+        "p95": 2.196,
+        "p99": 2.197,
+        "max": 2.204
+      },
+      "decoder_completion_steady_ms": {
+        "samples": 660,
+        "min": 1.44554,
+        "mean": 2.3758128712121214,
+        "p50": 2.414763,
+        "p95": 3.101685,
+        "p99": 3.496587,
+        "max": 4.518069
+      },
+      "stage_mean_sum_ms": 4.566850215610462,
+      "payload_total_mbps_mean": 155.39050155135465,
+      "payload_total_mbps_runs": [
+        155.39050155135465
+      ],
+      "runs": [
+        "dual-gop1-fixqp26"
+      ],
+      "estimated_stage_mean_saving_ms": -0.20991298843203854
+    },
+    "gop1-fixqp30": {
+      "encoder_hw_ms": {
+        "samples": 241,
+        "min": 2.182,
+        "mean": 2.185771784232365,
+        "p50": 2.186,
+        "p95": 2.188,
+        "p99": 2.189,
+        "max": 2.205
+      },
+      "decoder_completion_steady_ms": {
+        "samples": 660,
+        "min": 1.265129,
+        "mean": 1.9456250545454545,
+        "p50": 1.866991,
+        "p95": 2.465728,
+        "p99": 2.628784,
+        "max": 3.44018
+      },
+      "stage_mean_sum_ms": 4.131396838777819,
+      "payload_total_mbps_mean": 70.32145827335829,
+      "payload_total_mbps_runs": [
+        70.32145827335829
+      ],
+      "runs": [
+        "dual-gop1-fixqp30"
+      ],
+      "estimated_stage_mean_saving_ms": 0.22554038840060375
+    },
+    "gop1-slice-off": {
+      "encoder_hw_ms": {
+        "samples": 241,
+        "min": 2.169,
+        "mean": 2.1770497925311205,
+        "p50": 2.179,
+        "p95": 2.182,
+        "p99": 2.183,
+        "max": 2.207
+      },
+      "decoder_completion_steady_ms": {
+        "samples": 660,
+        "min": 1.16473,
+        "mean": 1.7848800636363635,
+        "p50": 1.73366,
+        "p95": 2.315254,
+        "p99": 2.668809,
+        "max": 4.054614
+      },
+      "stage_mean_sum_ms": 3.961929856167484,
+      "payload_total_mbps_mean": 61.34050634935866,
+      "payload_total_mbps_runs": [
+        61.34050634935866
+      ],
+      "runs": [
+        "dual-gop1-slice-off"
+      ],
+      "estimated_stage_mean_saving_ms": 0.39500737101093897
+    },
+    "reencode0": {
+      "encoder_hw_ms": {
+        "samples": 241,
+        "min": 2.179,
+        "mean": 2.5162323651452283,
+        "p50": 2.54,
+        "p95": 2.558,
+        "p99": 2.573,
+        "max": 2.6
+      },
+      "decoder_completion_steady_ms": {
+        "samples": 660,
+        "min": 1.228514,
+        "mean": 1.857201,
+        "p50": 1.827151,
+        "p95": 2.685487,
+        "p99": 3.248568,
+        "max": 4.505866
+      },
+      "stage_mean_sum_ms": 4.373433365145228,
+      "payload_total_mbps_mean": 59.07628026740876,
+      "payload_total_mbps_runs": [
+        59.07628026740876
+      ],
+      "runs": [
+        "dual-reencode0"
+      ],
+      "estimated_stage_mean_saving_ms": -0.016496137966805158
+    },
+    "slice-lowdelay480": {
+      "encoder_hw_ms": {
+        "samples": 243,
+        "min": 2.178,
+        "mean": 2.4829588477366253,
+        "p50": 2.501,
+        "p95": 2.533,
+        "p99": 2.544,
+        "max": 2.584
+      },
+      "decoder_completion_steady_ms": {
+        "samples": 660,
+        "min": 1.113384,
+        "mean": 1.7116342803030302,
+        "p50": 1.705077,
+        "p95": 2.353135,
+        "p99": 2.857343,
+        "max": 3.886969
+      },
+      "stage_mean_sum_ms": 4.194593128039656,
+      "payload_total_mbps_mean": 57.38839842625468,
+      "payload_total_mbps_runs": [
+        57.38839842625468
+      ],
+      "runs": [
+        "dual-slice-lowdelay480"
+      ],
+      "estimated_stage_mean_saving_ms": 0.16234409913876746
+    },
+    "slice-off": {
+      "encoder_hw_ms": {
+        "samples": 241,
+        "min": 2.178,
+        "mean": 2.4758132780082986,
+        "p50": 2.495,
+        "p95": 2.525,
+        "p99": 2.545,
+        "max": 2.58
+      },
+      "decoder_completion_steady_ms": {
+        "samples": 660,
+        "min": 1.049745,
+        "mean": 1.6958877787878788,
+        "p50": 1.68011,
+        "p95": 2.367774,
+        "p99": 2.741467,
+        "max": 3.586257
+      },
+      "stage_mean_sum_ms": 4.171701056796177,
+      "payload_total_mbps_mean": 57.60210952243867,
+      "payload_total_mbps_runs": [
+        57.60210952243867
+      ],
+      "runs": [
+        "dual-slice-off"
+      ],
+      "estimated_stage_mean_saving_ms": 0.18523617038224582
+    },
+    "slice240": {
+      "encoder_hw_ms": {
+        "samples": 241,
+        "min": 2.18,
+        "mean": 2.4913817427385894,
+        "p50": 2.511,
+        "p95": 2.537,
+        "p99": 2.552,
+        "max": 2.59
+      },
+      "decoder_completion_steady_ms": {
+        "samples": 660,
+        "min": 1.188545,
+        "mean": 1.8085715454545455,
+        "p50": 1.774819,
+        "p95": 2.535089,
+        "p99": 3.163131,
+        "max": 5.408776
+      },
+      "stage_mean_sum_ms": 4.299953288193135,
+      "payload_total_mbps_mean": 57.423223938841446,
+      "payload_total_mbps_runs": [
+        57.423223938841446
+      ],
+      "runs": [
+        "dual-slice240"
+      ],
+      "estimated_stage_mean_saving_ms": 0.05698393898528842
+    },
+    "slice480": {
+      "encoder_hw_ms": {
+        "samples": 241,
+        "min": 2.181,
+        "mean": 2.482883817427386,
+        "p50": 2.501,
+        "p95": 2.528,
+        "p99": 2.545,
+        "max": 2.583
+      },
+      "decoder_completion_steady_ms": {
+        "samples": 660,
+        "min": 1.162186,
+        "mean": 1.7383241878787878,
+        "p50": 1.730806,
+        "p95": 2.464286,
+        "p99": 2.987921,
+        "max": 5.583714
+      },
+      "stage_mean_sum_ms": 4.221208005306174,
+      "payload_total_mbps_mean": 57.45936890253654,
+      "payload_total_mbps_runs": [
+        57.45936890253654
+      ],
+      "runs": [
+        "dual-slice480"
+      ],
+      "estimated_stage_mean_saving_ms": 0.135729221872249
+    }
+  },
+  "runs": [
+    {
+      "run": "dual-4x4",
+      "case": "4x4",
+      "camera": "dual",
+      "success": true,
+      "hardware_decoded_frames": 240,
+      "temperature_mC": 47300,
+      "encoder_hw_ms": {
+        "samples": 241,
+        "mean": 2.317941908713693,
+        "p95": 2.338,
+        "max": 2.355
+      },
+      "decoder_completion_steady_ms": {
+        "samples": 660,
+        "mean": 1.7760236803030303,
+        "p95": 2.42815,
+        "max": 4.086101
+      },
+      "sender_ready_to_send": {
+        "stream1.sender.ready_to_send": {
+          "mean": 0.110534,
+          "p95": 0.133119
+        },
+        "stream0.sender.ready_to_send": {
+          "mean": 0.099648,
+          "p95": 0.135167
+        }
+      },
+      "same_boot": true,
+      "debug_restored": true,
+      "critical_kernel_issue": false,
+      "raw_report": "artifacts/codec-parameters-20261015/dual-4x4/result.json",
+      "payload_total_mbps": 59.45463487189329,
+      "per_stream_recordings": {
+        "0": {
+          "profile": "High",
+          "headers": {
+            "profile_idc": [
+              100
+            ],
+            "entropy_coding_mode_flag": [
+              1
+            ],
+            "transform_8x8_mode_flag": [
+              0
+            ],
+            "disable_deblocking_filter_idc": [
+              0
+            ]
+          },
+          "key_aus": 8,
+          "mean_au_bytes": 30660.308333333334,
+          "max_au_bytes": 125414,
+          "mean_wire_ms_at_1Gbps": 0.2680724666666667,
+          "max_wire_ms_at_1Gbps": 1.095744
+        },
+        "1": {
+          "profile": "High",
+          "headers": {
+            "profile_idc": [
+              100
+            ],
+            "entropy_coding_mode_flag": [
+              1
+            ],
+            "transform_8x8_mode_flag": [
+              0
+            ],
+            "disable_deblocking_filter_idc": [
+              0
+            ]
+          },
+          "key_aus": 8,
+          "mean_au_bytes": 31297.366666666665,
+          "max_au_bytes": 88269,
+          "mean_wire_ms_at_1Gbps": 0.27372013333333334,
+          "max_wire_ms_at_1Gbps": 0.771448
+        }
+      }
+    },
+    {
+      "run": "dual-baseline",
+      "case": "baseline",
+      "camera": "dual",
+      "success": true,
+      "hardware_decoded_frames": 240,
+      "temperature_mC": 47220,
+      "encoder_hw_ms": {
+        "samples": 241,
+        "mean": 2.515896265560166,
+        "p95": 2.557,
+        "max": 2.6
+      },
+      "decoder_completion_steady_ms": {
+        "samples": 660,
+        "mean": 1.8599219833333334,
+        "p95": 2.560195,
+        "max": 3.328853
+      },
+      "sender_ready_to_send": {
+        "stream1.sender.ready_to_send": {
+          "mean": 0.108045,
+          "p95": 0.147455
+        },
+        "stream0.sender.ready_to_send": {
+          "mean": 0.101843,
+          "p95": 0.129023
+        }
+      },
+      "same_boot": true,
+      "debug_restored": true,
+      "critical_kernel_issue": false,
+      "raw_report": "artifacts/codec-parameters-20261015/dual-baseline/result.json",
+      "payload_total_mbps": 59.226121933275756,
+      "per_stream_recordings": {
+        "0": {
+          "profile": "High",
+          "headers": {
+            "profile_idc": [
+              100
+            ],
+            "entropy_coding_mode_flag": [
+              1
+            ],
+            "transform_8x8_mode_flag": [
+              1
+            ],
+            "disable_deblocking_filter_idc": [
+              0
+            ]
+          },
+          "key_aus": 8,
+          "mean_au_bytes": 30793.175,
+          "max_au_bytes": 106247,
+          "mean_wire_ms_at_1Gbps": 0.2692202,
+          "max_wire_ms_at_1Gbps": 0.927992
+        },
+        "1": {
+          "profile": "High",
+          "headers": {
+            "profile_idc": [
+              100
+            ],
+            "entropy_coding_mode_flag": [
+              1
+            ],
+            "transform_8x8_mode_flag": [
+              1
+            ],
+            "disable_deblocking_filter_idc": [
+              0
+            ]
+          },
+          "key_aus": 8,
+          "mean_au_bytes": 30926.366666666665,
+          "max_au_bytes": 84885,
+          "mean_wire_ms_at_1Gbps": 0.2704412,
+          "max_wire_ms_at_1Gbps": 0.741832
+        }
+      }
+    },
+    {
+      "run": "dual-baseline-r2",
+      "case": "baseline",
+      "camera": "dual",
+      "success": true,
+      "hardware_decoded_frames": 240,
+      "temperature_mC": 48310,
+      "encoder_hw_ms": {
+        "samples": 241,
+        "mean": 2.5157510373443985,
+        "p95": 2.558,
+        "max": 2.599
+      },
+      "decoder_completion_steady_ms": {
+        "samples": 660,
+        "mean": 1.8232279075757576,
+        "p95": 2.530363,
+        "max": 4.731306
+      },
+      "sender_ready_to_send": {
+        "stream1.sender.ready_to_send": {
+          "mean": 0.105775,
+          "p95": 0.125951
+        },
+        "stream0.sender.ready_to_send": {
+          "mean": 0.100022,
+          "p95": 0.131071
+        }
+      },
+      "same_boot": true,
+      "debug_restored": true,
+      "critical_kernel_issue": false,
+      "raw_report": "artifacts/codec-parameters-20261015/dual-baseline-r2/result.json",
+      "payload_total_mbps": 58.15487157342545,
+      "per_stream_recordings": {
+        "0": {
+          "profile": "High",
+          "headers": {
+            "profile_idc": [
+              100
+            ],
+            "entropy_coding_mode_flag": [
+              1
+            ],
+            "transform_8x8_mode_flag": [
+              1
+            ],
+            "disable_deblocking_filter_idc": [
+              0
+            ]
+          },
+          "key_aus": 8,
+          "mean_au_bytes": 29868.391666666666,
+          "max_au_bytes": 105098,
+          "mean_wire_ms_at_1Gbps": 0.26120713333333334,
+          "max_wire_ms_at_1Gbps": 0.917952
+        },
+        "1": {
+          "profile": "High",
+          "headers": {
+            "profile_idc": [
+              100
+            ],
+            "entropy_coding_mode_flag": [
+              1
+            ],
+            "transform_8x8_mode_flag": [
+              1
+            ],
+            "disable_deblocking_filter_idc": [
+              0
+            ]
+          },
+          "key_aus": 8,
+          "mean_au_bytes": 30734.8,
+          "max_au_bytes": 85059,
+          "mean_wire_ms_at_1Gbps": 0.2687390666666667,
+          "max_wire_ms_at_1Gbps": 0.743224
+        }
+      }
+    },
+    {
+      "run": "dual-baseline-r3",
+      "case": "baseline",
+      "camera": "dual",
+      "success": true,
+      "hardware_decoded_frames": 240,
+      "temperature_mC": 47200,
+      "encoder_hw_ms": {
+        "samples": 241,
+        "mean": 2.513979253112033,
+        "p95": 2.559,
+        "max": 2.598
+      },
+      "decoder_completion_steady_ms": {
+        "samples": 660,
+        "mean": 1.8518954348484848,
+        "p95": 2.522573,
+        "max": 5.468703
+      },
+      "sender_ready_to_send": {
+        "stream1.sender.ready_to_send": {
+          "mean": 0.106045,
+          "p95": 0.124927
+        },
+        "stream0.sender.ready_to_send": {
+          "mean": 0.099101,
+          "p95": 0.133119
+        }
+      },
+      "same_boot": true,
+      "debug_restored": true,
+      "critical_kernel_issue": false,
+      "raw_report": "artifacts/codec-parameters-20261015/dual-baseline-r3/result.json",
+      "payload_total_mbps": 57.64545948885264,
+      "per_stream_recordings": {
+        "0": {
+          "profile": "High",
+          "headers": {
+            "profile_idc": [
+              100
+            ],
+            "entropy_coding_mode_flag": [
+              1
+            ],
+            "transform_8x8_mode_flag": [
+              1
+            ],
+            "disable_deblocking_filter_idc": [
+              0
+            ]
+          },
+          "key_aus": 8,
+          "mean_au_bytes": 29219.091666666667,
+          "max_au_bytes": 108035,
+          "mean_wire_ms_at_1Gbps": 0.25549686666666666,
+          "max_wire_ms_at_1Gbps": 0.943992
+        },
+        "1": {
+          "profile": "High",
+          "headers": {
+            "profile_idc": [
+              100
+            ],
+            "entropy_coding_mode_flag": [
+              1
+            ],
+            "transform_8x8_mode_flag": [
+              1
+            ],
+            "disable_deblocking_filter_idc": [
+              0
+            ]
+          },
+          "key_aus": 8,
+          "mean_au_bytes": 30853.241666666665,
+          "max_au_bytes": 87498,
+          "mean_wire_ms_at_1Gbps": 0.2698067333333333,
+          "max_wire_ms_at_1Gbps": 0.764432
+        }
+      }
+    },
+    {
+      "run": "dual-baseline-r4",
+      "case": "baseline",
+      "camera": "dual",
+      "success": true,
+      "hardware_decoded_frames": 240,
+      "temperature_mC": 47920,
+      "encoder_hw_ms": {
+        "samples": 241,
+        "mean": 2.5143153526970954,
+        "p95": 2.559,
+        "max": 2.602
+      },
+      "decoder_completion_steady_ms": {
+        "samples": 660,
+        "mean": 1.8327616742424242,
+        "p95": 2.407948,
+        "max": 5.647198
+      },
+      "sender_ready_to_send": {
+        "stream1.sender.ready_to_send": {
+          "mean": 0.110017,
+          "p95": 0.145407
+        },
+        "stream0.sender.ready_to_send": {
+          "mean": 0.09819,
+          "p95": 0.112639
+        }
+      },
+      "same_boot": true,
+      "debug_restored": true,
+      "critical_kernel_issue": false,
+      "raw_report": "artifacts/codec-parameters-20261015/dual-baseline-r4/result.json",
+      "payload_total_mbps": 57.80204235038224,
+      "per_stream_recordings": {
+        "0": {
+          "profile": "High",
+          "headers": {
+            "profile_idc": [
+              100
+            ],
+            "entropy_coding_mode_flag": [
+              1
+            ],
+            "transform_8x8_mode_flag": [
+              1
+            ],
+            "disable_deblocking_filter_idc": [
+              0
+            ]
+          },
+          "key_aus": 8,
+          "mean_au_bytes": 29437.341666666667,
+          "max_au_bytes": 105284,
+          "mean_wire_ms_at_1Gbps": 0.25743366666666667,
+          "max_wire_ms_at_1Gbps": 0.91944
+        },
+        "1": {
+          "profile": "High",
+          "headers": {
+            "profile_idc": [
+              100
+            ],
+            "entropy_coding_mode_flag": [
+              1
+            ],
+            "transform_8x8_mode_flag": [
+              1
+            ],
+            "disable_deblocking_filter_idc": [
+              0
+            ]
+          },
+          "key_aus": 8,
+          "mean_au_bytes": 30798.166666666668,
+          "max_au_bytes": 85572,
+          "mean_wire_ms_at_1Gbps": 0.26935906666666665,
+          "max_wire_ms_at_1Gbps": 0.747328
+        }
+      }
+    },
+    {
+      "run": "dual-cavlc",
+      "case": "cavlc",
+      "camera": "dual",
+      "success": true,
+      "hardware_decoded_frames": 240,
+      "temperature_mC": 47500,
+      "encoder_hw_ms": {
+        "samples": 241,
+        "mean": 2.4958796680497923,
+        "p95": 2.54,
+        "max": 2.586
+      },
+      "decoder_completion_steady_ms": {
+        "samples": 660,
+        "mean": 1.7060552863636365,
+        "p95": 2.298767,
+        "max": 3.191588
+      },
+      "sender_ready_to_send": {
+        "stream1.sender.ready_to_send": {
+          "mean": 0.107902,
+          "p95": 0.131071
+        },
+        "stream0.sender.ready_to_send": {
+          "mean": 0.098542,
+          "p95": 0.120831
+        }
+      },
+      "same_boot": true,
+      "debug_restored": true,
+      "critical_kernel_issue": false,
+      "raw_report": "artifacts/codec-parameters-20261015/dual-cavlc/result.json",
+      "payload_total_mbps": 58.50382240987749,
+      "per_stream_recordings": {
+        "0": {
+          "profile": "High",
+          "headers": {
+            "profile_idc": [
+              100
+            ],
+            "entropy_coding_mode_flag": [
+              0
+            ],
+            "transform_8x8_mode_flag": [
+              1
+            ],
+            "disable_deblocking_filter_idc": [
+              0
+            ]
+          },
+          "key_aus": 8,
+          "mean_au_bytes": 30070.266666666666,
+          "max_au_bytes": 114486,
+          "mean_wire_ms_at_1Gbps": 0.26294226666666665,
+          "max_wire_ms_at_1Gbps": 0.99984
+        },
+        "1": {
+          "profile": "High",
+          "headers": {
+            "profile_idc": [
+              100
+            ],
+            "entropy_coding_mode_flag": [
+              0
+            ],
+            "transform_8x8_mode_flag": [
+              1
+            ],
+            "disable_deblocking_filter_idc": [
+              0
+            ]
+          },
+          "key_aus": 8,
+          "mean_au_bytes": 30896.566666666666,
+          "max_au_bytes": 92260,
+          "mean_wire_ms_at_1Gbps": 0.2701886666666667,
+          "max_wire_ms_at_1Gbps": 0.80592
+        }
+      }
+    },
+    {
+      "run": "dual-cavlc-4x4",
+      "case": "cavlc-4x4",
+      "camera": "dual",
+      "success": true,
+      "hardware_decoded_frames": 240,
+      "temperature_mC": 48260,
+      "encoder_hw_ms": {
+        "samples": 241,
+        "mean": 2.3114813278008297,
+        "p95": 2.332,
+        "max": 2.349
+      },
+      "decoder_completion_steady_ms": {
+        "samples": 660,
+        "mean": 1.7604002424242424,
+        "p95": 2.339139,
+        "max": 10.758794
+      },
+      "sender_ready_to_send": {
+        "stream1.sender.ready_to_send": {
+          "mean": 0.11,
+          "p95": 0.133119
+        },
+        "stream0.sender.ready_to_send": {
+          "mean": 0.101553,
+          "p95": 0.133119
+        }
+      },
+      "same_boot": true,
+      "debug_restored": true,
+      "critical_kernel_issue": false,
+      "raw_report": "artifacts/codec-parameters-20261015/dual-cavlc-4x4/result.json",
+      "payload_total_mbps": 60.11479224642549,
+      "per_stream_recordings": {
+        "0": {
+          "profile": "High",
+          "headers": {
+            "profile_idc": [
+              100
+            ],
+            "entropy_coding_mode_flag": [
+              0
+            ],
+            "transform_8x8_mode_flag": [
+              0
+            ],
+            "disable_deblocking_filter_idc": [
+              0
+            ]
+          },
+          "key_aus": 8,
+          "mean_au_bytes": 31001.35,
+          "max_au_bytes": 134603,
+          "mean_wire_ms_at_1Gbps": 0.2710976,
+          "max_wire_ms_at_1Gbps": 1.17604
+        },
+        "1": {
+          "profile": "High",
+          "headers": {
+            "profile_idc": [
+              100
+            ],
+            "entropy_coding_mode_flag": [
+              0
+            ],
+            "transform_8x8_mode_flag": [
+              0
+            ],
+            "disable_deblocking_filter_idc": [
+              0
+            ]
+          },
+          "key_aus": 8,
+          "mean_au_bytes": 31644.275,
+          "max_au_bytes": 95832,
+          "mean_wire_ms_at_1Gbps": 0.2767215333333333,
+          "max_wire_ms_at_1Gbps": 0.83704
+        }
+      }
+    },
+    {
+      "run": "dual-cavlc-4x4-slice-off",
+      "case": "cavlc-4x4-slice-off",
+      "camera": "dual",
+      "success": true,
+      "hardware_decoded_frames": 240,
+      "temperature_mC": 48410,
+      "encoder_hw_ms": {
+        "samples": 241,
+        "mean": 2.3133858921161825,
+        "p95": 2.331,
+        "max": 2.349
+      },
+      "decoder_completion_steady_ms": {
+        "samples": 660,
+        "mean": 1.5584576393939393,
+        "p95": 2.121048,
+        "max": 3.292692
+      },
+      "sender_ready_to_send": {
+        "stream1.sender.ready_to_send": {
+          "mean": 0.107849,
+          "p95": 0.124927
+        },
+        "stream0.sender.ready_to_send": {
+          "mean": 0.096539,
+          "p95": 0.129023
+        }
+      },
+      "same_boot": true,
+      "debug_restored": true,
+      "critical_kernel_issue": false,
+      "raw_report": "artifacts/codec-parameters-20261015/dual-cavlc-4x4-slice-off/result.json",
+      "payload_total_mbps": 59.741467549499404,
+      "per_stream_recordings": {
+        "0": {
+          "profile": "High",
+          "headers": {
+            "profile_idc": [
+              100
+            ],
+            "entropy_coding_mode_flag": [
+              0
+            ],
+            "transform_8x8_mode_flag": [
+              0
+            ],
+            "disable_deblocking_filter_idc": [
+              0
+            ]
+          },
+          "key_aus": 8,
+          "mean_au_bytes": 30609.241666666665,
+          "max_au_bytes": 133098,
+          "mean_wire_ms_at_1Gbps": 0.2676639333333333,
+          "max_wire_ms_at_1Gbps": 1.162304
+        },
+        "1": {
+          "profile": "High",
+          "headers": {
+            "profile_idc": [
+              100
+            ],
+            "entropy_coding_mode_flag": [
+              0
+            ],
+            "transform_8x8_mode_flag": [
+              0
+            ],
+            "disable_deblocking_filter_idc": [
+              0
+            ]
+          },
+          "key_aus": 8,
+          "mean_au_bytes": 31647.341666666667,
+          "max_au_bytes": 109159,
+          "mean_wire_ms_at_1Gbps": 0.2768238,
+          "max_wire_ms_at_1Gbps": 0.953832
+        }
+      }
+    },
+    {
+      "run": "dual-cavlc-4x4-slice-off-r2",
+      "case": "cavlc-4x4-slice-off",
+      "camera": "dual",
+      "success": true,
+      "hardware_decoded_frames": 240,
+      "temperature_mC": 48220,
+      "encoder_hw_ms": {
+        "samples": 241,
+        "mean": 2.3161659751037345,
+        "p95": 2.331,
+        "max": 2.349
+      },
+      "decoder_completion_steady_ms": {
+        "samples": 660,
+        "mean": 1.655264896969697,
+        "p95": 2.333467,
+        "max": 3.715677
+      },
+      "sender_ready_to_send": {
+        "stream1.sender.ready_to_send": {
+          "mean": 0.101573,
+          "p95": 0.123903
+        },
+        "stream0.sender.ready_to_send": {
+          "mean": 0.097149,
+          "p95": 0.120831
+        }
+      },
+      "same_boot": true,
+      "debug_restored": true,
+      "critical_kernel_issue": false,
+      "raw_report": "artifacts/codec-parameters-20261015/dual-cavlc-4x4-slice-off-r2/result.json",
+      "payload_total_mbps": 58.67320794549468,
+      "per_stream_recordings": {
+        "0": {
+          "profile": "High",
+          "headers": {
+            "profile_idc": [
+              100
+            ],
+            "entropy_coding_mode_flag": [
+              0
+            ],
+            "transform_8x8_mode_flag": [
+              0
+            ],
+            "disable_deblocking_filter_idc": [
+              0
+            ]
+          },
+          "key_aus": 8,
+          "mean_au_bytes": 30687.9,
+          "max_au_bytes": 135285,
+          "mean_wire_ms_at_1Gbps": 0.2683638666666667,
+          "max_wire_ms_at_1Gbps": 1.181496
+        },
+        "1": {
+          "profile": "High",
+          "headers": {
+            "profile_idc": [
+              100
+            ],
+            "entropy_coding_mode_flag": [
+              0
+            ],
+            "transform_8x8_mode_flag": [
+              0
+            ],
+            "disable_deblocking_filter_idc": [
+              0
+            ]
+          },
+          "key_aus": 8,
+          "mean_au_bytes": 30455.45,
+          "max_au_bytes": 111544,
+          "mean_wire_ms_at_1Gbps": 0.2663276,
+          "max_wire_ms_at_1Gbps": 0.974608
+        }
+      }
+    },
+    {
+      "run": "dual-cbr40",
+      "case": "cbr40",
+      "camera": "dual",
+      "success": true,
+      "hardware_decoded_frames": 240,
+      "temperature_mC": 47200,
+      "encoder_hw_ms": {
+        "samples": 241,
+        "mean": 2.527394190871369,
+        "p95": 2.571,
+        "max": 2.601
+      },
+      "decoder_completion_steady_ms": {
+        "samples": 660,
+        "mean": 1.9603406575757576,
+        "p95": 2.595762,
+        "max": 3.813873
+      },
+      "sender_ready_to_send": {
+        "stream1.sender.ready_to_send": {
+          "mean": 0.140287,
+          "p95": 0.169983
+        },
+        "stream0.sender.ready_to_send": {
+          "mean": 0.122532,
+          "p95": 0.151551
+        }
+      },
+      "same_boot": true,
+      "debug_restored": true,
+      "critical_kernel_issue": false,
+      "raw_report": "artifacts/codec-parameters-20261015/dual-cbr40/result.json",
+      "payload_total_mbps": 73.6818683427694,
+      "per_stream_recordings": {
+        "0": {
+          "profile": "High",
+          "headers": {
+            "profile_idc": [
+              100
+            ],
+            "entropy_coding_mode_flag": [
+              1
+            ],
+            "transform_8x8_mode_flag": [
+              1
+            ],
+            "disable_deblocking_filter_idc": [
+              0
+            ]
+          },
+          "key_aus": 8,
+          "mean_au_bytes": 36333.683333333334,
+          "max_au_bytes": 104867,
+          "mean_wire_ms_at_1Gbps": 0.3177489333333333,
+          "max_wire_ms_at_1Gbps": 0.916104
+        },
+        "1": {
+          "profile": "High",
+          "headers": {
+            "profile_idc": [
+              100
+            ],
+            "entropy_coding_mode_flag": [
+              1
+            ],
+            "transform_8x8_mode_flag": [
+              1
+            ],
+            "disable_deblocking_filter_idc": [
+              0
+            ]
+          },
+          "key_aus": 8,
+          "mean_au_bytes": 40450.191666666666,
+          "max_au_bytes": 100820,
+          "mean_wire_ms_at_1Gbps": 0.3535642,
+          "max_wire_ms_at_1Gbps": 0.880336
+        }
+      }
+    },
+    {
+      "run": "dual-cbr60",
+      "case": "cbr60",
+      "camera": "dual",
+      "success": true,
+      "hardware_decoded_frames": 240,
+      "temperature_mC": 48430,
+      "encoder_hw_ms": {
+        "samples": 241,
+        "mean": 2.5451203319502076,
+        "p95": 2.585,
+        "max": 2.601
+      },
+      "decoder_completion_steady_ms": {
+        "samples": 660,
+        "mean": 2.138941221212121,
+        "p95": 2.747307,
+        "max": 4.320316
+      },
+      "sender_ready_to_send": {
+        "stream1.sender.ready_to_send": {
+          "mean": 0.188934,
+          "p95": 0.241663
+        },
+        "stream0.sender.ready_to_send": {
+          "mean": 0.180906,
+          "p95": 0.235519
+        }
+      },
+      "same_boot": true,
+      "debug_restored": true,
+      "critical_kernel_issue": false,
+      "raw_report": "artifacts/codec-parameters-20261015/dual-cbr60/result.json",
+      "payload_total_mbps": 103.85436458433293,
+      "per_stream_recordings": {
+        "0": {
+          "profile": "High",
+          "headers": {
+            "profile_idc": [
+              100
+            ],
+            "entropy_coding_mode_flag": [
+              1
+            ],
+            "transform_8x8_mode_flag": [
+              1
+            ],
+            "disable_deblocking_filter_idc": [
+              0
+            ]
+          },
+          "key_aus": 8,
+          "mean_au_bytes": 52767.075,
+          "max_au_bytes": 104314,
+          "mean_wire_ms_at_1Gbps": 0.46113753333333335,
+          "max_wire_ms_at_1Gbps": 0.910832
+        },
+        "1": {
+          "profile": "High",
+          "headers": {
+            "profile_idc": [
+              100
+            ],
+            "entropy_coding_mode_flag": [
+              1
+            ],
+            "transform_8x8_mode_flag": [
+              1
+            ],
+            "disable_deblocking_filter_idc": [
+              0
+            ]
+          },
+          "key_aus": 8,
+          "mean_au_bytes": 55459.558333333334,
+          "max_au_bytes": 115555,
+          "mean_wire_ms_at_1Gbps": 0.48462073333333333,
+          "max_wire_ms_at_1Gbps": 1.00924
+        }
+      }
+    },
+    {
+      "run": "dual-deblock-off",
+      "case": "deblock-off",
+      "camera": "dual",
+      "success": true,
+      "hardware_decoded_frames": 240,
+      "temperature_mC": 47500,
+      "encoder_hw_ms": {
+        "samples": 241,
+        "mean": 2.53445643153527,
+        "p95": 2.583,
+        "max": 2.61
+      },
+      "decoder_completion_steady_ms": {
+        "samples": 660,
+        "mean": 1.7853090575757575,
+        "p95": 2.389057,
+        "max": 3.543139
+      },
+      "sender_ready_to_send": {
+        "stream1.sender.ready_to_send": {
+          "mean": 0.102431,
+          "p95": 0.130047
+        },
+        "stream0.sender.ready_to_send": {
+          "mean": 0.099643,
+          "p95": 0.129023
+        }
+      },
+      "same_boot": true,
+      "debug_restored": true,
+      "critical_kernel_issue": false,
+      "raw_report": "artifacts/codec-parameters-20261015/dual-deblock-off/result.json",
+      "payload_total_mbps": 57.89624316284426,
+      "per_stream_recordings": {
+        "0": {
+          "profile": "High",
+          "headers": {
+            "profile_idc": [
+              100
+            ],
+            "entropy_coding_mode_flag": [
+              1
+            ],
+            "transform_8x8_mode_flag": [
+              1
+            ],
+            "disable_deblocking_filter_idc": [
+              1
+            ]
+          },
+          "key_aus": 8,
+          "mean_au_bytes": 29908.283333333333,
+          "max_au_bytes": 105078,
+          "mean_wire_ms_at_1Gbps": 0.2615050666666667,
+          "max_wire_ms_at_1Gbps": 0.917792
+        },
+        "1": {
+          "profile": "High",
+          "headers": {
+            "profile_idc": [
+              100
+            ],
+            "entropy_coding_mode_flag": [
+              1
+            ],
+            "transform_8x8_mode_flag": [
+              1
+            ],
+            "disable_deblocking_filter_idc": [
+              1
+            ]
+          },
+          "key_aus": 8,
+          "mean_au_bytes": 30425.391666666666,
+          "max_au_bytes": 101517,
+          "mean_wire_ms_at_1Gbps": 0.2660376666666667,
+          "max_wire_ms_at_1Gbps": 0.88676
+        }
+      }
+    },
+    {
+      "run": "dual-fixqp26",
+      "case": "fixqp26",
+      "camera": "dual",
+      "success": true,
+      "hardware_decoded_frames": 240,
+      "temperature_mC": 46290,
+      "encoder_hw_ms": {
+        "samples": 241,
+        "mean": 2.549904564315353,
+        "p95": 2.585,
+        "max": 2.587
+      },
+      "decoder_completion_steady_ms": {
+        "samples": 660,
+        "mean": 2.231743534848485,
+        "p95": 2.869854,
+        "max": 9.978279
+      },
+      "sender_ready_to_send": {
+        "stream1.sender.ready_to_send": {
+          "mean": 0.202665,
+          "p95": 0.255999
+        },
+        "stream0.sender.ready_to_send": {
+          "mean": 0.20352,
+          "p95": 0.258047
+        }
+      },
+      "same_boot": true,
+      "debug_restored": true,
+      "critical_kernel_issue": false,
+      "raw_report": "artifacts/codec-parameters-20261015/dual-fixqp26/result.json",
+      "payload_total_mbps": 110.72726545756964,
+      "per_stream_recordings": {
+        "0": {
+          "profile": "High",
+          "headers": {
+            "profile_idc": [
+              100
+            ],
+            "entropy_coding_mode_flag": [
+              1
+            ],
+            "transform_8x8_mode_flag": [
+              1
+            ],
+            "disable_deblocking_filter_idc": [
+              0
+            ]
+          },
+          "key_aus": 8,
+          "mean_au_bytes": 58539.15,
+          "max_au_bytes": 79117,
+          "mean_wire_ms_at_1Gbps": 0.5116813333333333,
+          "max_wire_ms_at_1Gbps": 0.691448
+        },
+        "1": {
+          "profile": "High",
+          "headers": {
+            "profile_idc": [
+              100
+            ],
+            "entropy_coding_mode_flag": [
+              1
+            ],
+            "transform_8x8_mode_flag": [
+              1
+            ],
+            "disable_deblocking_filter_idc": [
+              0
+            ]
+          },
+          "key_aus": 8,
+          "mean_au_bytes": 56849.73333333333,
+          "max_au_bytes": 82233,
+          "mean_wire_ms_at_1Gbps": 0.496682,
+          "max_wire_ms_at_1Gbps": 0.718072
+        }
+      }
+    },
+    {
+      "run": "dual-fixqp30",
+      "case": "fixqp30",
+      "camera": "dual",
+      "success": true,
+      "hardware_decoded_frames": 240,
+      "temperature_mC": 47810,
+      "encoder_hw_ms": {
+        "samples": 241,
+        "mean": 2.449253112033195,
+        "p95": 2.481,
+        "max": 2.508
+      },
+      "decoder_completion_steady_ms": {
+        "samples": 660,
+        "mean": 1.7376077121212121,
+        "p95": 2.379335,
+        "max": 5.488564
+      },
+      "sender_ready_to_send": {
+        "stream1.sender.ready_to_send": {
+          "mean": 0.059619,
+          "p95": 0.071679
+        },
+        "stream0.sender.ready_to_send": {
+          "mean": 0.060893,
+          "p95": 0.073727
+        }
+      },
+      "same_boot": true,
+      "debug_restored": true,
+      "critical_kernel_issue": false,
+      "raw_report": "artifacts/codec-parameters-20261015/dual-fixqp30/result.json",
+      "payload_total_mbps": 30.594720596231966,
+      "per_stream_recordings": {
+        "0": {
+          "profile": "High",
+          "headers": {
+            "profile_idc": [
+              100
+            ],
+            "entropy_coding_mode_flag": [
+              1
+            ],
+            "transform_8x8_mode_flag": [
+              1
+            ],
+            "disable_deblocking_filter_idc": [
+              0
+            ]
+          },
+          "key_aus": 8,
+          "mean_au_bytes": 15955.075,
+          "max_au_bytes": 35193,
+          "mean_wire_ms_at_1Gbps": 0.1397458,
+          "max_wire_ms_at_1Gbps": 0.307832
+        },
+        "1": {
+          "profile": "High",
+          "headers": {
+            "profile_idc": [
+              100
+            ],
+            "entropy_coding_mode_flag": [
+              1
+            ],
+            "transform_8x8_mode_flag": [
+              1
+            ],
+            "disable_deblocking_filter_idc": [
+              0
+            ]
+          },
+          "key_aus": 8,
+          "mean_au_bytes": 15927.683333333332,
+          "max_au_bytes": 39071,
+          "mean_wire_ms_at_1Gbps": 0.13957613333333332,
+          "max_wire_ms_at_1Gbps": 0.3414
+        }
+      }
+    },
+    {
+      "run": "dual-gop1",
+      "case": "gop1",
+      "camera": "dual",
+      "success": true,
+      "hardware_decoded_frames": 240,
+      "temperature_mC": 48180,
+      "encoder_hw_ms": {
+        "samples": 241,
+        "mean": 2.178825726141079,
+        "p95": 2.183,
+        "max": 2.206
+      },
+      "decoder_completion_steady_ms": {
+        "samples": 660,
+        "mean": 1.8529067318181818,
+        "p95": 2.354865,
+        "max": 3.877533
+      },
+      "sender_ready_to_send": {
+        "stream1.sender.ready_to_send": {
+          "mean": 0.028301,
+          "p95": 0.038911
+        },
+        "stream0.sender.ready_to_send": {
+          "mean": 0.027351,
+          "p95": 0.032767
+        }
+      },
+      "same_boot": true,
+      "debug_restored": true,
+      "critical_kernel_issue": false,
+      "raw_report": "artifacts/codec-parameters-20261015/dual-gop1/result.json",
+      "payload_total_mbps": 61.6141924959217,
+      "per_stream_recordings": {
+        "0": {
+          "profile": "High",
+          "headers": {
+            "profile_idc": [
+              100
+            ],
+            "entropy_coding_mode_flag": [
+              1
+            ],
+            "transform_8x8_mode_flag": [
+              1
+            ],
+            "disable_deblocking_filter_idc": [
+              0
+            ]
+          },
+          "key_aus": 120,
+          "mean_au_bytes": 32046.875,
+          "max_au_bytes": 76123,
+          "mean_wire_ms_at_1Gbps": 0.28034513333333333,
+          "max_wire_ms_at_1Gbps": 0.664952
+        },
+        "1": {
+          "profile": "High",
+          "headers": {
+            "profile_idc": [
+              100
+            ],
+            "entropy_coding_mode_flag": [
+              1
+            ],
+            "transform_8x8_mode_flag": [
+              1
+            ],
+            "disable_deblocking_filter_idc": [
+              0
+            ]
+          },
+          "key_aus": 120,
+          "mean_au_bytes": 32161.275,
+          "max_au_bytes": 59391,
+          "mean_wire_ms_at_1Gbps": 0.2811048666666667,
+          "max_wire_ms_at_1Gbps": 0.519224
+        }
+      }
+    },
+    {
+      "run": "dual-gop1-cavlc",
+      "case": "gop1-cavlc",
+      "camera": "dual",
+      "success": true,
+      "hardware_decoded_frames": 240,
+      "temperature_mC": 48370,
+      "encoder_hw_ms": {
+        "samples": 241,
+        "mean": 2.183576763485477,
+        "p95": 2.187,
+        "max": 2.21
+      },
+      "decoder_completion_steady_ms": {
+        "samples": 660,
+        "mean": 1.8576009863636365,
+        "p95": 2.382841,
+        "max": 2.636779
+      },
+      "sender_ready_to_send": {
+        "stream1.sender.ready_to_send": {
+          "mean": 0.027582,
+          "p95": 0.040447
+        },
+        "stream0.sender.ready_to_send": {
+          "mean": 0.028321,
+          "p95": 0.039423
+        }
+      },
+      "same_boot": true,
+      "debug_restored": true,
+      "critical_kernel_issue": false,
+      "raw_report": "artifacts/codec-parameters-20261015/dual-gop1-cavlc/result.json",
+      "payload_total_mbps": 61.61559191376388,
+      "per_stream_recordings": {
+        "0": {
+          "profile": "High",
+          "headers": {
+            "profile_idc": [
+              100
+            ],
+            "entropy_coding_mode_flag": [
+              0
+            ],
+            "transform_8x8_mode_flag": [
+              1
+            ],
+            "disable_deblocking_filter_idc": [
+              0
+            ]
+          },
+          "key_aus": 120,
+          "mean_au_bytes": 32228.933333333334,
+          "max_au_bytes": 82781,
+          "mean_wire_ms_at_1Gbps": 0.28178746666666665,
+          "max_wire_ms_at_1Gbps": 0.723304
+        },
+        "1": {
+          "profile": "High",
+          "headers": {
+            "profile_idc": [
+              100
+            ],
+            "entropy_coding_mode_flag": [
+              0
+            ],
+            "transform_8x8_mode_flag": [
+              1
+            ],
+            "disable_deblocking_filter_idc": [
+              0
+            ]
+          },
+          "key_aus": 120,
+          "mean_au_bytes": 31980.675,
+          "max_au_bytes": 65946,
+          "mean_wire_ms_at_1Gbps": 0.2797378,
+          "max_wire_ms_at_1Gbps": 0.575904
+        }
+      }
+    },
+    {
+      "run": "dual-gop1-cavlc-slice-off",
+      "case": "gop1-cavlc-slice-off",
+      "camera": "dual",
+      "success": true,
+      "hardware_decoded_frames": 240,
+      "temperature_mC": 47570,
+      "encoder_hw_ms": {
+        "samples": 241,
+        "mean": 2.1889377593360995,
+        "p95": 2.192,
+        "max": 2.21
+      },
+      "decoder_completion_steady_ms": {
+        "samples": 660,
+        "mean": 1.698589362121212,
+        "p95": 2.208543,
+        "max": 2.75446
+      },
+      "sender_ready_to_send": {
+        "stream1.sender.ready_to_send": {
+          "mean": 0.027023,
+          "p95": 0.037887
+        },
+        "stream0.sender.ready_to_send": {
+          "mean": 0.027144,
+          "p95": 0.035327
+        }
+      },
+      "same_boot": true,
+      "debug_restored": true,
+      "critical_kernel_issue": false,
+      "raw_report": "artifacts/codec-parameters-20261015/dual-gop1-cavlc-slice-off/result.json",
+      "payload_total_mbps": 61.527060742731024,
+      "per_stream_recordings": {
+        "0": {
+          "profile": "High",
+          "headers": {
+            "profile_idc": [
+              100
+            ],
+            "entropy_coding_mode_flag": [
+              0
+            ],
+            "transform_8x8_mode_flag": [
+              1
+            ],
+            "disable_deblocking_filter_idc": [
+              0
+            ]
+          },
+          "key_aus": 120,
+          "mean_au_bytes": 32037.408333333333,
+          "max_au_bytes": 79795,
+          "mean_wire_ms_at_1Gbps": 0.28007153333333334,
+          "max_wire_ms_at_1Gbps": 0.696872
+        },
+        "1": {
+          "profile": "High",
+          "headers": {
+            "profile_idc": [
+              100
+            ],
+            "entropy_coding_mode_flag": [
+              0
+            ],
+            "transform_8x8_mode_flag": [
+              1
+            ],
+            "disable_deblocking_filter_idc": [
+              0
+            ]
+          },
+          "key_aus": 120,
+          "mean_au_bytes": 32079.941666666666,
+          "max_au_bytes": 62969,
+          "mean_wire_ms_at_1Gbps": 0.28037646666666666,
+          "max_wire_ms_at_1Gbps": 0.550392
+        }
+      }
+    },
+    {
+      "run": "dual-gop1-cavlc-slice-off-r2",
+      "case": "gop1-cavlc-slice-off",
+      "camera": "dual",
+      "success": true,
+      "hardware_decoded_frames": 240,
+      "temperature_mC": 48470,
+      "encoder_hw_ms": {
+        "samples": 241,
+        "mean": 2.1887302904564314,
+        "p95": 2.192,
+        "max": 2.21
+      },
+      "decoder_completion_steady_ms": {
+        "samples": 660,
+        "mean": 1.746731915151515,
+        "p95": 2.342494,
+        "max": 3.767664
+      },
+      "sender_ready_to_send": {
+        "stream1.sender.ready_to_send": {
+          "mean": 0.027835,
+          "p95": 0.038399
+        },
+        "stream0.sender.ready_to_send": {
+          "mean": 0.027667,
+          "p95": 0.038399
+        }
+      },
+      "same_boot": true,
+      "debug_restored": true,
+      "critical_kernel_issue": false,
+      "raw_report": "artifacts/codec-parameters-20261015/dual-gop1-cavlc-slice-off-r2/result.json",
+      "payload_total_mbps": 61.573881265393595,
+      "per_stream_recordings": {
+        "0": {
+          "profile": "High",
+          "headers": {
+            "profile_idc": [
+              100
+            ],
+            "entropy_coding_mode_flag": [
+              0
+            ],
+            "transform_8x8_mode_flag": [
+              1
+            ],
+            "disable_deblocking_filter_idc": [
+              0
+            ]
+          },
+          "key_aus": 120,
+          "mean_au_bytes": 32008.483333333334,
+          "max_au_bytes": 81559,
+          "mean_wire_ms_at_1Gbps": 0.2798896,
+          "max_wire_ms_at_1Gbps": 0.71268
+        },
+        "1": {
+          "profile": "High",
+          "headers": {
+            "profile_idc": [
+              100
+            ],
+            "entropy_coding_mode_flag": [
+              0
+            ],
+            "transform_8x8_mode_flag": [
+              1
+            ],
+            "disable_deblocking_filter_idc": [
+              0
+            ]
+          },
+          "key_aus": 120,
+          "mean_au_bytes": 32157.658333333333,
+          "max_au_bytes": 64112,
+          "mean_wire_ms_at_1Gbps": 0.2811324666666667,
+          "max_wire_ms_at_1Gbps": 0.560384
+        }
+      }
+    },
+    {
+      "run": "dual-gop1-cbr60",
+      "case": "gop1-cbr60",
+      "camera": "dual",
+      "success": true,
+      "hardware_decoded_frames": 240,
+      "temperature_mC": 47040,
+      "encoder_hw_ms": {
+        "samples": 241,
+        "mean": 2.183784232365145,
+        "p95": 2.186,
+        "max": 2.205
+      },
+      "decoder_completion_steady_ms": {
+        "samples": 660,
+        "mean": 2.1873354363636364,
+        "p95": 2.799396,
+        "max": 4.651989
+      },
+      "sender_ready_to_send": {
+        "stream1.sender.ready_to_send": {
+          "mean": 0.047969,
+          "p95": 0.068607
+        },
+        "stream0.sender.ready_to_send": {
+          "mean": 0.0447,
+          "p95": 0.056831
+        }
+      },
+      "same_boot": true,
+      "debug_restored": true,
+      "critical_kernel_issue": false,
+      "raw_report": "artifacts/codec-parameters-20261015/dual-gop1-cbr60/result.json",
+      "payload_total_mbps": 119.5482999072386,
+      "per_stream_recordings": {
+        "0": {
+          "profile": "High",
+          "headers": {
+            "profile_idc": [
+              100
+            ],
+            "entropy_coding_mode_flag": [
+              1
+            ],
+            "transform_8x8_mode_flag": [
+              1
+            ],
+            "disable_deblocking_filter_idc": [
+              0
+            ]
+          },
+          "key_aus": 120,
+          "mean_au_bytes": 62479.00833333333,
+          "max_au_bytes": 75568,
+          "mean_wire_ms_at_1Gbps": 0.5459844666666667,
+          "max_wire_ms_at_1Gbps": 0.660512
+        },
+        "1": {
+          "profile": "High",
+          "headers": {
+            "profile_idc": [
+              100
+            ],
+            "entropy_coding_mode_flag": [
+              1
+            ],
+            "transform_8x8_mode_flag": [
+              1
+            ],
+            "disable_deblocking_filter_idc": [
+              0
+            ]
+          },
+          "key_aus": 120,
+          "mean_au_bytes": 62102.275,
+          "max_au_bytes": 73275,
+          "mean_wire_ms_at_1Gbps": 0.5427586,
+          "max_wire_ms_at_1Gbps": 0.640472
+        }
+      }
+    },
+    {
+      "run": "dual-gop1-fixqp26",
+      "case": "gop1-fixqp26",
+      "camera": "dual",
+      "success": true,
+      "hardware_decoded_frames": 240,
+      "temperature_mC": 48090,
+      "encoder_hw_ms": {
+        "samples": 241,
+        "mean": 2.19103734439834,
+        "p95": 2.196,
+        "max": 2.204
+      },
+      "decoder_completion_steady_ms": {
+        "samples": 660,
+        "mean": 2.3758128712121214,
+        "p95": 3.101685,
+        "max": 4.518069
+      },
+      "sender_ready_to_send": {
+        "stream1.sender.ready_to_send": {
+          "mean": 0.057842,
+          "p95": 0.070655
+        },
+        "stream0.sender.ready_to_send": {
+          "mean": 0.056707,
+          "p95": 0.069631
+        }
+      },
+      "same_boot": true,
+      "debug_restored": true,
+      "critical_kernel_issue": false,
+      "raw_report": "artifacts/codec-parameters-20261015/dual-gop1-fixqp26/result.json",
+      "payload_total_mbps": 155.39050155135465,
+      "per_stream_recordings": {
+        "0": {
+          "profile": "High",
+          "headers": {
+            "profile_idc": [
+              100
+            ],
+            "entropy_coding_mode_flag": [
+              1
+            ],
+            "transform_8x8_mode_flag": [
+              1
+            ],
+            "disable_deblocking_filter_idc": [
+              0
+            ]
+          },
+          "key_aus": 120,
+          "mean_au_bytes": 81255.21666666666,
+          "max_au_bytes": 81730,
+          "mean_wire_ms_at_1Gbps": 0.7099317333333334,
+          "max_wire_ms_at_1Gbps": 0.714048
+        },
+        "1": {
+          "profile": "High",
+          "headers": {
+            "profile_idc": [
+              100
+            ],
+            "entropy_coding_mode_flag": [
+              1
+            ],
+            "transform_8x8_mode_flag": [
+              1
+            ],
+            "disable_deblocking_filter_idc": [
+              0
+            ]
+          },
+          "key_aus": 120,
+          "mean_au_bytes": 80677.225,
+          "max_au_bytes": 81768,
+          "mean_wire_ms_at_1Gbps": 0.704905,
+          "max_wire_ms_at_1Gbps": 0.714352
+        }
+      }
+    },
+    {
+      "run": "dual-gop1-fixqp30",
+      "case": "gop1-fixqp30",
+      "camera": "dual",
+      "success": true,
+      "hardware_decoded_frames": 240,
+      "temperature_mC": 48240,
+      "encoder_hw_ms": {
+        "samples": 241,
+        "mean": 2.185771784232365,
+        "p95": 2.188,
+        "max": 2.205
+      },
+      "decoder_completion_steady_ms": {
+        "samples": 660,
+        "mean": 1.9456250545454545,
+        "p95": 2.465728,
+        "max": 3.44018
+      },
+      "sender_ready_to_send": {
+        "stream1.sender.ready_to_send": {
+          "mean": 0.034069,
+          "p95": 0.042495
+        },
+        "stream0.sender.ready_to_send": {
+          "mean": 0.032392,
+          "p95": 0.057343
+        }
+      },
+      "same_boot": true,
+      "debug_restored": true,
+      "critical_kernel_issue": false,
+      "raw_report": "artifacts/codec-parameters-20261015/dual-gop1-fixqp30/result.json",
+      "payload_total_mbps": 70.32145827335829,
+      "per_stream_recordings": {
+        "0": {
+          "profile": "High",
+          "headers": {
+            "profile_idc": [
+              100
+            ],
+            "entropy_coding_mode_flag": [
+              1
+            ],
+            "transform_8x8_mode_flag": [
+              1
+            ],
+            "disable_deblocking_filter_idc": [
+              0
+            ]
+          },
+          "key_aus": 120,
+          "mean_au_bytes": 35066.15833333333,
+          "max_au_bytes": 35425,
+          "mean_wire_ms_at_1Gbps": 0.3068031333333333,
+          "max_wire_ms_at_1Gbps": 0.309688
+        },
+        "1": {
+          "profile": "High",
+          "headers": {
+            "profile_idc": [
+              100
+            ],
+            "entropy_coding_mode_flag": [
+              1
+            ],
+            "transform_8x8_mode_flag": [
+              1
+            ],
+            "disable_deblocking_filter_idc": [
+              0
+            ]
+          },
+          "key_aus": 120,
+          "mean_au_bytes": 38215.833333333336,
+          "max_au_bytes": 38774,
+          "mean_wire_ms_at_1Gbps": 0.33431133333333335,
+          "max_wire_ms_at_1Gbps": 0.339024
+        }
+      }
+    },
+    {
+      "run": "dual-gop1-slice-off",
+      "case": "gop1-slice-off",
+      "camera": "dual",
+      "success": true,
+      "hardware_decoded_frames": 240,
+      "temperature_mC": 48620,
+      "encoder_hw_ms": {
+        "samples": 241,
+        "mean": 2.1770497925311205,
+        "p95": 2.182,
+        "max": 2.207
+      },
+      "decoder_completion_steady_ms": {
+        "samples": 660,
+        "mean": 1.7848800636363635,
+        "p95": 2.315254,
+        "max": 4.054614
+      },
+      "sender_ready_to_send": {
+        "stream1.sender.ready_to_send": {
+          "mean": 0.038165,
+          "p95": 0.093183
+        },
+        "stream0.sender.ready_to_send": {
+          "mean": 0.032052,
+          "p95": 0.033279
+        }
+      },
+      "same_boot": true,
+      "debug_restored": true,
+      "critical_kernel_issue": false,
+      "raw_report": "artifacts/codec-parameters-20261015/dual-gop1-slice-off/result.json",
+      "payload_total_mbps": 61.34050634935866,
+      "per_stream_recordings": {
+        "0": {
+          "profile": "High",
+          "headers": {
+            "profile_idc": [
+              100
+            ],
+            "entropy_coding_mode_flag": [
+              1
+            ],
+            "transform_8x8_mode_flag": [
+              1
+            ],
+            "disable_deblocking_filter_idc": [
+              0
+            ]
+          },
+          "key_aus": 120,
+          "mean_au_bytes": 31970.508333333335,
+          "max_au_bytes": 72690,
+          "mean_wire_ms_at_1Gbps": 0.279395,
+          "max_wire_ms_at_1Gbps": 0.634944
+        },
+        "1": {
+          "profile": "High",
+          "headers": {
+            "profile_idc": [
+              100
+            ],
+            "entropy_coding_mode_flag": [
+              1
+            ],
+            "transform_8x8_mode_flag": [
+              1
+            ],
+            "disable_deblocking_filter_idc": [
+              0
+            ]
+          },
+          "key_aus": 120,
+          "mean_au_bytes": 31952.433333333334,
+          "max_au_bytes": 57229,
+          "mean_wire_ms_at_1Gbps": 0.27956133333333333,
+          "max_wire_ms_at_1Gbps": 0.500232
+        }
+      }
+    },
+    {
+      "run": "dual-reencode0",
+      "case": "reencode0",
+      "camera": "dual",
+      "success": true,
+      "hardware_decoded_frames": 240,
+      "temperature_mC": 46500,
+      "encoder_hw_ms": {
+        "samples": 241,
+        "mean": 2.5162323651452283,
+        "p95": 2.558,
+        "max": 2.6
+      },
+      "decoder_completion_steady_ms": {
+        "samples": 660,
+        "mean": 1.857201,
+        "p95": 2.685487,
+        "max": 4.505866
+      },
+      "sender_ready_to_send": {
+        "stream1.sender.ready_to_send": {
+          "mean": 0.106035,
+          "p95": 0.127999
+        },
+        "stream0.sender.ready_to_send": {
+          "mean": 0.104545,
+          "p95": 0.130047
+        }
+      },
+      "same_boot": true,
+      "debug_restored": true,
+      "critical_kernel_issue": false,
+      "raw_report": "artifacts/codec-parameters-20261015/dual-reencode0/result.json",
+      "payload_total_mbps": 59.07628026740876,
+      "per_stream_recordings": {
+        "0": {
+          "profile": "High",
+          "headers": {
+            "profile_idc": [
+              100
+            ],
+            "entropy_coding_mode_flag": [
+              1
+            ],
+            "transform_8x8_mode_flag": [
+              1
+            ],
+            "disable_deblocking_filter_idc": [
+              0
+            ]
+          },
+          "key_aus": 8,
+          "mean_au_bytes": 30909.083333333332,
+          "max_au_bytes": 105489,
+          "mean_wire_ms_at_1Gbps": 0.2703241333333333,
+          "max_wire_ms_at_1Gbps": 0.92108
+        },
+        "1": {
+          "profile": "High",
+          "headers": {
+            "profile_idc": [
+              100
+            ],
+            "entropy_coding_mode_flag": [
+              1
+            ],
+            "transform_8x8_mode_flag": [
+              1
+            ],
+            "disable_deblocking_filter_idc": [
+              0
+            ]
+          },
+          "key_aus": 8,
+          "mean_au_bytes": 30654.308333333334,
+          "max_au_bytes": 84390,
+          "mean_wire_ms_at_1Gbps": 0.26805273333333335,
+          "max_wire_ms_at_1Gbps": 0.737024
+        }
+      }
+    },
+    {
+      "run": "dual-slice-lowdelay480",
+      "case": "slice-lowdelay480",
+      "camera": "dual",
+      "success": true,
+      "hardware_decoded_frames": 240,
+      "temperature_mC": 47620,
+      "encoder_hw_ms": {
+        "samples": 243,
+        "mean": 2.4829588477366253,
+        "p95": 2.533,
+        "max": 2.584
+      },
+      "decoder_completion_steady_ms": {
+        "samples": 660,
+        "mean": 1.7116342803030302,
+        "p95": 2.353135,
+        "max": 3.886969
+      },
+      "sender_ready_to_send": {
+        "stream1.sender.ready_to_send": {
+          "mean": 6.206895,
+          "p95": 6.422527
+        },
+        "stream0.sender.ready_to_send": {
+          "mean": 6.170121,
+          "p95": 6.356991
+        }
+      },
+      "same_boot": true,
+      "debug_restored": true,
+      "critical_kernel_issue": false,
+      "raw_report": "artifacts/codec-parameters-20261015/dual-slice-lowdelay480/result.json",
+      "payload_total_mbps": 57.38839842625468,
+      "per_stream_recordings": {
+        "0": {
+          "profile": "High",
+          "headers": {
+            "profile_idc": [
+              100
+            ],
+            "entropy_coding_mode_flag": [
+              1
+            ],
+            "transform_8x8_mode_flag": [
+              1
+            ],
+            "disable_deblocking_filter_idc": [
+              0
+            ]
+          },
+          "key_aus": 8,
+          "mean_au_bytes": 29186.475,
+          "max_au_bytes": 103077,
+          "mean_wire_ms_at_1Gbps": 0.25525713333333333,
+          "max_wire_ms_at_1Gbps": 0.900088
+        },
+        "1": {
+          "profile": "High",
+          "headers": {
+            "profile_idc": [
+              100
+            ],
+            "entropy_coding_mode_flag": [
+              1
+            ],
+            "transform_8x8_mode_flag": [
+              1
+            ],
+            "disable_deblocking_filter_idc": [
+              0
+            ]
+          },
+          "key_aus": 8,
+          "mean_au_bytes": 30617.975,
+          "max_au_bytes": 83598,
+          "mean_wire_ms_at_1Gbps": 0.2677620666666667,
+          "max_wire_ms_at_1Gbps": 0.730688
+        }
+      }
+    },
+    {
+      "run": "dual-slice-off",
+      "case": "slice-off",
+      "camera": "dual",
+      "success": true,
+      "hardware_decoded_frames": 240,
+      "temperature_mC": 47860,
+      "encoder_hw_ms": {
+        "samples": 241,
+        "mean": 2.4758132780082986,
+        "p95": 2.525,
+        "max": 2.58
+      },
+      "decoder_completion_steady_ms": {
+        "samples": 660,
+        "mean": 1.6958877787878788,
+        "p95": 2.367774,
+        "max": 3.586257
+      },
+      "sender_ready_to_send": {
+        "stream1.sender.ready_to_send": {
+          "mean": 0.105688,
+          "p95": 0.153599
+        },
+        "stream0.sender.ready_to_send": {
+          "mean": 0.097208,
+          "p95": 0.120831
+        }
+      },
+      "same_boot": true,
+      "debug_restored": true,
+      "critical_kernel_issue": false,
+      "raw_report": "artifacts/codec-parameters-20261015/dual-slice-off/result.json",
+      "payload_total_mbps": 57.60210952243867,
+      "per_stream_recordings": {
+        "0": {
+          "profile": "High",
+          "headers": {
+            "profile_idc": [
+              100
+            ],
+            "entropy_coding_mode_flag": [
+              1
+            ],
+            "transform_8x8_mode_flag": [
+              1
+            ],
+            "disable_deblocking_filter_idc": [
+              0
+            ]
+          },
+          "key_aus": 8,
+          "mean_au_bytes": 29743.75,
+          "max_au_bytes": 102198,
+          "mean_wire_ms_at_1Gbps": 0.26008986666666667,
+          "max_wire_ms_at_1Gbps": 0.893056
+        },
+        "1": {
+          "profile": "High",
+          "headers": {
+            "profile_idc": [
+              100
+            ],
+            "entropy_coding_mode_flag": [
+              1
+            ],
+            "transform_8x8_mode_flag": [
+              1
+            ],
+            "disable_deblocking_filter_idc": [
+              0
+            ]
+          },
+          "key_aus": 8,
+          "mean_au_bytes": 30283.408333333333,
+          "max_au_bytes": 81705,
+          "mean_wire_ms_at_1Gbps": 0.2648876666666667,
+          "max_wire_ms_at_1Gbps": 0.713848
+        }
+      }
+    },
+    {
+      "run": "dual-slice240",
+      "case": "slice240",
+      "camera": "dual",
+      "success": true,
+      "hardware_decoded_frames": 240,
+      "temperature_mC": 46570,
+      "encoder_hw_ms": {
+        "samples": 241,
+        "mean": 2.4913817427385894,
+        "p95": 2.537,
+        "max": 2.59
+      },
+      "decoder_completion_steady_ms": {
+        "samples": 660,
+        "mean": 1.8085715454545455,
+        "p95": 2.535089,
+        "max": 5.408776
+      },
+      "sender_ready_to_send": {
+        "stream1.sender.ready_to_send": {
+          "mean": 0.106582,
+          "p95": 0.122879
+        },
+        "stream0.sender.ready_to_send": {
+          "mean": 0.100217,
+          "p95": 0.141311
+        }
+      },
+      "same_boot": true,
+      "debug_restored": true,
+      "critical_kernel_issue": false,
+      "raw_report": "artifacts/codec-parameters-20261015/dual-slice240/result.json",
+      "payload_total_mbps": 57.423223938841446,
+      "per_stream_recordings": {
+        "0": {
+          "profile": "High",
+          "headers": {
+            "profile_idc": [
+              100
+            ],
+            "entropy_coding_mode_flag": [
+              1
+            ],
+            "transform_8x8_mode_flag": [
+              1
+            ],
+            "disable_deblocking_filter_idc": [
+              0
+            ]
+          },
+          "key_aus": 8,
+          "mean_au_bytes": 29008.841666666667,
+          "max_au_bytes": 105700,
+          "mean_wire_ms_at_1Gbps": 0.25368766666666664,
+          "max_wire_ms_at_1Gbps": 0.923616
+        },
+        "1": {
+          "profile": "High",
+          "headers": {
+            "profile_idc": [
+              100
+            ],
+            "entropy_coding_mode_flag": [
+              1
+            ],
+            "transform_8x8_mode_flag": [
+              1
+            ],
+            "disable_deblocking_filter_idc": [
+              0
+            ]
+          },
+          "key_aus": 8,
+          "mean_au_bytes": 30831.9,
+          "max_au_bytes": 83728,
+          "mean_wire_ms_at_1Gbps": 0.26966426666666665,
+          "max_wire_ms_at_1Gbps": 0.731728
+        }
+      }
+    },
+    {
+      "run": "dual-slice480",
+      "case": "slice480",
+      "camera": "dual",
+      "success": true,
+      "hardware_decoded_frames": 240,
+      "temperature_mC": 48030,
+      "encoder_hw_ms": {
+        "samples": 241,
+        "mean": 2.482883817427386,
+        "p95": 2.528,
+        "max": 2.583
+      },
+      "decoder_completion_steady_ms": {
+        "samples": 660,
+        "mean": 1.7383241878787878,
+        "p95": 2.464286,
+        "max": 5.583714
+      },
+      "sender_ready_to_send": {
+        "stream1.sender.ready_to_send": {
+          "mean": 0.107773,
+          "p95": 0.143359
+        },
+        "stream0.sender.ready_to_send": {
+          "mean": 0.099091,
+          "p95": 0.139263
+        }
+      },
+      "same_boot": true,
+      "debug_restored": true,
+      "critical_kernel_issue": false,
+      "raw_report": "artifacts/codec-parameters-20261015/dual-slice480/result.json",
+      "payload_total_mbps": 57.45936890253654,
+      "per_stream_recordings": {
+        "0": {
+          "profile": "High",
+          "headers": {
+            "profile_idc": [
+              100
+            ],
+            "entropy_coding_mode_flag": [
+              1
+            ],
+            "transform_8x8_mode_flag": [
+              1
+            ],
+            "disable_deblocking_filter_idc": [
+              0
+            ]
+          },
+          "key_aus": 8,
+          "mean_au_bytes": 29163.033333333333,
+          "max_au_bytes": 103861,
+          "mean_wire_ms_at_1Gbps": 0.25502013333333334,
+          "max_wire_ms_at_1Gbps": 0.907208
+        },
+        "1": {
+          "profile": "High",
+          "headers": {
+            "profile_idc": [
+              100
+            ],
+            "entropy_coding_mode_flag": [
+              1
+            ],
+            "transform_8x8_mode_flag": [
+              1
+            ],
+            "disable_deblocking_filter_idc": [
+              0
+            ]
+          },
+          "key_aus": 8,
+          "mean_au_bytes": 30715.375,
+          "max_au_bytes": 83326,
+          "mean_wire_ms_at_1Gbps": 0.2685978,
+          "max_wire_ms_at_1Gbps": 0.727664
+        }
+      }
+    },
+    {
+      "run": "dual-uninstrumented",
+      "case": "baseline",
+      "camera": "dual",
+      "success": true,
+      "hardware_decoded_frames": 240,
+      "temperature_mC": 47090,
+      "encoder_hw_ms": null,
+      "decoder_completion_steady_ms": null,
+      "sender_ready_to_send": {
+        "stream1.sender.ready_to_send": {
+          "mean": 0.102737,
+          "p95": 0.120831
+        },
+        "stream0.sender.ready_to_send": {
+          "mean": 0.101782,
+          "p95": 0.130047
+        }
+      },
+      "same_boot": true,
+      "debug_restored": true,
+      "critical_kernel_issue": false,
+      "raw_report": "artifacts/codec-parameters-20261015/dual-uninstrumented/result.json"
+    },
+    {
+      "run": "mono-4x4",
+      "case": "4x4",
+      "camera": "0",
+      "success": true,
+      "hardware_decoded_frames": 120,
+      "temperature_mC": 47570,
+      "encoder_hw_ms": {
+        "samples": 120,
+        "mean": 2.322925,
+        "p95": 2.338,
+        "max": 2.343
+      },
+      "decoder_completion_steady_ms": {
+        "samples": 330,
+        "mean": 1.5977586848484848,
+        "p95": 2.393657,
+        "max": 2.871817
+      },
+      "sender_ready_to_send": {
+        "sender.ready_to_send": {
+          "mean": 0.100997,
+          "p95": 0.116735
+        }
+      },
+      "same_boot": true,
+      "debug_restored": true,
+      "critical_kernel_issue": false,
+      "raw_report": "artifacts/codec-parameters-20261015/mono-4x4/result.json",
+      "payload_total_mbps": 29.21711767904552,
+      "per_stream_recordings": {
+        "0": {
+          "profile": "High",
+          "headers": {
+            "profile_idc": [
+              100
+            ],
+            "entropy_coding_mode_flag": [
+              1
+            ],
+            "transform_8x8_mode_flag": [
+              0
+            ],
+            "disable_deblocking_filter_idc": [
+              0
+            ]
+          },
+          "key_aus": 8,
+          "mean_au_bytes": 30447.158333333333,
+          "max_au_bytes": 89174,
+          "mean_wire_ms_at_1Gbps": 0.26624006666666666,
+          "max_wire_ms_at_1Gbps": 0.778688
+        }
+      }
+    },
+    {
+      "run": "mono-baseline",
+      "case": "baseline",
+      "camera": "0",
+      "success": true,
+      "hardware_decoded_frames": 120,
+      "temperature_mC": 46840,
+      "encoder_hw_ms": {
+        "samples": 120,
+        "mean": 2.5188,
+        "p95": 2.555,
+        "max": 2.572
+      },
+      "decoder_completion_steady_ms": {
+        "samples": 330,
+        "mean": 1.5660605757575758,
+        "p95": 2.127619,
+        "max": 2.544795
+      },
+      "sender_ready_to_send": {
+        "sender.ready_to_send": {
+          "mean": 0.103065,
+          "p95": 0.126975
+        }
+      },
+      "same_boot": true,
+      "debug_restored": true,
+      "critical_kernel_issue": false,
+      "raw_report": "artifacts/codec-parameters-20261015/mono-baseline/result.json",
+      "payload_total_mbps": 29.57651217093689,
+      "per_stream_recordings": {
+        "0": {
+          "profile": "High",
+          "headers": {
+            "profile_idc": [
+              100
+            ],
+            "entropy_coding_mode_flag": [
+              1
+            ],
+            "transform_8x8_mode_flag": [
+              1
+            ],
+            "disable_deblocking_filter_idc": [
+              0
+            ]
+          },
+          "key_aus": 8,
+          "mean_au_bytes": 30821.683333333334,
+          "max_au_bytes": 83092,
+          "mean_wire_ms_at_1Gbps": 0.2695472,
+          "max_wire_ms_at_1Gbps": 0.725792
+        }
+      }
+    },
+    {
+      "run": "mono-baseline-profile",
+      "case": "baseline-profile",
+      "camera": "0",
+      "success": false,
+      "hardware_decoded_frames": 120,
+      "temperature_mC": 47640,
+      "encoder_hw_ms": null,
+      "decoder_completion_steady_ms": null,
+      "sender_ready_to_send": {},
+      "same_boot": true,
+      "debug_restored": true,
+      "critical_kernel_issue": true,
+      "raw_report": "artifacts/codec-parameters-20261015/mono-baseline-profile/result.json",
+      "error": "Kernel/CSI error; stop further camera tests"
+    },
+    {
+      "run": "mono-cavlc",
+      "case": "cavlc",
+      "camera": "0",
+      "success": true,
+      "hardware_decoded_frames": 120,
+      "temperature_mC": 47040,
+      "encoder_hw_ms": {
+        "samples": 120,
+        "mean": 2.5035416666666666,
+        "p95": 2.54,
+        "max": 2.558
+      },
+      "decoder_completion_steady_ms": {
+        "samples": 330,
+        "mean": 1.4690797090909091,
+        "p95": 1.950232,
+        "max": 3.968963
+      },
+      "sender_ready_to_send": {
+        "sender.ready_to_send": {
+          "mean": 0.09985,
+          "p95": 0.116735
+        }
+      },
+      "same_boot": true,
+      "debug_restored": true,
+      "critical_kernel_issue": false,
+      "raw_report": "artifacts/codec-parameters-20261015/mono-cavlc/result.json",
+      "payload_total_mbps": 29.141597095608226,
+      "per_stream_recordings": {
+        "0": {
+          "profile": "High",
+          "headers": {
+            "profile_idc": [
+              100
+            ],
+            "entropy_coding_mode_flag": [
+              0
+            ],
+            "transform_8x8_mode_flag": [
+              1
+            ],
+            "disable_deblocking_filter_idc": [
+              0
+            ]
+          },
+          "key_aus": 8,
+          "mean_au_bytes": 30368.458333333332,
+          "max_au_bytes": 87548,
+          "mean_wire_ms_at_1Gbps": 0.2655822,
+          "max_wire_ms_at_1Gbps": 0.764832
+        }
+      }
+    },
+    {
+      "run": "mono-cavlc-4x4",
+      "case": "cavlc-4x4",
+      "camera": "0",
+      "success": true,
+      "hardware_decoded_frames": 120,
+      "temperature_mC": 47510,
+      "encoder_hw_ms": {
+        "samples": 120,
+        "mean": 2.3123666666666667,
+        "p95": 2.326,
+        "max": 2.333
+      },
+      "decoder_completion_steady_ms": {
+        "samples": 330,
+        "mean": 1.4083354181818182,
+        "p95": 1.898291,
+        "max": 2.302921
+      },
+      "sender_ready_to_send": {
+        "sender.ready_to_send": {
+          "mean": 0.102091,
+          "p95": 0.113663
+        }
+      },
+      "same_boot": true,
+      "debug_restored": true,
+      "critical_kernel_issue": false,
+      "raw_report": "artifacts/codec-parameters-20261015/mono-cavlc-4x4/result.json",
+      "payload_total_mbps": 29.680788791862586,
+      "per_stream_recordings": {
+        "0": {
+          "profile": "High",
+          "headers": {
+            "profile_idc": [
+              100
+            ],
+            "entropy_coding_mode_flag": [
+              0
+            ],
+            "transform_8x8_mode_flag": [
+              0
+            ],
+            "disable_deblocking_filter_idc": [
+              0
+            ]
+          },
+          "key_aus": 8,
+          "mean_au_bytes": 30930.35,
+          "max_au_bytes": 96501,
+          "mean_wire_ms_at_1Gbps": 0.27047306666666665,
+          "max_wire_ms_at_1Gbps": 0.84324
+        }
+      }
+    },
+    {
+      "run": "mono-deblock-off",
+      "case": "deblock-off",
+      "camera": "0",
+      "success": true,
+      "hardware_decoded_frames": 120,
+      "temperature_mC": 47410,
+      "encoder_hw_ms": {
+        "samples": 120,
+        "mean": 2.5374,
+        "p95": 2.58,
+        "max": 2.593
+      },
+      "decoder_completion_steady_ms": {
+        "samples": 330,
+        "mean": 1.574486390909091,
+        "p95": 2.15127,
+        "max": 2.953941
+      },
+      "sender_ready_to_send": {
+        "sender.ready_to_send": {
+          "mean": 0.101135,
+          "p95": 0.130047
+        }
+      },
+      "same_boot": true,
+      "debug_restored": true,
+      "critical_kernel_issue": false,
+      "raw_report": "artifacts/codec-parameters-20261015/mono-deblock-off/result.json",
+      "payload_total_mbps": 28.710912260499633,
+      "per_stream_recordings": {
+        "0": {
+          "profile": "High",
+          "headers": {
+            "profile_idc": [
+              100
+            ],
+            "entropy_coding_mode_flag": [
+              1
+            ],
+            "transform_8x8_mode_flag": [
+              1
+            ],
+            "disable_deblocking_filter_idc": [
+              1
+            ]
+          },
+          "key_aus": 8,
+          "mean_au_bytes": 29919.641666666666,
+          "max_au_bytes": 82245,
+          "mean_wire_ms_at_1Gbps": 0.26163126666666664,
+          "max_wire_ms_at_1Gbps": 0.718168
+        }
+      }
+    },
+    {
+      "run": "mono-fixqp26",
+      "case": "fixqp26",
+      "camera": "0",
+      "success": false,
+      "hardware_decoded_frames": 0,
+      "temperature_mC": 46480,
+      "encoder_hw_ms": null,
+      "decoder_completion_steady_ms": null,
+      "sender_ready_to_send": {},
+      "same_boot": true,
+      "debug_restored": true,
+      "critical_kernel_issue": null,
+      "raw_report": "artifacts/codec-parameters-20261015/mono-fixqp26/result.json",
+      "error": "Existing camera application: bash: line 1: /proc/3898/comm: No such file or directory\nbash: line 1: /proc/3899/comm: No such file or directory\nbash: line 1: /proc/3900/comm: No such file or directory\nbash: line 1: /proc/3902/comm: No such file or directory"
+    },
+    {
+      "run": "mono-fixqp26-r2",
+      "case": "fixqp26",
+      "camera": "0",
+      "success": true,
+      "hardware_decoded_frames": 120,
+      "temperature_mC": 46850,
+      "encoder_hw_ms": {
+        "samples": 120,
+        "mean": 2.56105,
+        "p95": 2.591,
+        "max": 2.594
+      },
+      "decoder_completion_steady_ms": {
+        "samples": 330,
+        "mean": 2.0397145696969696,
+        "p95": 2.367809,
+        "max": 4.102116
+      },
+      "sender_ready_to_send": {
+        "sender.ready_to_send": {
+          "mean": 0.202684,
+          "p95": 0.249855
+        }
+      },
+      "same_boot": true,
+      "debug_restored": true,
+      "critical_kernel_issue": false,
+      "raw_report": "artifacts/codec-parameters-20261015/mono-fixqp26-r2/result.json",
+      "payload_total_mbps": 57.722587403640084,
+      "per_stream_recordings": {
+        "0": {
+          "profile": "High",
+          "headers": {
+            "profile_idc": [
+              100
+            ],
+            "entropy_coding_mode_flag": [
+              1
+            ],
+            "transform_8x8_mode_flag": [
+              1
+            ],
+            "disable_deblocking_filter_idc": [
+              0
+            ]
+          },
+          "key_aus": 8,
+          "mean_au_bytes": 60152.708333333336,
+          "max_au_bytes": 82510,
+          "mean_wire_ms_at_1Gbps": 0.5254872666666667,
+          "max_wire_ms_at_1Gbps": 0.721136
+        }
+      }
+    },
+    {
+      "run": "mono-gop1",
+      "case": "gop1",
+      "camera": "0",
+      "success": true,
+      "hardware_decoded_frames": 120,
+      "temperature_mC": 46670,
+      "encoder_hw_ms": {
+        "samples": 120,
+        "mean": 2.1765833333333333,
+        "p95": 2.178,
+        "max": 2.212
+      },
+      "decoder_completion_steady_ms": {
+        "samples": 330,
+        "mean": 1.7241042212121211,
+        "p95": 2.076763,
+        "max": 2.734681
+      },
+      "sender_ready_to_send": {
+        "sender.ready_to_send": {
+          "mean": 0.025679,
+          "p95": 0.034303
+        }
+      },
+      "same_boot": true,
+      "debug_restored": true,
+      "critical_kernel_issue": false,
+      "raw_report": "artifacts/codec-parameters-20261015/mono-gop1/result.json",
+      "payload_total_mbps": 30.845456290183282,
+      "per_stream_recordings": {
+        "0": {
+          "profile": "High",
+          "headers": {
+            "profile_idc": [
+              100
+            ],
+            "entropy_coding_mode_flag": [
+              1
+            ],
+            "transform_8x8_mode_flag": [
+              1
+            ],
+            "disable_deblocking_filter_idc": [
+              0
+            ]
+          },
+          "key_aus": 120,
+          "mean_au_bytes": 32144.05,
+          "max_au_bytes": 62036,
+          "mean_wire_ms_at_1Gbps": 0.2811649333333333,
+          "max_wire_ms_at_1Gbps": 0.54208
+        }
+      }
+    },
+    {
+      "run": "mono-gop1-cavlc-slice-off",
+      "case": "gop1-cavlc-slice-off",
+      "camera": "0",
+      "success": true,
+      "hardware_decoded_frames": 120,
+      "temperature_mC": 47280,
+      "encoder_hw_ms": {
+        "samples": 120,
+        "mean": 2.190933333333333,
+        "p95": 2.192,
+        "max": 2.215
+      },
+      "decoder_completion_steady_ms": {
+        "samples": 330,
+        "mean": 1.460987418181818,
+        "p95": 1.597865,
+        "max": 2.289155
+      },
+      "sender_ready_to_send": {
+        "sender.ready_to_send": {
+          "mean": 0.025822,
+          "p95": 0.035327
+        }
+      },
+      "same_boot": true,
+      "debug_restored": true,
+      "critical_kernel_issue": false,
+      "raw_report": "artifacts/codec-parameters-20261015/mono-gop1-cavlc-slice-off/result.json",
+      "payload_total_mbps": 30.725938009787928,
+      "per_stream_recordings": {
+        "0": {
+          "profile": "High",
+          "headers": {
+            "profile_idc": [
+              100
+            ],
+            "entropy_coding_mode_flag": [
+              0
+            ],
+            "transform_8x8_mode_flag": [
+              1
+            ],
+            "disable_deblocking_filter_idc": [
+              0
+            ]
+          },
+          "key_aus": 120,
+          "mean_au_bytes": 32019.5,
+          "max_au_bytes": 64262,
+          "mean_wire_ms_at_1Gbps": 0.2799353333333333,
+          "max_wire_ms_at_1Gbps": 0.561584
+        }
+      }
+    },
+    {
+      "run": "mono-gop1-fixqp26",
+      "case": "gop1-fixqp26",
+      "camera": "0",
+      "success": true,
+      "hardware_decoded_frames": 120,
+      "temperature_mC": 47200,
+      "encoder_hw_ms": {
+        "samples": 120,
+        "mean": 2.1904333333333335,
+        "p95": 2.192,
+        "max": 2.212
+      },
+      "decoder_completion_steady_ms": {
+        "samples": 330,
+        "mean": 2.2321447848484848,
+        "p95": 2.524319,
+        "max": 3.723586
+      },
+      "sender_ready_to_send": {
+        "sender.ready_to_send": {
+          "mean": 0.053662,
+          "p95": 0.074751
+        }
+      },
+      "same_boot": true,
+      "debug_restored": true,
+      "critical_kernel_issue": false,
+      "raw_report": "artifacts/codec-parameters-20261015/mono-gop1-fixqp26/result.json",
+      "payload_total_mbps": 76.49797684163389,
+      "per_stream_recordings": {
+        "0": {
+          "profile": "High",
+          "headers": {
+            "profile_idc": [
+              100
+            ],
+            "entropy_coding_mode_flag": [
+              1
+            ],
+            "transform_8x8_mode_flag": [
+              1
+            ],
+            "disable_deblocking_filter_idc": [
+              0
+            ]
+          },
+          "key_aus": 120,
+          "mean_au_bytes": 79718.54166666667,
+          "max_au_bytes": 80831,
+          "mean_wire_ms_at_1Gbps": 0.6965924666666666,
+          "max_wire_ms_at_1Gbps": 0.706008
+        }
+      }
+    },
+    {
+      "run": "mono-reencode0",
+      "case": "reencode0",
+      "camera": "0",
+      "success": true,
+      "hardware_decoded_frames": 120,
+      "temperature_mC": 47780,
+      "encoder_hw_ms": {
+        "samples": 120,
+        "mean": 2.5198416666666668,
+        "p95": 2.556,
+        "max": 2.575
+      },
+      "decoder_completion_steady_ms": {
+        "samples": 330,
+        "mean": 1.6075433121212122,
+        "p95": 2.154168,
+        "max": 3.027612
+      },
+      "sender_ready_to_send": {
+        "sender.ready_to_send": {
+          "mean": 0.103046,
+          "p95": 0.120831
+        }
+      },
+      "same_boot": true,
+      "debug_restored": true,
+      "critical_kernel_issue": false,
+      "raw_report": "artifacts/codec-parameters-20261015/mono-reencode0/result.json",
+      "payload_total_mbps": 29.48651760867479,
+      "per_stream_recordings": {
+        "0": {
+          "profile": "High",
+          "headers": {
+            "profile_idc": [
+              100
+            ],
+            "entropy_coding_mode_flag": [
+              1
+            ],
+            "transform_8x8_mode_flag": [
+              1
+            ],
+            "disable_deblocking_filter_idc": [
+              0
+            ]
+          },
+          "key_aus": 8,
+          "mean_au_bytes": 30727.9,
+          "max_au_bytes": 82720,
+          "mean_wire_ms_at_1Gbps": 0.2687757333333333,
+          "max_wire_ms_at_1Gbps": 0.722816
+        }
+      }
+    },
+    {
+      "run": "mono-slice-lowdelay480",
+      "case": "slice-lowdelay480",
+      "camera": "0",
+      "success": true,
+      "hardware_decoded_frames": 120,
+      "temperature_mC": 47460,
+      "encoder_hw_ms": {
+        "samples": 121,
+        "mean": 2.4825537190082643,
+        "p95": 2.519,
+        "max": 2.538
+      },
+      "decoder_completion_steady_ms": {
+        "samples": 330,
+        "mean": 1.492287196969697,
+        "p95": 2.023374,
+        "max": 2.29708
+      },
+      "sender_ready_to_send": {
+        "sender.ready_to_send": {
+          "mean": 6.222001,
+          "p95": 6.422527
+        }
+      },
+      "same_boot": true,
+      "debug_restored": true,
+      "critical_kernel_issue": false,
+      "raw_report": "artifacts/codec-parameters-20261015/mono-slice-lowdelay480/result.json",
+      "payload_total_mbps": 28.429117487125357,
+      "per_stream_recordings": {
+        "0": {
+          "profile": "High",
+          "headers": {
+            "profile_idc": [
+              100
+            ],
+            "entropy_coding_mode_flag": [
+              1
+            ],
+            "transform_8x8_mode_flag": [
+              1
+            ],
+            "disable_deblocking_filter_idc": [
+              0
+            ]
+          },
+          "key_aus": 8,
+          "mean_au_bytes": 29625.983333333334,
+          "max_au_bytes": 81219,
+          "mean_wire_ms_at_1Gbps": 0.2591194666666667,
+          "max_wire_ms_at_1Gbps": 0.70996
+        }
+      }
+    },
+    {
+      "run": "mono-slice-off",
+      "case": "slice-off",
+      "camera": "0",
+      "success": true,
+      "hardware_decoded_frames": 120,
+      "temperature_mC": 47590,
+      "encoder_hw_ms": {
+        "samples": 120,
+        "mean": 2.4772666666666665,
+        "p95": 2.516,
+        "max": 2.535
+      },
+      "decoder_completion_steady_ms": {
+        "samples": 330,
+        "mean": 1.440144696969697,
+        "p95": 1.911296,
+        "max": 2.305327
+      },
+      "sender_ready_to_send": {
+        "sender.ready_to_send": {
+          "mean": 0.101206,
+          "p95": 0.119807
+        }
+      },
+      "same_boot": true,
+      "debug_restored": true,
+      "critical_kernel_issue": false,
+      "raw_report": "artifacts/codec-parameters-20261015/mono-slice-off/result.json",
+      "payload_total_mbps": 28.627810830694433,
+      "per_stream_recordings": {
+        "0": {
+          "profile": "High",
+          "headers": {
+            "profile_idc": [
+              100
+            ],
+            "entropy_coding_mode_flag": [
+              1
+            ],
+            "transform_8x8_mode_flag": [
+              1
+            ],
+            "disable_deblocking_filter_idc": [
+              0
+            ]
+          },
+          "key_aus": 8,
+          "mean_au_bytes": 29833.041666666668,
+          "max_au_bytes": 79539,
+          "mean_wire_ms_at_1Gbps": 0.26083246666666665,
+          "max_wire_ms_at_1Gbps": 0.694824
+        }
+      }
+    },
+    {
+      "run": "mono-slice480",
+      "case": "slice480",
+      "camera": "0",
+      "success": true,
+      "hardware_decoded_frames": 120,
+      "temperature_mC": 47430,
+      "encoder_hw_ms": {
+        "samples": 120,
+        "mean": 2.4872916666666667,
+        "p95": 2.531,
+        "max": 2.542
+      },
+      "decoder_completion_steady_ms": {
+        "samples": 330,
+        "mean": 1.4452290666666667,
+        "p95": 2.028257,
+        "max": 3.097779
+      },
+      "sender_ready_to_send": {
+        "sender.ready_to_send": {
+          "mean": 0.098547,
+          "p95": 0.110591
+        }
+      },
+      "same_boot": true,
+      "debug_restored": true,
+      "critical_kernel_issue": false,
+      "raw_report": "artifacts/codec-parameters-20261015/mono-slice480/result.json",
+      "payload_total_mbps": 28.593745002079135,
+      "per_stream_recordings": {
+        "0": {
+          "profile": "High",
+          "headers": {
+            "profile_idc": [
+              100
+            ],
+            "entropy_coding_mode_flag": [
+              1
+            ],
+            "transform_8x8_mode_flag": [
+              1
+            ],
+            "disable_deblocking_filter_idc": [
+              0
+            ]
+          },
+          "key_aus": 8,
+          "mean_au_bytes": 29797.541666666668,
+          "max_au_bytes": 82893,
+          "mean_wire_ms_at_1Gbps": 0.2606474,
+          "max_wire_ms_at_1Gbps": 0.7242
+        }
+      }
+    }
+  ],
+  "rejected_profile_note": {
+    "run": "mono-baseline-profile",
+    "decoded_frames": 120,
+    "warning": "mpp_enc: Warning: invalid cabac_init_idc 0 for h264 profile 66, set to -1.",
+    "classification": "tool stopped on configuration warning; source inspection confirms normalization, not kernel WARN/lockup; not promoted and no complete latency result",
+    "source": "aura-sdk/sysdrv/drv_ko/kmpp/kmpp/vcodec/mpp/codec/mpp_enc_impl.c:830"
+  },
+  "preflight_retry_note": "mono-fixqp26 did not start a camera: transient disappearing /proc PID errors were conservatively classified as an existing application; stderr redirection fixed and mono-fixqp26-r2 passed",
+  "deployment": {
+    "production_sender_preserved_sha256": "06583eb5ab52c824f2d8fab1cbea24839fb81aef547060e9d84eb900456a33bd",
+    "experiment_sender_sha256": "01e55734e2a755c649e61ba13a873cbf31bb93f37b5d72c9036cd48e8a3eb946",
+    "launcher_sha256": "0f23ed67edc5b8a40ae43dbda6311b5c9ea03c1cd7851fdb09cacd090913314b",
+    "launcher_override_check": "artifacts/codec-parameters-20261015/launcher-check/result.json",
+    "production_codec_defaults_changed": false
+  },
+  "tests": {
+    "distrobox_ctest": 3,
+    "distrobox_launcher_tests": 9,
+    "native_tool_unit_tests": 5
+  },
+  "final_board_audit": {
+    "boot_id": "9183cb9c-73b7-47ff-a8c6-f22ada820f7a",
+    "debug": 0,
+    "console": "7 4 1 7",
+    "temperature_mC": 46350,
+    "pool_used": {
+      "kmpp_obj_head": 0,
+      "KmppIoc": 0,
+      "KmppBufGrp": 1,
+      "KmppBufGrpCfg": 1,
+      "KmppBuffer": 0,
+      "KmppBufCfg": 0,
+      "KmppMeta": 0,
+      "KmppFrame": 0,
+      "KmppPacket": 0,
+      "KmppVencInitCfg": 0,
+      "KmppVencStCfg": 0,
+      "KmppVencNtfy": 0,
+      "KmppVspInitCfg": 0,
+      "KmppVspRtCfg": 0,
+      "KmppVspRtOut": 0,
+      "mpp_buffer": 0
+    },
+    "raw_report": "artifacts/codec-parameters-20261015/final-board-audit.txt"
+  },
+  "baseline_readback": {
+    "profile": 100,
+    "rc_mode": 1,
+    "gop": 15,
+    "gop_mode": 0,
+    "max_reencode": 1,
+    "entropy": 1,
+    "transform": 0,
+    "deblock": 0,
+    "split_enabled": 1,
+    "split_mode": 1,
+    "split_size": 120
+  }
+}

@@ -12,6 +12,10 @@ usage() {
     echo '             For the previous ~99.23fps timing: VERTICAL_BLANKING=762 FPS=100'
     echo '             H264_DIR=/path (optional per-camera Annex-B recordings)'
     echo '             STARTUP_TIMEOUT=15 (wait for the shared sender to finish initialization)'
+    echo '             GOP=15 SLICE_CTUS=120 (0 disables splitting)'
+    echo '             Optional codec-capable sender: RC_MODE=cbr|fixqp QP_I=26 QP_P=26'
+    echo '             PROFILE=high|main|baseline ENTROPY=cabac|cavlc TRANSFORM=auto|4x4'
+    echo '             DEBLOCK=on|off MAX_REENCODE=0..3 CODEC_REPORT=1'
 }
 
 mode=sender
@@ -38,6 +42,8 @@ port=${PORT:-5000}
 fps=${FPS:-120}
 vertical_blanking=${VERTICAL_BLANKING:-506}
 bitrate=${BITRATE_KBPS:-30000}
+gop=${GOP:-15}
+slice_ctus=${SLICE_CTUS:-120}
 exposure=${EXPOSURE:-735}
 analogue=${ANALOGUE_GAIN:-48}
 digital=${DIGITAL_GAIN:-512}
@@ -45,7 +51,7 @@ wrap_lines=${WRAP_LINES:-0}
 output_mode=${OUTPUT_MODE:-frame}
 case "$output_mode" in frame|slice) ;; *) echo 'invalid OUTPUT_MODE' >&2; exit 2 ;; esac
 startup_timeout=${STARTUP_TIMEOUT:-15}
-for number in "$port" "$fps" "$vertical_blanking" "$bitrate" "$exposure" "$analogue" "$digital" "$wrap_lines" "$startup_timeout"; do
+for number in "$port" "$fps" "$vertical_blanking" "$bitrate" "$gop" "$slice_ctus" "$exposure" "$analogue" "$digital" "$wrap_lines" "$startup_timeout"; do
     case "$number" in ''|*[!0-9]*) echo 'expected decimal parameter' >&2; exit 2 ;; esac
 done
 [ -x "$diagnostic" ] || { echo "missing diagnostic: $diagnostic" >&2; exit 3; }
@@ -92,6 +98,7 @@ done
 if [ "$dry_run" = true ]; then
     echo "dry run: $mode, 1280x720, frames=$frames, destination=$destination:$port, fps=$fps bitrate_kbps=$bitrate"
     echo "sensor controls: vertical_blanking=$vertical_blanking exposure=$exposure analogue_gain=$analogue digital_gain=$digital"
+    echo "codec: gop=$gop slice_ctus=$slice_ctus output_mode=$output_mode"
     echo 'No control changes or capture/sender processes started.'
     exit 0
 fi
@@ -133,9 +140,18 @@ if [ "$mode" = sender ]; then
     else
         set --
     fi
+    [ -z "${RC_MODE:-}" ] || set -- "$@" --rc-mode "$RC_MODE"
+    [ -z "${QP_I:-}" ] || set -- "$@" --qp-i "$QP_I"
+    [ -z "${QP_P:-}" ] || set -- "$@" --qp-p "$QP_P"
+    [ -z "${PROFILE:-}" ] || set -- "$@" --profile "$PROFILE"
+    [ -z "${ENTROPY:-}" ] || set -- "$@" --entropy "$ENTROPY"
+    [ -z "${TRANSFORM:-}" ] || set -- "$@" --transform "$TRANSFORM"
+    [ -z "${DEBLOCK:-}" ] || set -- "$@" --deblock "$DEBLOCK"
+    [ -z "${MAX_REENCODE:-}" ] || set -- "$@" --max-reencode "$MAX_REENCODE"
+    [ "${CODEC_REPORT:-0}" != 1 ] || set -- "$@" --codec-report
     "$sender" --dual --width 1280 --height 720 --fps "$fps" \
         --destination "$destination" --port "$port" --bitrate-kbps "$bitrate" \
-        --wrap-lines "$wrap_lines" --slice-ctus 120 --output-mode "$output_mode" --frames "$frames" "$@" \
+        --wrap-lines "$wrap_lines" --gop "$gop" --slice-ctus "$slice_ctus" --output-mode "$output_mode" --frames "$frames" "$@" \
         > "$report/stereo.log" 2>&1 & pid0=$!
     deadline=$(( $(date +%s) + startup_timeout ))
     while ! grep -q 'aura-sender: VI 1/1/0' "$report/stereo.log"; do

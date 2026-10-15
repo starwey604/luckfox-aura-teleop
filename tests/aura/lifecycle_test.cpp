@@ -11,11 +11,18 @@ struct Camera {
     bool device{}, vi{}, venc{}, receiving{}, bound{}, leased{};
     unsigned gets{};
     unsigned split_mode{};
+    VENC_CHN_ATTR_S attributes{};
+    VENC_RC_PARAM_S rc{};
+    VENC_H264_ENTROPY_S entropy{1U, 0U};
+    VENC_H264_TRANS_S transform{};
+    VENC_H264_DBLK_S deblock{};
+    VENC_SLICE_SPLIT_S split{};
 };
 std::array<Camera, 2> cameras;
 std::mutex mutex;
 bool system{};
 bool incomplete_frame_pack{};
+bool ignore_codec_writes{};
 unsigned init_count{}, exit_count{}, wait_count{}, release_count{};
 std::string fail_api;
 std::vector<std::string> events;
@@ -36,6 +43,7 @@ void reset()
     init_count = exit_count = wait_count = release_count = 0;
     system = false;
     incomplete_frame_pack = false;
+    ignore_codec_writes = false;
     events.clear();
     fail_api.clear();
     g_stop_requested.store(false);
@@ -72,14 +80,23 @@ RK_S32 RK_MPI_VI_SetChnAttr(VI_PIPE, VI_CHN, const VI_CHN_ATTR_S*) { std::lock_g
 RK_S32 RK_MPI_VI_SetChnWrapBufAttr(VI_PIPE, VI_CHN, const VI_CHN_BUF_WRAP_S*) { std::lock_guard lock(mock::mutex); return mock::call("VI_SetChnWrapBufAttr"); }
 RK_S32 RK_MPI_VI_EnableChn(VI_PIPE id, VI_CHN) { std::lock_guard lock(mock::mutex); for (const auto& c : mock::cameras) mock::require(!c.bound, "VI enabled after encoder binding"); const auto r=mock::call("VI_EnableChn"); if (r==0) mock::cameras.at(static_cast<unsigned>(id)).vi=true; return r; }
 RK_S32 RK_MPI_VI_DisableChn(VI_PIPE id, VI_CHN) { std::lock_guard lock(mock::mutex); mock::cameras.at(static_cast<unsigned>(id)).vi=false; return mock::call("VI_DisableChn"); }
-RK_S32 RK_MPI_VENC_CreateChn(VENC_CHN id, const VENC_CHN_ATTR_S*) { std::lock_guard lock(mock::mutex); const auto r=mock::call("VENC_CreateChn"); if (r==0) mock::cameras.at(static_cast<unsigned>(id)).venc=true; return r; }
+RK_S32 RK_MPI_VENC_CreateChn(VENC_CHN id, const VENC_CHN_ATTR_S* attr) { std::lock_guard lock(mock::mutex); const auto r=mock::call("VENC_CreateChn"); if (r==0) { auto& c=mock::cameras.at(static_cast<unsigned>(id)); c.venc=true; c.attributes=*attr; } return r; }
 RK_S32 RK_MPI_VENC_DestroyChn(VENC_CHN id) { std::lock_guard lock(mock::mutex); auto& c=mock::cameras.at(static_cast<unsigned>(id)); mock::require(!c.leased && !c.receiving && !c.bound, "destroy before release/stop"); c.venc=false; return mock::call("VENC_DestroyChn"); }
 RK_S32 RK_MPI_VENC_StartRecvFrame(VENC_CHN id, const VENC_RECV_PIC_PARAM_S*) { std::lock_guard lock(mock::mutex); const auto r=mock::call("VENC_StartRecvFrame"); if (r==0) mock::cameras.at(static_cast<unsigned>(id)).receiving=true; return r; }
 RK_S32 RK_MPI_VENC_StopRecvFrame(VENC_CHN id) { std::lock_guard lock(mock::mutex); auto& c=mock::cameras.at(static_cast<unsigned>(id)); mock::require(!c.leased, "stop before stream released"); c.receiving=false; return mock::call("VENC_StopRecvFrame"); }
 RK_S32 RK_MPI_VENC_SetChnBufWrapAttr(VENC_CHN, const VENC_CHN_BUF_WRAP_S*) { std::lock_guard lock(mock::mutex); return mock::call("VENC_SetChnBufWrapAttr"); }
 RK_S32 RK_MPI_VENC_SetChnRefBufShareAttr(VENC_CHN, const VENC_CHN_REF_BUF_SHARE_S*) { std::lock_guard lock(mock::mutex); return mock::call("VENC_SetChnRefBufShareAttr"); }
-RK_S32 RK_MPI_VENC_GetSliceSplit(VENC_CHN, VENC_SLICE_SPLIT_S*) { std::lock_guard lock(mock::mutex); return mock::call("VENC_GetSliceSplit"); }
-RK_S32 RK_MPI_VENC_SetSliceSplit(VENC_CHN id, const VENC_SLICE_SPLIT_S* split) { std::lock_guard lock(mock::mutex); const auto r=mock::call("VENC_SetSliceSplit"); if (r==0) mock::cameras.at(static_cast<unsigned>(id)).split_mode=split->u32SplitMode; return r; }
+RK_S32 RK_MPI_VENC_GetChnAttr(VENC_CHN id, VENC_CHN_ATTR_S* value) { std::lock_guard lock(mock::mutex); *value=mock::cameras.at(static_cast<unsigned>(id)).attributes; return mock::call("VENC_GetChnAttr"); }
+RK_S32 RK_MPI_VENC_GetSliceSplit(VENC_CHN id, VENC_SLICE_SPLIT_S* value) { std::lock_guard lock(mock::mutex); *value=mock::cameras.at(static_cast<unsigned>(id)).split; return mock::call("VENC_GetSliceSplit"); }
+RK_S32 RK_MPI_VENC_SetSliceSplit(VENC_CHN id, const VENC_SLICE_SPLIT_S* split) { std::lock_guard lock(mock::mutex); const auto r=mock::call("VENC_SetSliceSplit"); if (r==0) { auto& c=mock::cameras.at(static_cast<unsigned>(id)); c.split_mode=split->u32SplitMode; c.split=*split; } return r; }
+RK_S32 RK_MPI_VENC_GetRcParam(VENC_CHN id, VENC_RC_PARAM_S* value) { std::lock_guard lock(mock::mutex); *value=mock::cameras.at(static_cast<unsigned>(id)).rc; return mock::call("VENC_GetRcParam"); }
+RK_S32 RK_MPI_VENC_SetRcParam(VENC_CHN id, const VENC_RC_PARAM_S* value) { std::lock_guard lock(mock::mutex); const auto r=mock::call("VENC_SetRcParam"); if (r==0 && !mock::ignore_codec_writes) mock::cameras.at(static_cast<unsigned>(id)).rc=*value; return r; }
+RK_S32 RK_MPI_VENC_GetH264Entropy(VENC_CHN id, VENC_H264_ENTROPY_S* value) { std::lock_guard lock(mock::mutex); *value=mock::cameras.at(static_cast<unsigned>(id)).entropy; return mock::call("VENC_GetH264Entropy"); }
+RK_S32 RK_MPI_VENC_SetH264Entropy(VENC_CHN id, const VENC_H264_ENTROPY_S* value) { std::lock_guard lock(mock::mutex); const auto r=mock::call("VENC_SetH264Entropy"); if (r==0 && !mock::ignore_codec_writes) mock::cameras.at(static_cast<unsigned>(id)).entropy=*value; return r; }
+RK_S32 RK_MPI_VENC_GetH264Trans(VENC_CHN id, VENC_H264_TRANS_S* value) { std::lock_guard lock(mock::mutex); *value=mock::cameras.at(static_cast<unsigned>(id)).transform; return mock::call("VENC_GetH264Trans"); }
+RK_S32 RK_MPI_VENC_SetH264Trans(VENC_CHN id, const VENC_H264_TRANS_S* value) { std::lock_guard lock(mock::mutex); const auto r=mock::call("VENC_SetH264Trans"); if (r==0 && !mock::ignore_codec_writes) mock::cameras.at(static_cast<unsigned>(id)).transform=*value; return r; }
+RK_S32 RK_MPI_VENC_GetH264Dblk(VENC_CHN id, VENC_H264_DBLK_S* value) { std::lock_guard lock(mock::mutex); *value=mock::cameras.at(static_cast<unsigned>(id)).deblock; return mock::call("VENC_GetH264Dblk"); }
+RK_S32 RK_MPI_VENC_SetH264Dblk(VENC_CHN id, const VENC_H264_DBLK_S* value) { std::lock_guard lock(mock::mutex); const auto r=mock::call("VENC_SetH264Dblk"); if (r==0 && !mock::ignore_codec_writes) mock::cameras.at(static_cast<unsigned>(id)).deblock=*value; return r; }
 RK_S32 RK_MPI_VENC_QueryStatus(VENC_CHN, VENC_CHN_STATUS_S*) { return 0; }
 RK_S32 RK_MPI_VENC_GetStream(VENC_CHN id, VENC_STREAM_S* stream, RK_S32) {
     if (id==1) std::this_thread::sleep_for(std::chrono::milliseconds(1));
@@ -99,11 +116,12 @@ RK_S32 RK_MPI_VENC_ReleaseStream(VENC_CHN id, VENC_STREAM_S*) { std::lock_guard 
 RK_VOID* RK_MPI_MB_Handle2VirAddr(MB_BLK) { static unsigned char payload[4]{0,0,0,1}; return payload; }
 }
 
-int run(bool dual=false, const char* output_mode="frame")
+int run(bool dual=false, const char* output_mode="frame", const std::vector<std::string>& extra={})
 {
     std::vector<std::string> arguments{"aura-sender-test", "--width", "1280", "--height", "720", "--wrap-lines", "0", "--frames", "3"};
     if (dual) arguments.emplace_back("--dual");
     arguments.emplace_back("--output-mode"); arguments.emplace_back(output_mode);
+    arguments.insert(arguments.end(), extra.begin(), extra.end());
     std::vector<char*> pointers;
     for (auto& arg : arguments) pointers.push_back(arg.data());
     return aura_sender_main(static_cast<int>(pointers.size()), pointers.data());
@@ -135,6 +153,30 @@ int main()
         mock::reset(); mock::require(run(false, "slice")==0, "slice compatibility failed"); mock::all_released();
         mock::require(mock::cameras[0].split_mode==3 && mock::cameras[0].gets==7,
                       "slice mode trusted per-slice bFrameEnd instead of grouping PTS");
+        const std::vector<std::string> codec_args{"--rc-mode", "fixqp", "--qp-i", "22", "--qp-p", "26", "--gop", "1", "--profile", "baseline", "--deblock", "off", "--max-reencode", "0", "--slice-ctus", "0", "--codec-report"};
+        mock::reset(); mock::require(run(true, "frame", codec_args)==0, "codec configuration failed"); mock::all_released();
+        for (const auto& c : mock::cameras) {
+            mock::require(c.attributes.stRcAttr.enRcMode==VENC_RC_MODE_H264FIXQP &&
+                          c.attributes.stRcAttr.stH264FixQp.u32Gop==1 &&
+                          c.attributes.stRcAttr.stH264FixQp.u32IQp==22 &&
+                          c.attributes.stRcAttr.stH264FixQp.u32PQp==26 &&
+                          c.attributes.stVencAttr.u32Profile==66, "wrong codec union/profile");
+            mock::require(c.entropy.u32EntropyEncMode==0 && c.transform.u32TransMode==1 &&
+                          c.deblock.disable_deblocking_filter_idc==1 && !c.split.bSplitEnable, "codec setting lost");
+        }
+        for (const auto* api : {"VENC_GetRcParam", "VENC_SetRcParam", "VENC_GetH264Entropy", "VENC_SetH264Entropy", "VENC_GetH264Trans", "VENC_SetH264Trans", "VENC_GetH264Dblk", "VENC_SetH264Dblk", "VENC_GetChnAttr"}) {
+            mock::reset(); mock::fail_api=api;
+            mock::require(run(false, "frame", codec_args)!=0, "codec API failure ignored"); mock::all_released();
+        }
+        mock::reset(); mock::ignore_codec_writes=true;
+        mock::require(run(false, "frame", {"--entropy", "cavlc"})!=0, "silent readback mismatch accepted"); mock::all_released();
+        mock::reset(); mock::fail_api="VENC_GetH264Dblk";
+        mock::require(run(false, "frame", {"--codec-report"})==0, "unsupported optional getter must be reported, not change baseline"); mock::all_released();
+        for (const std::vector<std::string>& args : {std::vector<std::string>{"--profile", "baseline", "--entropy", "cabac"},
+                {"--profile", "main", "--transform", "auto"}, {"--qp-i", "20"}, {"--max-reencode", "4"},
+                {"--rc-mode", "fixqp", "--qp-p", "52"}}) {
+            mock::reset(); mock::require(run(false, "frame", args)!=0 && mock::init_count==0, "invalid codec args reached MPI");
+        }
         mock::reset(); mock::incomplete_frame_pack=true;
         mock::require(run()!=0, "partial frame pack accepted as complete AU"); mock::all_released();
         mock::reset();

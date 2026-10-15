@@ -1,0 +1,321 @@
+#!/usr/bin/env python3
+"""One bounded, USB-logged AR0234 codec experiment; native VAAPI completion replay."""
+import argparse
+import csv
+import hashlib
+import io
+import json
+import math
+import os
+from pathlib import Path
+import re
+import runpy
+import shlex
+import socket
+import subprocess
+import time
+import uuid
+
+ROOT = Path(__file__).resolve().parents[1]
+codec = runpy.run_path(str(ROOT / 'tools/test-codec-latency'))
+baseline = runpy.run_path(str(ROOT / 'tools/test-aura-software-baseline'))
+readout = runpy.run_path(str(ROOT / 'tools/test-ar0234-readout'))
+distribution = codec['distribution']
+CASES = {
+    'baseline': [], 'gop1': ['--gop', '1'],
+    'reencode0': ['--max-reencode', '0'],
+    'fixqp26': ['--rc-mode', 'fixqp', '--qp-i', '26', '--qp-p', '26'],
+    'fixqp30': ['--rc-mode', 'fixqp', '--qp-i', '30', '--qp-p', '30'],
+    'fixqp22': ['--rc-mode', 'fixqp', '--qp-i', '22', '--qp-p', '22'],
+    'gop1-fixqp26': ['--gop', '1', '--rc-mode', 'fixqp', '--qp-i', '26', '--qp-p', '26'],
+    'gop1-fixqp30': ['--gop', '1', '--rc-mode', 'fixqp', '--qp-i', '30', '--qp-p', '30'],
+    'cavlc': ['--entropy', 'cavlc'], '4x4': ['--transform', '4x4'],
+    'deblock-off': ['--deblock', 'off'], 'baseline-profile': ['--profile', 'baseline'],
+    'main-profile': ['--profile', 'main'],
+    'gop1-cavlc': ['--gop', '1', '--entropy', 'cavlc'],
+    'cavlc-4x4': ['--entropy', 'cavlc', '--transform', '4x4'],
+    'cavlc-4x4-slice-off': ['--entropy', 'cavlc', '--transform', '4x4', '--slice-ctus', '0'],
+    'gop1-slice-off': ['--gop', '1', '--slice-ctus', '0'],
+    'gop1-cavlc-slice-off': ['--gop', '1', '--entropy', 'cavlc', '--slice-ctus', '0'],
+    'simple-tools': ['--profile', 'baseline', '--deblock', 'off'],
+    'slice240': ['--slice-ctus', '240'], 'slice480': ['--slice-ctus', '480'],
+    'slice-off': ['--slice-ctus', '0'],
+    'slice-lowdelay480': ['--slice-ctus', '480', '--output-mode', 'slice'],
+    'cbr40': ['--bitrate-kbps', '40000'], 'cbr60': ['--bitrate-kbps', '60000'],
+    'gop1-cbr60': ['--gop', '1', '--bitrate-kbps', '60000'],
+}
+DEBUG = '/sys/module/kmpp/parameters/mpp_dev_debug'
+
+
+def wire_bytes(size):
+    return size + math.ceil(size / 1160) * (40 + 28 + 38)
+
+
+def header_values(text):
+    fields = ('profile_idc', 'entropy_coding_mode_flag', 'transform_8x8_mode_flag',
+              'disable_deblocking_filter_idc')
+    return {field: sorted(set(map(int, re.findall(r'\b' + field + r'\s+[01]+\s+=\s+(\d+)', text))))
+            for field in fields}
+
+
+def validate_headers(case, headers, packets):
+    if ('cavlc' in case or case in ('baseline-profile', 'simple-tools')) and headers['entropy_coding_mode_flag'] != [0]:
+        raise RuntimeError('Requested CAVLC is absent from PPS')
+    if ('4x4' in case or case in ('baseline-profile', 'main-profile', 'simple-tools')) and headers['transform_8x8_mode_flag'] not in ([], [0]):
+        raise RuntimeError('Requested 4x4-only transform is absent from PPS')
+    if case in ('baseline-profile', 'simple-tools') and headers['profile_idc'] != [66]:
+        raise RuntimeError('Requested Baseline is absent from SPS')
+    if case == 'main-profile' and headers['profile_idc'] != [77]:
+        raise RuntimeError('Requested Main is absent from SPS')
+    if case in ('deblock-off', 'simple-tools') and headers['disable_deblocking_filter_idc'] != [1]:
+        raise RuntimeError('Requested deblocking disable is absent from slices')
+    if case.startswith('gop1') and any('K' not in p.get('flags', '') for p in packets):
+        raise RuntimeError('GOP1 stream contains non-key access units')
+
+
+def validate_slice_positions(text, size, frames):
+    positions = list(map(int, re.findall(r'\bfirst_mb_in_slice\s+[01]+\s+=\s+(\d+)', text)))
+    expected = list(range(0, 3600, size or 3600))
+    if positions != expected * frames:
+        raise RuntimeError('Bitstream slice boundaries do not match requested 720p MB split')
+    return len(expected)
+
+
+def run(args):
+    output = args.output.resolve()
+    output.mkdir(parents=True, exist_ok=False)
+    ssh = ['ssh', '-o', 'ConnectTimeout=5', '-o', 'ServerAliveInterval=3', '-o', 'ServerAliveCountMax=2', args.host]
+    scp = ['scp', '-o', 'ConnectTimeout=5']
+    if 'SSHPASS' in os.environ:
+        ssh = ['sshpass', '-e', *ssh]
+        scp = ['sshpass', '-e', *scp]
+    adb = ['adb', '-s', args.adb_serial, 'shell']
+
+    def command(cmd, timeout=20):
+        return subprocess.check_output(cmd, text=True, stderr=subprocess.STDOUT, timeout=timeout).strip()
+
+    def remote(cmd, usb=False):
+        return command([*(adb if usb else ssh), cmd], timeout=12)
+
+    def wait_text(path, needle, process):
+        until = time.monotonic() + 8
+        while needle not in path.read_text(errors='replace'):
+            if process.poll() is not None or time.monotonic() > until:
+                raise RuntimeError('Missing live marker: ' + needle)
+            time.sleep(.03)
+
+    result = {'success': False, 'case': args.case, 'camera': args.camera, 'frames_per_camera': args.frames,
+              'fps_declaration': 120, 'sensor_period_us': 8336.8, 'encoder_timing': not args.no_timing,
+              'recording': not args.no_record, 'raw_directory': str(output), 'probe_rounds': args.rounds,
+              'measurement_scope': 'VENC hardware cycle and run-to-IRQ; native paced AU-to-VAAPI-surface completion; no optical or synchronized cross-host latency'}
+    usb = viewer = sender = None
+    reader_pid = sender_pid = None
+    debug = console = boot = None
+    marker = 'codec-' + uuid.uuid4().hex
+    board_dir = '/tmp/' + marker
+    selected = ['0', '1'] if args.camera == 'dual' else [args.camera]
+    try:
+        boot = remote('cat /proc/sys/kernel/random/boot_id')
+        debug = remote('cat ' + DEBUG)
+        console = remote('cat /proc/sys/kernel/printk')
+        if int(debug, 0) & 0x100:
+            raise RuntimeError('Timing is already active; preserve existing debug settings')
+        if int(remote('cat /sys/class/thermal/thermal_zone0/temp')) >= 70000:
+            raise RuntimeError('Board >=70C; no camera started')
+        active = remote('for p in /proc/[0-9]*/comm; do read n 2>/dev/null < "$p" || continue; '
+                        'case "$n" in teleop-sender*|aura-sender*|rkipc|rkisp_demo|v4l2-ctl) echo "$n";; esac; done')
+        if active:
+            raise RuntimeError('Existing camera application: ' + active)
+        audit = remote(readout['AUDIT'])
+        (output / 'audit-before.txt').write_text(audit + '\n')
+        sensors = readout['parse_audit'](audit)
+        for c in selected:
+            if len(sensors[c]['lanes']) != 4 or sensors[c]['controls']['vertical_blanking']['min'] > 506:
+                raise RuntimeError('Requires #19 four-lane fastreadout driver')
+        result['boot_id'] = boot
+        result['host_policy'] = baseline['host_policy_snapshot']()
+        result['board_identity'] = remote('uname -a; sha256sum ' + shlex.quote(args.sender))
+        result['debug_original'], result['console_original'] = debug, console
+        with (output / 'usb-kmsg.txt').open('w') as log, (output / 'viewer.txt').open('w') as v, (output / 'sender.txt').open('w') as s:
+            usb = subprocess.Popen([*adb, "timeout 120 sh -c 'echo usb_reader_pid=$$; cat /dev/kmsg & child=$!; trap \"kill $child 2>/dev/null; wait $child 2>/dev/null; exit 0\" TERM INT HUP; wait $child'"], stdout=log, stderr=subprocess.STDOUT)
+            wait_text(output / 'usb-kmsg.txt', 'usb_reader_pid=', usb)
+            reader_pid = re.search(r'usb_reader_pid=(\d+)', (output / 'usb-kmsg.txt').read_text())[1]
+            remote('echo ' + marker + '-begin >/dev/kmsg', usb=True)
+            wait_text(output / 'usb-kmsg.txt', marker + '-begin', usb)
+            remote('echo 1 >/proc/sys/kernel/printk; echo ' + str(int(debug, 0) | (0 if args.no_timing else 0x100)) + ' >' + DEBUG)
+            flags = remote('cat ' + DEBUG)
+            if int(flags, 0) != int(debug, 0) | (0 if args.no_timing else 0x100):
+                raise RuntimeError('Timing flag readback mismatch')
+            viewer_cmd = [str(args.viewer), '--port', str(args.port), '--headless', '--frames',
+                          str(args.frames * len(selected)), '--timeout-ms', '30000']
+            if args.camera != '0': viewer_cmd += ['--dual-stream']
+            result['viewer_command'] = viewer_cmd
+            viewer = subprocess.Popen(viewer_cmd, stdout=v, stderr=subprocess.STDOUT, env=dict(os.environ, TELEOP_METRICS='1'))
+            until = time.monotonic() + 8
+            while True:
+                if viewer.poll() is not None: raise RuntimeError('Viewer exited before binding')
+                with socket.socket(socket.AF_INET6, socket.SOCK_DGRAM) as test:
+                    try: test.bind(('::', args.port))
+                    except OSError: break
+                if time.monotonic() > until: raise RuntimeError('Viewer binding timeout')
+                time.sleep(.02)
+            remote('mkdir ' + board_dir)
+            camera = ['--dual'] if args.camera == 'dual' else ['--camera', args.camera]
+            options = [args.sender, *camera, '--width', '1280', '--height', '720', '--fps', '120',
+                       '--wrap-lines', '0', '--frames', str(args.frames), '--port', str(args.port), '--codec-report', *CASES[args.case]]
+            if not args.no_record:
+                options += ['--output-h264', board_dir + ('/camera{camera}.h264' if args.camera == 'dual' else '/camera' + args.camera + '.h264')]
+            controls = baseline['controls_script'](args.camera, 506, exposure=735, analogue=48, digital=512)
+            start = controls + 'echo sender_wrapper_pid=$$; exec timeout -s INT -k 5 25 env TELEOP_METRICS=1 AURA_LIFECYCLE_TRACE=0 ' + shlex.join(options)
+            result['sender_options'] = options
+            sender = subprocess.Popen([*ssh, start], stdout=s, stderr=subprocess.STDOUT)
+            wait_text(output / 'sender.txt', 'sender_wrapper_pid=', sender)
+            sender_pid = re.search(r'sender_wrapper_pid=(\d+)', (output / 'sender.txt').read_text())[1]
+            result['sender_exit'] = sender.wait(timeout=35)
+            if result['sender_exit']:
+                raise RuntimeError('Sender failed; inspect explicit API/readback errors')
+            result['viewer_exit'] = viewer.wait(timeout=15)
+            if result['viewer_exit']: raise RuntimeError('Viewer failed')
+            remote('echo ' + marker + '-end >/dev/kmsg', usb=True)
+            wait_text(output / 'usb-kmsg.txt', marker + '-end', usb)
+        viewer_text = (output / 'viewer.txt').read_text()
+        if f'access_units={args.frames * len(selected)} ' not in viewer_text or 'malformed=0 duplicates=0 dropped=0' not in viewer_text:
+            raise RuntimeError('Transport count/error mismatch')
+        if viewer_text.count(f'decoder: frames={args.frames} hardware_frames={args.frames}') != len(selected) or '[h264 @' in viewer_text:
+            raise RuntimeError('Hardware decode failure/warning')
+        if 'rxq_overflow=0 truncated=0 clock_discontinuities=0' not in viewer_text:
+            raise RuntimeError('RX observation failure')
+        tail = (output / 'usb-kmsg.txt').read_text(errors='replace').split(marker + '-begin', 1)[1].split(marker + '-end', 1)[0]
+        advisory, critical = readout['kernel_issues'](tail)
+        result['critical_kernel_issue'], result['bsp_advisories'] = critical, advisory
+        if critical: raise RuntimeError('Kernel/CSI error; stop further camera tests')
+        wall, cycles = codec['encoder_samples'](tail)
+        result['encoder_run_to_irq_ms'] = {k: distribution(v) for k, v in wall.items()}
+        result['encoder_hw_ms'] = {k: distribution(v) for k, v in cycles.items()}
+        result['encoder_hw_samples_ms'] = cycles
+        if not args.no_timing and (len(cycles) != len(selected) or any(not args.frames <= len(v) <= args.frames + 5 for v in cycles.values())):
+            raise RuntimeError('Unexpected completed task count')
+        result['sender_metrics'] = codec['stage_metrics']((output / 'sender.txt').read_text())
+        result['host_metrics'] = codec['stage_metrics'](viewer_text)
+        for c in selected:
+            source = ('stream' + c + '.' if args.camera == 'dual' else '') + 'sender.au_interval'
+            for metric in (result['sender_metrics'][source], result['host_metrics']['host.stream' + c + '.au_interval']):
+                if abs(metric['mean'] - 8.3368) > .2:
+                    raise RuntimeError('Actual AU cadence differs from the 120fps sensor configuration')
+        result['queue_lines'] = re.findall(r'^queue: .*$', viewer_text, re.M)
+        result['codec_report'] = re.findall(r'^codec: .*$', (output / 'sender.txt').read_text(), re.M)
+        result['recordings'] = {}
+        if not args.no_record:
+            for c in selected:
+                file = output / ('camera' + c + '.h264')
+                command([*scp, args.host + ':' + board_dir + '/camera' + c + '.h264', str(file)])
+                if file.stat().st_size > 32 * 1024 * 1024: raise RuntimeError('Excessive one-second recording size')
+                metadata = json.loads(command(['ffprobe', '-v', 'error', '-show_packets', '-show_streams', '-of', 'json', str(file)]))
+                packets = metadata['packets']
+                if len(packets) != args.frames or metadata['streams'][0].get('has_b_frames') != 0:
+                    raise RuntimeError('Recording count/reordering mismatch')
+                trace = command(['ffmpeg', '-v', 'verbose', '-i', str(file), '-map', '0:v:0', '-c:v', 'copy', '-bsf:v', 'trace_headers', '-f', 'null', '-'], timeout=30)
+                (output / ('camera' + c + '-headers.txt')).write_text(trace)
+                headers = header_values(trace)
+                validate_headers(args.case, headers, packets)
+                split_size = 120
+                if '--slice-ctus' in options: split_size = int(options[options.index('--slice-ctus') + 1])
+                slice_count = validate_slice_positions(trace, split_size, args.frames)
+                offsets = output / ('camera' + c + '-offsets.txt')
+                offsets.write_text(''.join(f"{p['pos']} {p['size']}\n" for p in packets))
+                (output / ('camera' + c + '-packets.json')).write_text(json.dumps(metadata, indent=2) + '\n')
+                sizes = list(map(lambda p: int(p['size']), packets))
+                result['recordings'][c] = {'sha256': hashlib.sha256(file.read_bytes()).hexdigest(),
+                    'profile': metadata['streams'][0]['profile'], 'headers': headers, 'slices_per_au': slice_count,
+                    'access_unit_bytes': distribution(sizes),
+                    'key_aus': sum('K' in p.get('flags', '') for p in packets),
+                    'payload_mbps_at_sensor_fps': sum(sizes) * 8 / (args.frames * .0083368) / 1e6,
+                    'wire_ms_per_au_at_1Gbps': distribution([wire_bytes(n) / 125000 for n in sizes])}
+            if args.probe is None or not args.probe.is_file(): raise RuntimeError('Build/provide native --probe before board tests')
+            result['probe_sha256'] = hashlib.sha256(args.probe.read_bytes()).hexdigest()
+            args_probe = [str(args.probe), 'sync', '8337']
+            for c in selected:
+                args_probe += [str(output / ('camera' + c + '.h264')), str(output / ('camera' + c + '-offsets.txt'))]
+            combined = {}
+            result['decode_runs'] = []
+            for repeat in range(args.rounds):
+                replay = subprocess.run(args_probe, text=True, capture_output=True, timeout=20, env=dict(os.environ, TELEOP_METRICS='1'))
+                (output / f'decode-{repeat}.csv').write_text(replay.stdout)
+                (output / f'decode-{repeat}-stderr.txt').write_text(replay.stderr)
+                if replay.returncode or '[h264 @' in replay.stderr: raise RuntimeError('VAAPI completion replay failed')
+                samples = list(csv.DictReader(io.StringIO(replay.stdout)))
+                if len(samples) != args.frames * len(selected): raise RuntimeError('Completion sample count mismatch')
+                result['decode_runs'].append({})
+                for index, c in enumerate(selected):
+                    rows = [x for x in samples if int(x['stream']) == index]
+                    steady = [float(x['ready_to_completion_ms']) for x in rows[10:]]
+                    combined.setdefault(c, []).extend(steady)
+                    result['decode_runs'][-1][c] = {'first_ms': float(rows[0]['ready_to_completion_ms']),
+                        'steady_completion_ms': distribution(steady)}
+            result['decode_steady_completion_ms'] = {c: distribution(v) for c, v in combined.items()}
+        result['success'] = True
+    except (OSError, RuntimeError, subprocess.SubprocessError, ValueError, KeyError) as error:
+        result['error'] = str(error)
+    finally:
+        try:
+            if sender is not None and sender.poll() is None:
+                if sender_pid: remote('kill -INT ' + sender_pid, usb=True)
+                try: sender.wait(timeout=6)
+                except subprocess.TimeoutExpired: sender.terminate(); sender.wait(timeout=5)
+            if viewer is not None and viewer.poll() is None:
+                viewer.terminate(); viewer.wait(timeout=5)
+            if debug is not None and console is not None:
+                remote('echo ' + shlex.quote(debug) + ' >' + DEBUG + '; echo ' + shlex.quote(console) + ' >/proc/sys/kernel/printk', usb=True)
+                result['debug_restored'] = remote('cat ' + DEBUG) == debug
+                result['console_restored'] = remote('cat /proc/sys/kernel/printk').split() == console.split()
+                result['same_boot'] = remote('cat /proc/sys/kernel/random/boot_id') == boot
+                result['final_temperature_mC'] = int(remote('cat /sys/class/thermal/thermal_zone0/temp'))
+                after = remote(readout['AUDIT'])
+                (output / 'audit-after.txt').write_text(after + '\n')
+                expected = {'exposure': 735, 'analogue_gain': 48, 'digital_gain': 512, 'vertical_blanking': 506}
+                sensors_after = readout['parse_audit'](after)
+                result['sensor_controls_match'] = all(sensors_after[c]['controls'][key]['value'] == value for c in selected for key, value in expected.items())
+                result['success'] &= result['debug_restored'] and result['console_restored'] and result['same_boot'] and result['sensor_controls_match']
+            if reader_pid: remote('kill ' + reader_pid, usb=True)
+            if usb is not None and usb.poll() is None:
+                usb.terminate(); usb.wait(timeout=5)
+            log_path = output / 'usb-kmsg.txt'
+            if log_path.exists() and marker + '-begin' in log_path.read_text(errors='replace'):
+                fresh = log_path.read_text(errors='replace').split(marker + '-begin', 1)[1]
+                advisory, critical = readout['kernel_issues'](fresh)
+                result['critical_kernel_issue'], result['bsp_advisories'] = critical, advisory
+                result['success'] &= not critical
+            if result['success']:
+                remote('rm -f ' + board_dir + '/camera0.h264 ' + board_dir + '/camera1.h264; rmdir ' + board_dir)
+        except (OSError, RuntimeError, subprocess.SubprocessError) as error:
+            result['success'] = False
+            result['cleanup_error'] = str(error)
+        (output / 'result.json').write_text(json.dumps(result, indent=2) + '\n')
+    print(json.dumps({k: result[k] for k in ('success', 'case', 'camera', 'encoder_hw_ms', 'decode_steady_completion_ms', 'error', 'cleanup_error') if k in result}, indent=2), flush=True)
+    return 0 if result['success'] else 1
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('--case', choices=CASES, required=True)
+    parser.add_argument('--camera', choices=('0', '1', 'dual'), default='dual')
+    parser.add_argument('--frames', type=int, choices=range(12, 121), default=120)
+    parser.add_argument('--rounds', type=int, choices=range(1, 4), default=3, help='Native replay rounds, not extra camera runs')
+    parser.add_argument('--no-record', action='store_true', help='Observer-effect control; no VAAPI completion replay')
+    parser.add_argument('--no-timing', action='store_true', help='Observer-effect control; no encoder IRQ timing')
+    parser.add_argument('--probe', type=Path)
+    parser.add_argument('--viewer', type=Path, default=ROOT / 'build/host-metrics/bin/host-viewer')
+    parser.add_argument('--sender', default='/userdata/teleop-sender-codec')
+    parser.add_argument('--host', default='root@192.168.1.10')
+    parser.add_argument('--adb-serial', default='4a988b5514157df5')
+    parser.add_argument('--port', type=int, default=5500)
+    parser.add_argument('--output', type=Path, required=True)
+    args = parser.parse_args()
+    if Path('/run/.containerenv').exists() or Path('/.dockerenv').exists(): parser.error('Run natively on CachyOS')
+    if not args.no_record and (args.probe is None or not args.probe.is_file()): parser.error('Provide a freshly built native --probe')
+    if not 0 < args.port < 65536: parser.error('Invalid port')
+    return run(args)
+
+
+if __name__ == '__main__':
+    raise SystemExit(main())

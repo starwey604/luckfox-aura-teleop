@@ -141,6 +141,11 @@ struct Options {
     std::uint32_t gop{15U};
     std::uint32_t wrap_lines{256U};
     std::uint32_t slice_ctus{120U};
+    bool fixqp{false};
+    std::uint32_t qp_i{26U}, qp_p{26U};
+    std::uint32_t profile{H264E_PROFILE_HIGH};
+    int entropy{-1}, transform{-1}, deblock{-1}, max_reencode{-1};
+    bool codec_report{false};
     bool frame_output{true};
     std::string_view output_h264{};
     bool dual{false};
@@ -185,7 +190,15 @@ void print_usage(const char* program)
         "  --bitrate-kbps RATE    H.264 CBR rate (default: 30000)\n"
         "  --gop FRAMES           IDR interval in frames (default: 15)\n"
         "  --wrap-lines LINES     VI/VENC wrap line count; 0 disables wrap (default: 256)\n"
-        "  --slice-ctus COUNT     MB/CTUs per slice (default: 120)\n"
+        "  --slice-ctus COUNT     MB/CTUs per slice; 0 disables splitting (default: 120)\n"
+        "  --rc-mode MODE         cbr (default) or fixqp (bitrate is not a cap)\n"
+        "  --qp-i QP --qp-p QP    FIXQP I/P QP, 1..51 (default: 26/26)\n"
+        "  --max-reencode N       Optional rate-control retries, 0..3\n"
+        "  --profile PROFILE     high (default), main or baseline\n"
+        "  --entropy MODE        Optional cabac or cavlc\n"
+        "  --transform MODE      Optional auto or 4x4\n"
+        "  --deblock MODE        Optional on or off, signalled in the bitstream\n"
+        "  --codec-report        Read back encoder settings before receiving frames\n"
         "  --output-mode MODE     frame: mode 1 immediate AU (default); slice: mode 3 PTS grouping\n"
         "  --output-h264 FILE     Save Annex-B; --dual requires {camera} in FILE\n"
         "  --vi-device ID         VI device (default: 0)\n"
@@ -228,6 +241,7 @@ bool parse_options(int argc, char* argv[], Options& options)
     bool routing_set = false;
     bool max_width_set = false;
     bool max_height_set = false;
+    bool qp_set = false;
     for (int index = 1; index < argc; ++index) {
         const std::string_view option{argv[index]};
         if (option == "--help") {
@@ -235,6 +249,7 @@ bool parse_options(int argc, char* argv[], Options& options)
             std::exit(EXIT_SUCCESS);
         }
         if (option == "--dual") { options.dual = true; continue; }
+        if (option == "--codec-report") { options.codec_report = true; continue; }
         if (option == "--camera" || option == "--stream-id" || option.starts_with("--vi-") ||
             option == "--venc-channel") routing_set = true;
         if (index + 1 >= argc) {
@@ -271,7 +286,30 @@ bool parse_options(int argc, char* argv[], Options& options)
         } else if (option == "--wrap-lines") {
             if (!parse_integer(value, options.wrap_lines)) return false;
         } else if (option == "--slice-ctus") {
-            if (!parse_integer(value, options.slice_ctus) || options.slice_ctus == 0U) return false;
+            if (!parse_integer(value, options.slice_ctus)) return false;
+        } else if (option == "--rc-mode") {
+            if (value != "cbr" && value != "fixqp") return false;
+            options.fixqp = value == "fixqp";
+        } else if (option == "--qp-i" || option == "--qp-p") {
+            auto& qp = option == "--qp-i" ? options.qp_i : options.qp_p;
+            if (!parse_integer(value, qp) || qp < 1U || qp > 51U) return false;
+            qp_set = true;
+        } else if (option == "--max-reencode") {
+            if (!parse_integer(value, options.max_reencode) || options.max_reencode > 3) return false;
+        } else if (option == "--profile") {
+            if (value == "high") options.profile = H264E_PROFILE_HIGH;
+            else if (value == "main") options.profile = H264E_PROFILE_MAIN;
+            else if (value == "baseline") options.profile = H264E_PROFILE_BASELINE;
+            else return false;
+        } else if (option == "--entropy") {
+            if (value != "cabac" && value != "cavlc") return false;
+            options.entropy = value == "cabac" ? 1 : 0;
+        } else if (option == "--transform") {
+            if (value != "auto" && value != "4x4") return false;
+            options.transform = value == "auto" ? 0 : 1;
+        } else if (option == "--deblock") {
+            if (value != "on" && value != "off") return false;
+            options.deblock = value == "off" ? 1 : 0;
         } else if (option == "--output-mode") {
             if (value != "frame" && value != "slice") return false;
             options.frame_output = value == "frame";
@@ -291,6 +329,16 @@ bool parse_options(int argc, char* argv[], Options& options)
     }
     if (options.dual && (routing_set || (!options.output_h264.empty() &&
         options.output_h264.find("{camera}") == std::string_view::npos))) return false;
+    if (qp_set && !options.fixqp) return false;
+    if (options.slice_ctus == 0U && !options.frame_output) return false;
+    if (options.profile != H264E_PROFILE_HIGH) {
+        if (options.transform == 0) return false;
+        options.transform = 1;
+    }
+    if (options.profile == H264E_PROFILE_BASELINE) {
+        if (options.entropy == 1) return false;
+        options.entropy = 0;
+    }
     if (!max_width_set) options.max_width = options.width;
     if (!max_height_set) options.max_height = options.height;
     return options.max_width >= options.width && options.max_height >= options.height &&
@@ -489,7 +537,7 @@ private:
         attributes.stVencAttr.u32PicHeight = options_.height;
         attributes.stVencAttr.u32VirWidth = options_.width;
         attributes.stVencAttr.u32VirHeight = options_.height;
-        attributes.stVencAttr.u32Profile = H264E_PROFILE_HIGH;
+        attributes.stVencAttr.u32Profile = options_.profile;
         // The SDK VI→VENC wrap reference uses five stream buffers. Three is
         // legal but leaves too little headroom while slice packets are drained.
         attributes.stVencAttr.u32StreamBufCnt = 5U;
@@ -502,6 +550,18 @@ private:
         attributes.stRcAttr.stH264Cbr.fr32DstFrameRateNum = options_.frame_rate;
         attributes.stRcAttr.stH264Cbr.fr32DstFrameRateDen = 1U;
         attributes.stRcAttr.stH264Cbr.u32StatTime = 1U;
+        if (options_.fixqp) {
+            attributes.stRcAttr.enRcMode = VENC_RC_MODE_H264FIXQP;
+            attributes.stRcAttr.stH264FixQp = {};
+            auto& qp = attributes.stRcAttr.stH264FixQp;
+            qp.u32Gop = options_.gop;
+            qp.u32SrcFrameRateNum = options_.frame_rate;
+            qp.u32SrcFrameRateDen = 1U;
+            qp.fr32DstFrameRateNum = options_.frame_rate;
+            qp.fr32DstFrameRateDen = 1U;
+            qp.u32IQp = options_.qp_i;
+            qp.u32PQp = options_.qp_p;
+        }
         attributes.stGopAttr.u32MaxLtrCount = 0U;
         check(MPI_CALL(RK_MPI_VENC_CreateChn(options_.venc_channel, &attributes)), "RK_MPI_VENC_CreateChn");
         venc_created_ = true;
@@ -521,16 +581,23 @@ private:
         check(MPI_CALL(RK_MPI_VENC_SetChnRefBufShareAttr(options_.venc_channel, &reference_buffer)),
               "RK_MPI_VENC_SetChnRefBufShareAttr");
 
+        configure_codec();
+
         VENC_SLICE_SPLIT_S slice_split{};
         check(MPI_CALL(RK_MPI_VENC_GetSliceSplit(options_.venc_channel, &slice_split)),
               "RK_MPI_VENC_GetSliceSplit");
-        slice_split.bSplitEnable = RK_TRUE;
+        slice_split.bSplitEnable = options_.slice_ctus != 0U ? RK_TRUE : RK_FALSE;
         // Mode 1 returns all slices in one packet. Mode 3 emits one slice per
         // packet and its bFrameEnd is not a reliable picture-end indicator.
         slice_split.u32SplitMode = options_.frame_output ? 1U : 3U;
         slice_split.u32SplitSize = options_.slice_ctus;
         check(MPI_CALL(RK_MPI_VENC_SetSliceSplit(options_.venc_channel, &slice_split)),
               "RK_MPI_VENC_SetSliceSplit");
+        if (options_.codec_report) {
+            check(MPI_CALL(RK_MPI_VENC_GetSliceSplit(options_.venc_channel, &slice_split)), "GetSliceSplit(readback)");
+            std::fprintf(stderr, "codec: stream=%u split_enabled=%d split_mode=%u split_size=%u\n",
+                         options_.stream_id, slice_split.bSplitEnable, slice_split.u32SplitMode, slice_split.u32SplitSize);
+        }
 
         VENC_RECV_PIC_PARAM_S receive{};
         receive.s32RecvPicNum = -1;
@@ -538,6 +605,84 @@ private:
               "RK_MPI_VENC_StartRecvFrame");
         venc_started_ = true;
         checkpoint("venc.started");
+    }
+
+    void configure_codec()
+    {
+        const auto channel = options_.venc_channel;
+        // Preserve unrelated SDK fields. An explicit override must both succeed
+        // and survive readback; capability reports retain unsupported getter codes.
+        if (options_.max_reencode >= 0 || options_.codec_report) {
+            VENC_RC_PARAM_S value{};
+            auto status = MPI_CALL(RK_MPI_VENC_GetRcParam(channel, &value));
+            if (options_.max_reencode >= 0) {
+                check(status, "GetRcParam");
+                value.stParamH264.s32MaxReEncodeTimes = options_.max_reencode;
+                check(MPI_CALL(RK_MPI_VENC_SetRcParam(channel, &value)), "SetRcParam");
+                status = MPI_CALL(RK_MPI_VENC_GetRcParam(channel, &value));
+                check(status, "GetRcParam(readback)");
+                if (value.stParamH264.s32MaxReEncodeTimes != options_.max_reencode)
+                    throw std::runtime_error("max-reencode readback mismatch");
+            }
+            if (options_.codec_report) std::fprintf(stderr, "codec: stream=%u rcparam_status=%d max_reencode=%d\n",
+                options_.stream_id, status, status == 0 ? value.stParamH264.s32MaxReEncodeTimes : -1);
+        }
+        if (options_.entropy >= 0 || options_.codec_report) {
+            VENC_H264_ENTROPY_S value{};
+            auto status = MPI_CALL(RK_MPI_VENC_GetH264Entropy(channel, &value));
+            if (options_.entropy >= 0) {
+                check(status, "GetH264Entropy");
+                value.u32EntropyEncMode = static_cast<RK_U32>(options_.entropy);
+                check(MPI_CALL(RK_MPI_VENC_SetH264Entropy(channel, &value)), "SetH264Entropy");
+                status = MPI_CALL(RK_MPI_VENC_GetH264Entropy(channel, &value));
+                check(status, "GetH264Entropy(readback)");
+                if (value.u32EntropyEncMode != static_cast<RK_U32>(options_.entropy))
+                    throw std::runtime_error("entropy readback mismatch");
+            }
+            if (options_.codec_report) std::fprintf(stderr, "codec: stream=%u entropy_status=%d entropy=%d\n",
+                options_.stream_id, status, status == 0 ? static_cast<int>(value.u32EntropyEncMode) : -1);
+        }
+        if (options_.transform >= 0 || options_.codec_report) {
+            VENC_H264_TRANS_S value{};
+            auto status = MPI_CALL(RK_MPI_VENC_GetH264Trans(channel, &value));
+            if (options_.transform >= 0) {
+                check(status, "GetH264Trans");
+                value.u32TransMode = static_cast<RK_U32>(options_.transform);
+                check(MPI_CALL(RK_MPI_VENC_SetH264Trans(channel, &value)), "SetH264Trans");
+                status = MPI_CALL(RK_MPI_VENC_GetH264Trans(channel, &value));
+                check(status, "GetH264Trans(readback)");
+                if (value.u32TransMode != static_cast<RK_U32>(options_.transform))
+                    throw std::runtime_error("transform readback mismatch");
+            }
+            if (options_.codec_report) std::fprintf(stderr, "codec: stream=%u transform_status=%d transform=%d\n",
+                options_.stream_id, status, status == 0 ? static_cast<int>(value.u32TransMode) : -1);
+        }
+        if (options_.deblock >= 0 || options_.codec_report) {
+            VENC_H264_DBLK_S value{};
+            auto status = MPI_CALL(RK_MPI_VENC_GetH264Dblk(channel, &value));
+            if (options_.deblock >= 0) {
+                check(status, "GetH264Dblk");
+                value.disable_deblocking_filter_idc = static_cast<RK_U32>(options_.deblock);
+                check(MPI_CALL(RK_MPI_VENC_SetH264Dblk(channel, &value)), "SetH264Dblk");
+                status = MPI_CALL(RK_MPI_VENC_GetH264Dblk(channel, &value));
+                check(status, "GetH264Dblk(readback)");
+                if (value.disable_deblocking_filter_idc != static_cast<RK_U32>(options_.deblock))
+                    throw std::runtime_error("deblock readback mismatch");
+            }
+            if (options_.codec_report) std::fprintf(stderr, "codec: stream=%u deblock_status=%d deblock=%d\n",
+                options_.stream_id, status, status == 0 ? static_cast<int>(value.disable_deblocking_filter_idc) : -1);
+        }
+        if (options_.codec_report) {
+            VENC_CHN_ATTR_S value{};
+            const auto status = MPI_CALL(RK_MPI_VENC_GetChnAttr(channel, &value));
+            check(status, "GetChnAttr(readback)");
+            const bool fixed = value.stRcAttr.enRcMode == VENC_RC_MODE_H264FIXQP;
+            const auto gop = fixed ? value.stRcAttr.stH264FixQp.u32Gop : value.stRcAttr.stH264Cbr.u32Gop;
+            std::fprintf(stderr, "codec: stream=%u profile=%u rc_mode=%d gop=%u gop_mode=%d qp_i=%u qp_p=%u\n",
+                options_.stream_id, value.stVencAttr.u32Profile, value.stRcAttr.enRcMode, gop,
+                value.stGopAttr.enGopMode, fixed ? value.stRcAttr.stH264FixQp.u32IQp : 0U,
+                fixed ? value.stRcAttr.stH264FixQp.u32PQp : 0U);
+        }
     }
 
     void bind()
