@@ -92,6 +92,7 @@ def proc_samples(text):
             frame = re.search(r"frame amount:\s*(\d+)", body)
             readout = re.search(r"single readout:(\d+)\.(\d+) ms", body)
             lanes = re.search(r"lanes:(\d+)", body)
+            period = re.search(r"\brate:(\d+)\.(\d+) ms", body)
             if not frame or not readout or not lanes:
                 continue
             number = int(frame[1])
@@ -101,7 +102,10 @@ def proc_samples(text):
             if number < 10 or ms <= 0 or (camera, number) in seen:
                 continue
             seen.add((camera, number))
-            samples[camera].append({"observed_frame": number, "readout_ms": ms, "lanes": int(lanes[1])})
+            entry = {"observed_frame": number, "readout_ms": ms, "lanes": int(lanes[1])}
+            if period:
+                entry["frame_period_ms"] = int(period[1]) + int(period[2]) / 1000
+            samples[camera].append(entry)
     return samples
 
 
@@ -144,6 +148,8 @@ def main():
     parser.add_argument("--expect-lanes", type=int, choices=(2, 4))
     parser.add_argument("--camera", choices=("0", "1", "dual"), default="dual")
     parser.add_argument("--exposure-us", type=int, nargs="+", default=[1000, 3000])
+    parser.add_argument("--analogue-gain", type=int, default=32, help="Sensor register code (default: 32)")
+    parser.add_argument("--digital-gain", type=int, default=512, help="Sensor register code (default: 512)")
     parser.add_argument("--frames", type=int, default=120)
     parser.add_argument("--port", type=int, default=5500)
     args = parser.parse_args()
@@ -151,6 +157,8 @@ def main():
         parser.error("Use 1..120 frames and 1..3 positive exposure durations")
     if not 1 <= args.port <= 65535:
         parser.error("Invalid port")
+    if not 13 <= args.analogue_gain <= 64 or not 128 <= args.digital_gain <= 2047:
+        parser.error("AR0234 gain codes require analogue=13..64, digital=128..2047")
     if not args.audit_only and (Path("/run/.containerenv").exists() or Path("/.dockerenv").exists()):
         parser.error("Camera/VAAPI tests must run on native CachyOS")
     args.output.mkdir(parents=True, exist_ok=False)
@@ -188,6 +196,11 @@ def main():
         print(json.dumps(report, indent=2))
         return 0
     planned = []
+    for camera in selected:
+        for name, value in (("analogue_gain", args.analogue_gain), ("digital_gain", args.digital_gain)):
+            control = initial[camera]["controls"][name]
+            if not control["min"] <= value <= control["max"]:
+                raise RuntimeError("Requested gain exceeds bound sensor range: " + name)
     for us in args.exposure_us:
         lines = {exposure_lines(initial[c], us) for c in selected}
         if len(lines) != 1:
@@ -247,6 +260,7 @@ def main():
                         command = [str(ROOT / "tools/test-aura-software-baseline"), "--host", args.host,
                                    "--camera", args.camera, "--frames", str(args.frames), "--port", str(args.port),
                                    "--exposure-lines", str(lines), "--minimal", "--output", str(case)]
+                        command += ["--analogue-gain", str(args.analogue_gain), "--digital-gain", str(args.digital_gain)]
                         mutated = True
                         with (args.output / f"{index}-test.txt").open("w") as output:
                             controller = subprocess.Popen(command, stdout=output, stderr=subprocess.STDOUT)
@@ -284,18 +298,24 @@ def main():
                                 except subprocess.TimeoutExpired: sampler.kill(); sampler.wait()
                 observed = proc_samples(ready_samples(sampler_path.read_text(), ready_uptime))
                 distributions = {c: distribution([s["readout_ms"] for s in observed[c]]) for c in selected}
+                periods = {c: distribution([s["frame_period_ms"] for s in observed[c] if s.get("frame_period_ms", 0) > 0])
+                           for c in selected}
                 if any(s["lanes"] != len(initial[c]["lanes"]) for c in selected for s in observed[c]):
                     raise RuntimeError("Runtime CIF lanes differ from sensor DT")
                 actual = remote(AUDIT)
                 (args.output / f"{index}-audit-after-run.txt").write_text(actual)
                 readback = parse_audit(actual)
-                if f"BOOT={boot}\n" not in actual or any(readback[c]["controls"]["exposure"]["value"] != lines for c in selected):
-                    raise RuntimeError("Exposure readback or boot ID changed")
+                expected = {"exposure": lines, "analogue_gain": args.analogue_gain, "digital_gain": args.digital_gain}
+                if f"BOOT={boot}\n" not in actual or any(readback[c]["controls"][name]["value"] != value
+                                                       for c in selected for name, value in expected.items()):
+                    raise RuntimeError("Exposure/gain readback or boot ID changed")
                 tail = log_path.read_text(errors="replace").split(marker, 1)[1]
                 advisory, critical = kernel_issues(tail)
                 report["runs"].append({"requested_exposure_us": us, "exposure_lines": lines,
                                        "ready_board_uptime_seconds": ready_uptime,
                                        "actual_exposure_us": {c: lines * initial[c]["row_us"] for c in selected},
+                                       "analogue_gain": args.analogue_gain, "digital_gain": args.digital_gain,
+                                       "frame_period": periods,
                                        "readout": distributions, "samples": {c: observed[c] for c in selected},
                                        "bsp_advisories_since_marker": advisory, "critical_kernel_issue": critical,
                                        "software_test": str(case / "result.json")})

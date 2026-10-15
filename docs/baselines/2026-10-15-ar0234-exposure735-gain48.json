@@ -1,0 +1,68 @@
+{
+  "success": true,
+  "kernel": "6.1.141 #18 SMP PREEMPT Thu Oct 15 12:35:13 CST 2026",
+  "boot_id": "828eed60-1200-411f-9d5e-b9b7b986f313",
+  "controls": {
+    "exposure_lines": 735,
+    "exposure_ms": 4.998,
+    "analogue_gain": 48,
+    "digital_gain": 512,
+    "vertical_blanking": 762
+  },
+  "runs": 2,
+  "encoded_frames_per_camera_per_run": 120,
+  "total_encoded_frames": 480,
+  "controls_readback_verified": true,
+  "controls_restored": true,
+  "same_boot": true,
+  "critical_kernel_issues": false,
+  "sampling": "50ms procfs snapshots gated after sender-ready; >=frame10, one per observed frame; not every-frame data",
+  "cameras": {
+    "0": {
+      "readout": {
+        "observed_samples": 40,
+        "mean_ms": 4.876475,
+        "min_ms": 4.846,
+        "max_ms": 4.939,
+        "p50_ms": 4.884,
+        "p95_ms": 4.937,
+        "p99_ms": 4.939
+      },
+      "frame_period": {
+        "observed_samples": 40,
+        "mean_ms": 10.074250000000001,
+        "min_ms": 10.033,
+        "max_ms": 10.119,
+        "p50_ms": 10.077,
+        "p95_ms": 10.081,
+        "p99_ms": 10.119
+      }
+    },
+    "1": {
+      "readout": {
+        "observed_samples": 40,
+        "mean_ms": 4.8941,
+        "min_ms": 4.853,
+        "max_ms": 4.924,
+        "p50_ms": 4.897,
+        "p95_ms": 4.915,
+        "p99_ms": 4.924
+      },
+      "frame_period": {
+        "observed_samples": 40,
+        "mean_ms": 10.07765,
+        "min_ms": 10.071,
+        "max_ms": 10.087,
+        "p50_ms": 10.077,
+        "p95_ms": 10.082,
+        "p99_ms": 10.087
+      }
+    }
+  },
+  "transport": [
+    "viewer: access_units=240 datagrams=7019 bytes=8281470 malformed=0 duplicates=0 dropped=0",
+    "viewer: access_units=240 datagrams=7093 bytes=8373883 malformed=0 duplicates=0 dropped=0"
+  ],
+  "raw_report": "artifacts/ar0234-fastreadout-20261015/exposure735-gain48/result.json",
+  "screen_to_screen_measured": false
+}

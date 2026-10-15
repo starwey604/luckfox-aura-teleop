@@ -2,6 +2,7 @@
 """Check real procfs formatting, sample filtering and physical exposure conversion."""
 from pathlib import Path
 import runpy
+import subprocess
 import unittest
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -45,6 +46,24 @@ class ReadoutToolsTest(unittest.TestCase):
         self.assertIn("exposure=735,", controls("dual", None))
         self.assertIn("exposure=74,", controls("dual", None, exposure=74))
         self.assertIn("vertical_blanking=762", controls("dual", 762, exposure=147))
+        self.assertIn("analogue_gain=32,digital_gain=512", controls("dual", None))
+        self.assertIn("exposure=735,analogue_gain=48,digital_gain=512",
+                      controls("dual", None, exposure=735, analogue=48, digital=512))
+
+    def test_frame_period_has_the_same_unpadded_microsecond_format(self):
+        text = "@@SAMPLE\n@@CAMERA 0\nlanes:4\nframe amount:12\nsingle readout:4.890 ms\nrate:10.78 ms\n"
+        sample = tool["proc_samples"](text)["0"][0]
+        self.assertEqual(sample["frame_period_ms"], 10.078)
+        self.assertEqual(sample["readout_ms"], 4.890)
+
+    def test_invalid_gain_is_rejected_before_remote_access(self):
+        for executable in ("test-ar0234-readout", "test-aura-software-baseline"):
+            for flag, value in (("--analogue-gain", "12"), ("--digital-gain", "2048")):
+                result = subprocess.run([str(ROOT / "tools" / executable), "--camera", "dual",
+                                         "--output", "/unused", flag, value],
+                                        text=True, capture_output=True, timeout=5)
+                self.assertEqual(result.returncode, 2)
+                self.assertIn("gain codes require", result.stderr)
 
     def test_no_readout_must_fail_instead_of_claiming_zero_latency(self):
         with self.assertRaises(RuntimeError): tool["distribution"]([])

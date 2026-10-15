@@ -61,7 +61,8 @@ def host_policy_snapshot():
         "host_temperatures": {str(p): read(p) for p in Path("/sys/class/hwmon").glob("hwmon*/temp*_input")}}
 
 
-def controls_script(camera, vertical_blanking, sysfs_root="/sys/class/video4linux", exposure=735):
+def controls_script(camera, vertical_blanking, sysfs_root="/sys/class/video4linux", exposure=735,
+                    analogue=32, digital=512):
     # Keep wildcard prefixes active; quote the spaces in the sensor names.
     patterns = {"0": '*"ar0234 4-0010"', "1": '*"ar0234 3-0010"',
                 "dual": '*"ar0234 4-0010"|*"ar0234 3-0010"'}
@@ -72,7 +73,7 @@ def controls_script(camera, vertical_blanking, sysfs_root="/sys/class/video4linu
 for p in {shlex.quote(str(sysfs_root))}/v4l-subdev*; do
 case "$(cat "$p/name")" in {patterns[camera]})
 node=$(basename "$p")
-{vblank}v4l2-ctl -d "/dev/$node" --set-ctrl=exposure={exposure},analogue_gain=32,digital_gain=512,test_pattern=0 || exit
+{vblank}v4l2-ctl -d "/dev/$node" --set-ctrl=exposure={exposure},analogue_gain={analogue},digital_gain={digital},test_pattern=0 || exit
 matched=$((matched + 1))
 ;; esac
 done
@@ -87,6 +88,8 @@ def main():
     parser.add_argument("--start-temp-c", type=int, default=70, help="Refuse camera start at or above this temperature")
     parser.add_argument("--vertical-blanking", type=int, help="Optional diagnostic sensor VBLANK; changes capture fps")
     parser.add_argument("--exposure-lines", type=int, default=735, help="Sensor integration lines (default: 735)")
+    parser.add_argument("--analogue-gain", type=int, default=32, help="Sensor gain register code, not a multiplier (default: 32)")
+    parser.add_argument("--digital-gain", type=int, default=512, help="Sensor digital gain code (default: 512)")
     parser.add_argument("--port", type=int, default=5000)
     parser.add_argument("--mode", choices=("decode", "transport"), default="decode")
     parser.add_argument("--output-mode", choices=("frame", "slice"), default="frame")
@@ -126,6 +129,8 @@ def main():
         parser.error("AR0234 VBLANK must be >=21")
     if not 2 <= args.exposure_lines <= 65534:
         parser.error("AR0234 exposure must be 2..65534 lines")
+    if not 13 <= args.analogue_gain <= 64 or not 128 <= args.digital_gain <= 2047:
+        parser.error("AR0234 gain codes require analogue=13..64, digital=128..2047")
     if args.frames <= 0 or not 0 < args.port < 65536:
         parser.error("Invalid frame count/port")
     if args.frames > 300 and not args.allow_long:
@@ -165,6 +170,7 @@ def main():
               "worker_scheduling": {"rx_cpu": args.rx_cpu, "decode0_cpu": args.decode0_cpu, "decode1_cpu": args.decode1_cpu, "rx_rr_priority": args.rx_rr_priority},
               "mode": args.mode, "port": args.port, "vertical_blanking": args.vertical_blanking,
               "exposure_lines": args.exposure_lines,
+              "analogue_gain": args.analogue_gain, "digital_gain": args.digital_gain,
               "output_mode": args.output_mode, "force_stream_parser": args.force_stream_parser,
               "minimal": args.minimal, "success": False}
     limit = max(20, args.frames // 90 + 20)
@@ -219,6 +225,7 @@ def main():
             command = ["env", "TELEOP_METRICS=1", "AURA_LIFECYCLE_TRACE=1", "SENDER=" + args.sender,
                        "PORT=" + str(args.port), "WRAP_LINES=0",
                        "EXPOSURE=" + str(args.exposure_lines),
+                       "ANALOGUE_GAIN=" + str(args.analogue_gain), "DIGITAL_GAIN=" + str(args.digital_gain),
                        "OUTPUT_MODE=" + args.output_mode,
                        "REPORT_DIR=" + directory,
                        args.launcher, "--frames", str(args.frames)]
@@ -227,7 +234,8 @@ def main():
             if args.vertical_blanking is not None: command.insert(2, "VERTICAL_BLANKING=" + str(args.vertical_blanking))
             controls = ""
         else:
-            controls = controls_script(args.camera, args.vertical_blanking, exposure=args.exposure_lines)
+            controls = controls_script(args.camera, args.vertical_blanking, exposure=args.exposure_lines,
+                                       analogue=args.analogue_gain, digital=args.digital_gain)
             camera_flags = ["--dual"] if args.camera == "dual" else ["--camera", args.camera]
             command = ["env", "TELEOP_METRICS=" + metrics, "AURA_LIFECYCLE_TRACE=" + metrics, args.sender] + camera_flags + [
                        "--width", "1280", "--height", "720", "--fps", "100",
