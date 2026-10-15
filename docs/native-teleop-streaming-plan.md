@@ -51,6 +51,8 @@ CBR、GOP 15、wrap 256 行、slice 120。
 当前 AR0234 双摄用 `/userdata/run-ar0234-stereo` 应用曝光控制并传入 1280×720、wrap=0。
 2026-10-15起，#19 fastreadout对应launcher默认VBLANK506、FPS120（实际约119.95fps）、
 exposure735（4.998ms）、模拟/数字增益48/512，码率仍30Mbps/路。
+用户确认画质后，AR0234 launcher默认编码调整为GOP15、CAVLC、4×4变换、不拆slice；
+正常sender已更新，直接运行launcher即可。[当前固化配置](codec-defaults-2026-10-15.md)。
 可通过环境变量覆盖；[当前默认与编解码调优计划](codec-low-latency-tuning-plan-2026-10-15.md)。
 两路配置完成后统一绑定，工作线程全部退出并释放码流后才销毁资源和 SYS_Exit。
 详见 [生命周期排查](sender-lifecycle-debug-2026-10-12.md)。

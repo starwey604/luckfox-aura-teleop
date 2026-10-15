@@ -12,9 +12,10 @@ usage() {
     echo '             For the previous ~99.23fps timing: VERTICAL_BLANKING=762 FPS=100'
     echo '             H264_DIR=/path (optional per-camera Annex-B recordings)'
     echo '             STARTUP_TIMEOUT=15 (wait for the shared sender to finish initialization)'
-    echo '             GOP=15 SLICE_CTUS=120 (0 disables splitting)'
-    echo '             Optional codec-capable sender: RC_MODE=cbr|fixqp QP_I=26 QP_P=26'
-    echo '             PROFILE=high|main|baseline ENTROPY=cabac|cavlc TRANSFORM=auto|4x4'
+    echo '             GOP=15 SLICE_CTUS=0 ENTROPY=cavlc TRANSFORM=4x4'
+    echo '             Requires the codec-capable sender; 0 disables slice splitting'
+    echo '             Optional: RC_MODE=cbr|fixqp QP_I=26 QP_P=26 PROFILE=high|main|baseline'
+    echo '             ENTROPY=cabac|cavlc TRANSFORM=auto|4x4 override the defaults'
     echo '             DEBLOCK=on|off MAX_REENCODE=0..3 CODEC_REPORT=1'
 }
 
@@ -43,7 +44,9 @@ fps=${FPS:-120}
 vertical_blanking=${VERTICAL_BLANKING:-506}
 bitrate=${BITRATE_KBPS:-30000}
 gop=${GOP:-15}
-slice_ctus=${SLICE_CTUS:-120}
+slice_ctus=${SLICE_CTUS:-0}
+entropy=${ENTROPY:-cavlc}
+transform=${TRANSFORM:-4x4}
 exposure=${EXPOSURE:-735}
 analogue=${ANALOGUE_GAIN:-48}
 digital=${DIGITAL_GAIN:-512}
@@ -54,6 +57,10 @@ startup_timeout=${STARTUP_TIMEOUT:-15}
 for number in "$port" "$fps" "$vertical_blanking" "$bitrate" "$gop" "$slice_ctus" "$exposure" "$analogue" "$digital" "$wrap_lines" "$startup_timeout"; do
     case "$number" in ''|*[!0-9]*) echo 'expected decimal parameter' >&2; exit 2 ;; esac
 done
+if [ "$output_mode" = slice ] && [ "$slice_ctus" -eq 0 ]; then
+    echo 'OUTPUT_MODE=slice requires SLICE_CTUS > 0' >&2
+    exit 2
+fi
 [ -x "$diagnostic" ] || { echo "missing diagnostic: $diagnostic" >&2; exit 3; }
 if [ "$mode" = sender ]; then
     [ -x "$sender" ] || { echo "missing sender: $sender" >&2; exit 3; }
@@ -98,7 +105,7 @@ done
 if [ "$dry_run" = true ]; then
     echo "dry run: $mode, 1280x720, frames=$frames, destination=$destination:$port, fps=$fps bitrate_kbps=$bitrate"
     echo "sensor controls: vertical_blanking=$vertical_blanking exposure=$exposure analogue_gain=$analogue digital_gain=$digital"
-    echo "codec: gop=$gop slice_ctus=$slice_ctus output_mode=$output_mode"
+    echo "codec: gop=$gop slice_ctus=$slice_ctus output_mode=$output_mode entropy=$entropy transform=$transform"
     echo 'No control changes or capture/sender processes started.'
     exit 0
 fi
@@ -144,8 +151,7 @@ if [ "$mode" = sender ]; then
     [ -z "${QP_I:-}" ] || set -- "$@" --qp-i "$QP_I"
     [ -z "${QP_P:-}" ] || set -- "$@" --qp-p "$QP_P"
     [ -z "${PROFILE:-}" ] || set -- "$@" --profile "$PROFILE"
-    [ -z "${ENTROPY:-}" ] || set -- "$@" --entropy "$ENTROPY"
-    [ -z "${TRANSFORM:-}" ] || set -- "$@" --transform "$TRANSFORM"
+    set -- "$@" --entropy "$entropy" --transform "$transform"
     [ -z "${DEBLOCK:-}" ] || set -- "$@" --deblock "$DEBLOCK"
     [ -z "${MAX_REENCODE:-}" ] || set -- "$@" --max-reencode "$MAX_REENCODE"
     [ "${CODEC_REPORT:-0}" != 1 ] || set -- "$@" --codec-report

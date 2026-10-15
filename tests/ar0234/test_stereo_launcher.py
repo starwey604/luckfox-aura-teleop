@@ -81,6 +81,7 @@ time.sleep(0.3)
         self.assertNotIn('sender', calls)
         self.assertIn('fps=120 bitrate_kbps=30000', result.stdout)
         self.assertIn('vertical_blanking=506 exposure=735 analogue_gain=48 digital_gain=512', result.stdout)
+        self.assertIn('gop=15 slice_ctus=0 output_mode=frame entropy=cavlc transform=4x4', result.stdout)
 
     def test_missing_second_camera_changes_neither_camera(self):
         result = self.run_launcher('--frames', '3', MISSING_CAMERA='1')
@@ -99,15 +100,19 @@ time.sleep(0.3)
         self.assertIn('--output-mode frame', calls)
         self.assertIn('--fps 120', calls)
         self.assertIn('--bitrate-kbps 30000', calls)
-        self.assertIn('--gop 15 --slice-ctus 120', calls)
+        self.assertIn('--gop 15 --slice-ctus 0', calls)
+        self.assertIn('--entropy cavlc --transform 4x4', calls)
         self.assertNotIn('--rc-mode', calls)
         self.assertEqual(calls.count('exposure=735,analogue_gain=48,digital_gain=512,test_pattern=0'), 2)
         self.assertEqual(calls.count('vertical_blanking=506'), 2)
 
     def test_slice_output_control(self):
-        result = self.run_launcher('--frames', '3', OUTPUT_MODE='slice')
+        result = self.run_launcher('--frames', '3', OUTPUT_MODE='slice', SLICE_CTUS='480')
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
         self.assertIn('--output-mode slice', self.calls.read_text())
+        result = self.run_launcher('--frames', '3', OUTPUT_MODE='slice')
+        self.assertEqual(result.returncode, 2)
+        self.assertIn('requires SLICE_CTUS > 0', result.stderr)
         result = self.run_launcher('--frames', '3', OUTPUT_MODE='unknown')
         self.assertEqual(result.returncode, 2)
 
@@ -136,7 +141,8 @@ time.sleep(0.3)
 
     def test_overrides_restore_previous_timing_before_exposure(self):
         result = self.run_launcher('--frames', '3', VERTICAL_BLANKING='762', FPS='100',
-                                   EXPOSURE='442', ANALOGUE_GAIN='32', DIGITAL_GAIN='256', BITRATE_KBPS='20000')
+                                   EXPOSURE='442', ANALOGUE_GAIN='32', DIGITAL_GAIN='256', BITRATE_KBPS='20000',
+                                   ENTROPY='cabac', TRANSFORM='auto', SLICE_CTUS='120')
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
         lines = self.calls.read_text().splitlines()
         for index in (0, 1):
@@ -146,6 +152,8 @@ time.sleep(0.3)
             self.assertLess(blank, expose)
         self.assertIn('--fps 100', self.calls.read_text())
         self.assertIn('--bitrate-kbps 20000', self.calls.read_text())
+        self.assertIn('--entropy cabac --transform auto', self.calls.read_text())
+        self.assertIn('--slice-ctus 120', self.calls.read_text())
 
     def test_capture_only_runs_both_diagnostics(self):
         result = self.run_launcher('--capture-only', '--frames', '3')

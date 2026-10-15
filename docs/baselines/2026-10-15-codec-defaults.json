@@ -1,0 +1,94 @@
+{
+  "success": true,
+  "boot_id": "9183cb9c-73b7-47ff-a8c6-f22ada820f7a",
+  "camera_defaults_overridden": false,
+  "codec_overrides": false,
+  "frames_per_camera": 120,
+  "port": 5500,
+  "kernel": "Linux luckfox 6.1.141 #19 SMP PREEMPT Thu Oct 15 13:06:22 CST 2026 aarch64 aarch64 aarch64 GNU/Linux",
+  "same_boot": true,
+  "controls": {
+    "exposure": 735,
+    "analogue_gain": 48,
+    "digital_gain": 512,
+    "vertical_blanking": 506
+  },
+  "actual_exposure_us": 4998,
+  "critical_kernel_issue": false,
+  "bsp_advisories": [],
+  "launcher_sha256": "cc5e06aa45be5c0bd04e7cb8c387e264be8f5ef227d6ddd03e011e7516edfef7",
+  "final_temperature_mC": 48910,
+  "test_command": "PORT=5500 CODEC_REPORT=1 /userdata/run-ar0234-stereo --frames 120 (camera, codec and SENDER overrides unset)",
+  "codec_defaults": {
+    "profile": 100,
+    "rate_control": "cbr",
+    "bitrate_kbps_per_camera": 30000,
+    "gop": 15,
+    "entropy": "cavlc",
+    "transform": "4x4",
+    "slice_ctus": 0,
+    "wrap_lines": 0,
+    "output_mode": "frame"
+  },
+  "sender_sha256": "01e55734e2a755c649e61ba13a873cbf31bb93f37b5d72c9036cd48e8a3eb946",
+  "readback": [
+    "codec: stream=0 rcparam_status=0 max_reencode=1",
+    "codec: stream=0 entropy_status=0 entropy=0",
+    "codec: stream=0 transform_status=0 transform=1",
+    "codec: stream=0 deblock_status=0 deblock=0",
+    "codec: stream=0 profile=100 rc_mode=1 gop=15 gop_mode=0 qp_i=0 qp_p=0",
+    "codec: stream=0 split_enabled=0 split_mode=1 split_size=0",
+    "codec: stream=1 rcparam_status=0 max_reencode=1",
+    "codec: stream=1 entropy_status=0 entropy=0",
+    "codec: stream=1 transform_status=0 transform=1",
+    "codec: stream=1 deblock_status=0 deblock=0",
+    "codec: stream=1 profile=100 rc_mode=1 gop=15 gop_mode=0 qp_i=0 qp_p=0",
+    "codec: stream=1 split_enabled=0 split_mode=1 split_size=0"
+  ],
+  "transport": {
+    "access_units": 240,
+    "datagrams": 6454,
+    "bytes": 7607825,
+    "malformed": 0,
+    "duplicates": 0,
+    "dropped": 0
+  },
+  "decoders": {
+    "0": {
+      "frames": 120,
+      "hardware_frames": 120
+    },
+    "1": {
+      "frames": 120,
+      "hardware_frames": 120
+    }
+  },
+  "queues": {
+    "0": {
+      "enqueued": 120,
+      "peak_depth": 1,
+      "peak_bytes": 131198,
+      "overflows": 0,
+      "mailbox_replaced": 0,
+      "displayed": 0,
+      "last_decoded": 120,
+      "last_presented": 0,
+      "remaining_depth": 0,
+      "remaining_bytes": 0
+    },
+    "1": {
+      "enqueued": 120,
+      "peak_depth": 1,
+      "peak_bytes": 94575,
+      "overflows": 0,
+      "mailbox_replaced": 0,
+      "displayed": 0,
+      "last_decoded": 120,
+      "last_presented": 0,
+      "remaining_depth": 0,
+      "remaining_bytes": 0
+    }
+  },
+  "raw_report": "artifacts/codec-defaults-20261015/result.json",
+  "distrobox_launcher_tests": 9
+}

@@ -83,7 +83,11 @@ Order matters: apply the SDK patch stack and `select-teleop-board` before SDK bu
   transform, deblock, profile, max-reencode and `--codec-report`; `--slice-ctus 0`
   disables splitting in frame mode. Explicit setters must survive readback; invalid
   profile/tool combinations fail before MPI. Launcher forwards the matching named
-  environment variables. Normal codec defaults remain High/CBR30Mbps/GOP15/slice120.
+  environment variables. Generic standalone sender defaults remain High/CBR30Mbps/GOP15/slice120.
+  After user quality acceptance, the AR0234 launcher defaults to CAVLC/4x4/no-split,
+  retaining High/CBR30Mbps/GOP15, and the codec-capable normal sender is deployed.
+  To restore old codec parameters: ENTROPY=cabac TRANSFORM=auto SLICE_CTUS=120.
+  Slice output diagnostics now require an explicit nonzero SLICE_CTUS.
   `tools/test-aura-codec-parameters` runs one USB-logged 120-frame/camera case then
   native paced VAAPI surface-completion replay; use a freshly native-built `--probe`.
   2026-10-15 candidates CAVLC/4x4/no-split and GOP1/CAVLC/no-split save ~0.44ms in
