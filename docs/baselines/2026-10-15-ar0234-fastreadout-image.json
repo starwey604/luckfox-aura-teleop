@@ -1,0 +1,83 @@
+{
+  "status": "user flashed #18; bounded mono/stereo hardware tests passed; no long-duration or optical validation",
+  "kernel_version": "6.1.141 #18 SMP PREEMPT Thu Oct 15 12:35:13 CST 2026",
+  "kernel_commit": "e5eb22406",
+  "board_config_commit": "017ba32",
+  "kernel_config_effective_diff_from_A": {},
+  "kernel_config_sha256": "f8743b202a6a8aed9051b842555e832824d0cc42c87f5d45482ec6b235f19b4e",
+  "dtb_sha256": "98bbe0febcca7faa8b2868edf204dbbfaf9849720f9b23ef78106e37d114443e",
+  "fit_payload_sha256": {
+    "fdt": "98bbe0febcca7faa8b2868edf204dbbfaf9849720f9b23ef78106e37d114443e",
+    "kernel": "451fe9937a4e53dfe5df9a3b19ab7116450f230330bc534b34389e9a27c8e7ee",
+    "resource": "806f2ffcbf22e001e795273140707020c8b496ee1d7a248131842a8f56f944a7"
+  },
+  "images": {
+    ".env.txt": {
+      "bytes": 227,
+      "sha256": "210cb86c4c37f037a37a8932ca4c368bf56133281ad30e8041dc3a215f97e542"
+    },
+    "boot.img": {
+      "bytes": 11391488,
+      "sha256": "e6ba7b23f70035fb1875564e18c891237c596b9b7d036e5bf6125927ac5df669"
+    },
+    "download.bin": {
+      "bytes": 448960,
+      "sha256": "f8c0118ed361448e83d7bef12f6d4983d8891f1d9e130219a7ce325fa4251642"
+    },
+    "env.img": {
+      "bytes": 32768,
+      "sha256": "b328c39b437d60a7d21f005efebc0624c5d9fb8b4ad65da45bbdeeb143922b04"
+    },
+    "idblock.img": {
+      "bytes": 311296,
+      "sha256": "f91ad48bb4d6925a71c30b2fdaa9d3bc1b24bfdf5a1d3da927882575007e22a3"
+    },
+    "oem.img": {
+      "bytes": 263888896,
+      "sha256": "03a3483c9773e2375c2be6858c2e9ffb5accebebce10fcc0f7a883fec65620a3"
+    },
+    "rootfs.img": {
+      "bytes": 397290496,
+      "sha256": "24b3836fea9216f1d340e97ba63b8f53a4c2c73ba7db3c94430e0da4135b4b67"
+    },
+    "sd_update.txt": {
+      "bytes": 1116,
+      "sha256": "228fcb3b67ee08d092faf24ae72e7df8e4839672c817374dca874d23ad3dc927"
+    },
+    "tftp_update.txt": {
+      "bytes": 1068,
+      "sha256": "e3a63d4ea2a59fa9815c82f045db100a0d8c843a47d7e9505672505515cc2a02"
+    },
+    "uboot.img": {
+      "bytes": 524288,
+      "sha256": "c766c45355c7b33477167b2be21bd5bfdcd734f15a25004fb65eaa35c251b323"
+    },
+    "update.img": {
+      "bytes": 313246282,
+      "sha256": "19224084c14bbc8b3705a3bedd43157662155511d4c1b8278df800b44eddd235"
+    },
+    "userdata.img": {
+      "bytes": 36192256,
+      "sha256": "c4a9e53dac699eda37cf09e50ef9a962c7b1138b61dab0e65ccb094e88b5172a"
+    }
+  },
+  "runtime_backup": {
+    "teleop-sender": "06583eb5ab52c824f2d8fab1cbea24839fb81aef547060e9d84eb900456a33bd",
+    "run-ar0234-stereo": "214ba50faf169f86acdd99e1161c1a57455fe671f2865573ed251227daee87b8",
+    "diagnose-ar0234": "3e15d5e1d3a5e02017b989f54bebe67a156f4b603bdafba7d1fab710e172b121"
+  },
+  "planned": {
+    "lanes_per_sensor": 4,
+    "sensor_readout_hz": 90000000,
+    "line_length_pck": 612,
+    "row_us": 6.8,
+    "frame_length_lines_register": 1477,
+    "vertical_blanking": 762,
+    "active_rows_budget_ms": 4.896,
+    "frame_period_budget_ms": 10.0776,
+    "default_exposure_lines": 1028,
+    "default_exposure_us": 6990.4
+  },
+  "saved_directory": "artifacts/ar0234-fastreadout-20261015",
+  "runtime_backup_provenance": "sender copied from running A before user flash; helper scripts copied from current project sources"
+}

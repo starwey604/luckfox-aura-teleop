@@ -64,6 +64,7 @@ def build_harness():
                        "ar0234_720p_config", "ar0234_960x600_config")],
         declaration(source, r"static const struct ar0234_mode ar0234_modes\[\] = \{"),
         declaration(source, r"static const struct ar0234_mode ar0234_decxin_modes\[\] = \{"),
+        declaration(source, r"static const struct ar0234_mode ar0234_decxin_fast_modes\[\] = \{"),
         declaration(source, r"static const u32 ar0234_freq_pixclk\[\] = \{"),
     ])
     preamble = r'''
@@ -85,7 +86,7 @@ struct v4l2_fract { u32 numerator, denominator; };
 struct ar0234;
 struct handler { struct ar0234 *ar; };
 struct ar0234 {
-    bool decxin_profile, streaming;
+    bool decxin_profile, streaming, fast_readout;
     const struct ar0234_mode *cur_mode;
     const struct ar0234_mode *modes;
     unsigned int num_modes;
@@ -152,7 +153,8 @@ static void pm_runtime_put(void *dev) {
     functions = "\n".join(function(source, name) for name in [
         "ar0234_write_array", "ar0234_write_sequence", "ar0234_hts",
         "ar0234_default_vblank", "ar0234_pixel_rate", "ar0234_frame_interval",
-        "ar0234_set_stream_state", "ar0234_start_decxin_stream", "ar0234_get_selection",
+        "ar0234_set_stream_state", "ar0234_write_decxin_fast_sequence",
+        "ar0234_start_decxin_stream", "ar0234_get_selection",
     ])
     # Select the vendor branch; generic source initialization is a separate profile.
     vendor_dispatch = "static int ar0234_start_stream(struct ar0234 *ar) { return ar0234_start_decxin_stream(ar); }\n"
@@ -163,7 +165,11 @@ int main(int argc, char **argv) {
                         .lane_count_id = AR0234_LANE_COUNT_ID_2LANE };
     struct v4l2_subdev sd = { .ar = &ar };
     struct v4l2_fract interval;
-    if (argc > 3 && strcmp(argv[3], "chip") && strcmp(argv[3], "selection")) {
+    if (argc > 3 && !strcmp(argv[3], "fast")) {
+        ar.fast_readout = true;
+        ar.lane_count_id = AR0234_LANE_COUNT_ID_4LANE;
+        ar.cur_mode = &ar0234_decxin_fast_modes[0];
+    } else if (argc > 3 && strcmp(argv[3], "chip") && strcmp(argv[3], "selection")) {
         unsigned int mode = (unsigned int)strtoul(argv[3], NULL, 10);
         if (mode >= ARRAY_SIZE(ar0234_modes)) return 2;
         ar.decxin_profile = false;
@@ -301,6 +307,53 @@ class VendorProfileTests(unittest.TestCase):
         self.assertEqual(events[-4:], [
             ("C",), ("W", 0x301a, 0x2058), ("PM-",), ("RESULT", -5, 0, 0),
         ])
+
+    def run_fast(self, fail_at=0, controls_fail=0):
+        output = subprocess.check_output([str(BUILD / "profile_harness"), str(fail_at),
+                                          str(controls_fail), "fast"], text=True)
+        return [tuple([parts[0]] + [int(x) for x in parts[1:]]) for parts in map(str.split, output.splitlines())]
+
+    def fast_oracle(self):
+        # Independently transform the original vendor file, not the driver table.
+        events = vendor_events()
+        expected = []
+        skip_data = False
+        overrides = {0x31ae: 0x0204, 0x300a: 1477, 0x3012: 1028, 0x30ba: 0x7622}
+        for event in events:
+            if event == ("W", 0x3088, 0x81ba):
+                skip_data = True
+                continue
+            if skip_data:
+                self.assertEqual(event, ("W", 0x3086, 0x3d02))
+                skip_data = False
+                continue
+            if event[0] == "W":
+                event = ("W", event[1], overrides.get(event[1], event[2]))
+            expected.append(event)
+        self.assertFalse(skip_data)
+        return [("W", 0x301a, 1), ("D", 200), ("W", 0x3064, 0x1802)] + expected
+
+    def test_fast_readout_keeps_frame_period_exposure_and_vendor_calibration(self):
+        events = self.run_fast()
+        self.assertEqual(events[0], ("MODE", 1, 1280, 720, 612, 1477, 1028, 3627936, 360000000))
+        original = self.run_profile()[0]
+        self.assertEqual(events[0][-2] * original[-1], original[-2] * events[0][-1])
+        self.assertEqual(events[0][6], original[6] * 2)
+        oracle = self.fast_oracle()
+        self.assertEqual(events[1], ("PM+",))
+        self.assertEqual(events[2:2 + len(oracle)], oracle)
+        self.assertEqual(events[-4:], [("PM-",), ("G", 0), ("G", 0), ("STOP", 0, 0, 0)])
+        self.assertNotIn(("W", 0x3088, 0x81ba), events)
+
+    def test_fast_readout_errors_stop_sensor_and_balance_power(self):
+        writes = sum(e[0] == "W" for e in self.fast_oracle())
+        # Reset, metadata, standby, calibration, and final stream enable.
+        for fail_at in (1, 2, 3, 80, writes):
+            with self.subTest(fail_at=fail_at):
+                events = self.run_fast(fail_at)
+                self.assertEqual(events[-3:], [("W", 0x301a, 0x2058), ("PM-",), ("RESULT", -5, 0, 0)])
+        self.assertEqual(self.run_fast(controls_fail=1)[-4:],
+                         [("C",), ("W", 0x301a, 0x2058), ("PM-",), ("RESULT", -5, 0, 0)])
 
 
 if __name__ == "__main__":

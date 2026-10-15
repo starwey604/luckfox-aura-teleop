@@ -2,7 +2,7 @@
   "success": true,
   "same_boot": true,
   "controls_restored": true,
-  "sampling": "50ms procfs snapshots; >=frame10, one sample per observed frame; not an every-frame distribution",
+  "sampling": "50ms procfs snapshots gated until both senders ready; >=frame10, one sample per observed frame; not an every-frame distribution",
   "kernel": "6.1.141 #16 SMP PREEMPT Mon Oct 12 20:51:59 CST 2026",
   "boot_id": "4b808717-6335-4d28-9113-b3bcaa5e3d8c",
   "lanes": {
@@ -25,25 +25,26 @@
       },
       "readout": {
         "0": {
-          "observed_samples": 48,
-          "mean_ms": 9.785854166666667,
+          "observed_samples": 20,
+          "mean_ms": 9.7798,
           "min_ms": 9.746,
-          "max_ms": 9.83,
-          "p50_ms": 9.788,
-          "p95_ms": 9.793,
-          "p99_ms": 9.83
+          "max_ms": 9.84,
+          "p50_ms": 9.796,
+          "p95_ms": 9.799,
+          "p99_ms": 9.84
         },
         "1": {
-          "observed_samples": 26,
-          "mean_ms": 9.783076923076923,
-          "min_ms": 9.744,
-          "max_ms": 9.797,
+          "observed_samples": 21,
+          "mean_ms": 9.782809523809524,
+          "min_ms": 9.752,
+          "max_ms": 9.835,
           "p50_ms": 9.792,
-          "p95_ms": 9.795,
-          "p99_ms": 9.797
+          "p95_ms": 9.794,
+          "p99_ms": 9.835
         }
       },
-      "critical_kernel_issue": false
+      "critical_kernel_issue": false,
+      "ready_board_uptime_seconds": 1126.73
     },
     {
       "requested_exposure_us": 3000,
@@ -54,30 +55,31 @@
       },
       "readout": {
         "0": {
-          "observed_samples": 48,
-          "mean_ms": 9.769229166666667,
-          "min_ms": 9.744,
-          "max_ms": 9.829,
-          "p50_ms": 9.765,
-          "p95_ms": 9.794,
-          "p99_ms": 9.829
+          "observed_samples": 20,
+          "mean_ms": 9.78855,
+          "min_ms": 9.788,
+          "max_ms": 9.791,
+          "p50_ms": 9.788,
+          "p95_ms": 9.79,
+          "p99_ms": 9.791
         },
         "1": {
-          "observed_samples": 26,
-          "mean_ms": 9.770807692307692,
-          "min_ms": 9.744,
-          "max_ms": 9.797,
-          "p50_ms": 9.774000000000001,
+          "observed_samples": 20,
+          "mean_ms": 9.79515,
+          "min_ms": 9.793,
+          "max_ms": 9.802,
+          "p50_ms": 9.795,
           "p95_ms": 9.796,
-          "p99_ms": 9.797
+          "p99_ms": 9.802
         }
       },
-      "critical_kernel_issue": false
+      "critical_kernel_issue": false,
+      "ready_board_uptime_seconds": 1133.08
     }
   ],
   "known_bsp_advisory": "vblank need >= 1000us if isp work in online, cur 286 us (also in prior codec baseline)",
   "accepted_encoded_frames": 480,
-  "total_encoded_frames_including_initial_advisory_stop": 720,
+  "total_encoded_frames_including_initial_advisory_stop": 1200,
   "hardware_decoder_frames_per_stream_per_run": 120,
-  "raw_report": "artifacts/ar0234-readout-20261015/final-exposure-pair/result.json"
+  "raw_report": "artifacts/ar0234-readout-20261015/gated-exposure-pair/result.json"
 }

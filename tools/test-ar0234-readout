@@ -105,6 +105,16 @@ def proc_samples(text):
     return samples
 
 
+def ready_samples(text, uptime):
+    """Exclude initialization frames using board uptime after both VENCs are ready."""
+    kept = []
+    for block in text.split("@@SAMPLE\n")[1:]:
+        stamp = re.search(r"^@@UPTIME ([\d.]+)$", block, re.M)
+        if stamp and float(stamp[1]) >= uptime:
+            kept.append("@@SAMPLE\n" + block)
+    return "".join(kept)
+
+
 def distribution(values):
     if not values:
         raise RuntimeError("No nonzero steady-state CIF readout samples")
@@ -165,7 +175,7 @@ def main():
     if any(camera not in initial for camera in selected):
         raise RuntimeError("Requested camera not present")
     report = {"success": False, "audit": initial, "runs": [], "controls_restored": False,
-              "sampling": "50ms procfs snapshots; >=frame10, one sample per observed frame; not an every-frame distribution"}
+              "sampling": "50ms procfs snapshots gated after sender-ready; >=frame10, one per observed frame; not every-frame data"}
     (args.output / "result.json").write_text(json.dumps(report, indent=2) + "\n")
     if args.expect_lanes and any(len(initial[c]["lanes"]) != args.expect_lanes for c in selected):
         reason = "Lane mismatch: builtin sensor driver + DT need a matching image; no test or register write performed"
@@ -213,7 +223,8 @@ def main():
                 sampler_path = args.output / f"{index}-cif-proc.txt"
                 case_marker = f"{marker}-case{index}"
                 # No per-frame printk, ftrace changes or video-node MMAP ownership.
-                sample_script = 'echo sampler_pid=$$; trap "exit 0" TERM INT HUP\nwhile :; do\necho @@SAMPLE\n'
+                sample_script = ('echo sampler_pid=$$; trap "exit 0" TERM INT HUP\nwhile :; do\necho @@SAMPLE\n'
+                                 'read stamp rest </proc/uptime; echo "@@UPTIME $stamp"\n')
                 for camera in selected:
                     proc = "/proc/rkcif-mipi-lvds" + ("2" if camera == "1" else "")
                     sample_script += f"echo @@CAMERA {camera}; cat {proc}\n"
@@ -238,7 +249,30 @@ def main():
                                    "--exposure-lines", str(lines), "--minimal", "--output", str(case)]
                         mutated = True
                         with (args.output / f"{index}-test.txt").open("w") as output:
-                            subprocess.run(command, check=True, stdout=output, stderr=subprocess.STDOUT, timeout=60)
+                            controller = subprocess.Popen(command, stdout=output, stderr=subprocess.STDOUT)
+                            ready_uptime = None
+                            deadline = time.monotonic() + 60
+                            try:
+                                while controller.poll() is None:
+                                    if ready_uptime is None:
+                                        sender_log = case / "sender.txt"
+                                        ready = "aura-sender: VI " + ("1/1/0" if args.camera != "0" else "0/0/0")
+                                        if sender_log.exists() and ready in sender_log.read_text(errors="replace"):
+                                            # Uptime has 10ms resolution: round UP one tick to
+                                            # avoid admitting a pre-ready snapshot in that tick.
+                                            ready_uptime = float(remote("cut -d' ' -f1 /proc/uptime")) + .01
+                                    if time.monotonic() >= deadline:
+                                        raise RuntimeError("Software test controller timed out")
+                                    time.sleep(.02)
+                                if controller.returncode:
+                                    raise RuntimeError("Software test failed; see " + str(case))
+                                if ready_uptime is None:
+                                    raise RuntimeError("Sender-ready gate missed; no steady-state evidence")
+                            finally:
+                                if controller.poll() is None:
+                                    controller.terminate()
+                                    try: controller.wait(timeout=5)
+                                    except subprocess.TimeoutExpired: controller.kill(); controller.wait()
                 finally:
                     if sampler is not None:
                         try:
@@ -248,7 +282,7 @@ def main():
                                 sampler.terminate()
                                 try: sampler.wait(timeout=3)
                                 except subprocess.TimeoutExpired: sampler.kill(); sampler.wait()
-                observed = proc_samples(sampler_path.read_text())
+                observed = proc_samples(ready_samples(sampler_path.read_text(), ready_uptime))
                 distributions = {c: distribution([s["readout_ms"] for s in observed[c]]) for c in selected}
                 if any(s["lanes"] != len(initial[c]["lanes"]) for c in selected for s in observed[c]):
                     raise RuntimeError("Runtime CIF lanes differ from sensor DT")
@@ -260,6 +294,7 @@ def main():
                 tail = log_path.read_text(errors="replace").split(marker, 1)[1]
                 advisory, critical = kernel_issues(tail)
                 report["runs"].append({"requested_exposure_us": us, "exposure_lines": lines,
+                                       "ready_board_uptime_seconds": ready_uptime,
                                        "actual_exposure_us": {c: lines * initial[c]["row_us"] for c in selected},
                                        "readout": distributions, "samples": {c: observed[c] for c in selected},
                                        "bsp_advisories_since_marker": advisory, "critical_kernel_issue": critical,

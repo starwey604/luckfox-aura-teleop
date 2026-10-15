@@ -35,6 +35,7 @@ There is no CI; all build/test steps are run manually. The origin remote is GitH
 ./tools/test-vaapi-decoder             # generate H.264 via ffmpeg, prove VAAPI hw decode
 ./tools/test-vulkan-presenter          # VAAPI -> DRM PRIME -> Vulkan/SDL3 window
 ./tools/test-aura-software-baseline --camera {0|1|dual} --output <new-dir>  # bounded SSH/native profiling
+./tools/test-ar0234-readout --camera dual --expect-lanes {2|4} --output <new-dir>  # USB-logged CIF readout/exposure A/B
 ./tools/test-aura-kernel-ab --variant B --expected-config <kernel.config> --reference <A-summary.json> --output <new-dir>
 ./tools/test-usb-camera-loopback       # /dev/video0 -> UDP -> VAAPI/Vulkan (needs real camera)
 ./tools/flash-aura-emmc [--dry-run] [--images <saved-image-dir>]  # full eMMC flash via Rockchip upgrade_tool
@@ -112,6 +113,12 @@ Order matters: apply the SDK patch stack and `select-teleop-board` before SDK bu
 ## Camera notes
 
 - Product name ISG1321 == kernel driver/`MIA1321`; I²C addr `0x60`, 26 MHz xvclk.
+- `ar0234-fastreadout` is an opt-in BoardConfig on the A diagnostic kernel config,
+  separate from K1. DECXIN four-lane 90MHz readout has passed bounded mono/stereo tests:
+  keep ~99.23fps with VBLANK762 (FLL1477), 6.8us/line, ~4.89ms CIF readout.
+  Exposure values are sensor lines: 148/294/442 now mean ~1.0064/1.9992/3.0056ms.
+  Do not reuse the old two-lane 13.6us conversion or compare only reported pixel_rate.
+  The original two-lane profile is unchanged. No automatic flashing/reboot.
 - The sensor registers three 1280×1080 modes (RAW12 30 fps, RAW10 60 fps, RAW10 ~117 fps); there
   is no native 720p mode. A `mia1321_linear_10_1280x720_regs` table actually registers 1280×1080@30.
 - For high-fps bring-up verify `dmesg` shows `dphy0, data_rate_mbps 1728`, then run a 120-frame

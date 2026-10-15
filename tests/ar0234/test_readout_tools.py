@@ -57,5 +57,12 @@ class ReadoutToolsTest(unittest.TestCase):
         self.assertTrue(tool["kernel_issues"](line + "\nWARNING: CPU0 dma_buf_put\n")[1])
         self.assertTrue(tool["kernel_issues"]("rkcif: Warning: something else\n")[1])
 
+    def test_ready_gate_excludes_default_exposure_during_vendor_startup(self):
+        data = ("@@SAMPLE\n@@UPTIME 11.10\n@@CAMERA 0\nold\n"
+                "@@SAMPLE\n@@UPTIME 12.20\n@@CAMERA 0\nnew\n")
+        filtered = tool["ready_samples"](data, 12.01)
+        self.assertNotIn("old", filtered)
+        self.assertIn("new", filtered)
+
 
 if __name__ == "__main__": unittest.main(verbosity=2)

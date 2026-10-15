@@ -1,0 +1,154 @@
+{
+  "success": true,
+  "controls_restored": true,
+  "same_boot": true,
+  "sampling": "50ms procfs snapshots; >=frame10, one sample per observed frame; not an every-frame distribution",
+  "kernel": "6.1.141 #18 SMP PREEMPT Thu Oct 15 12:35:13 CST 2026",
+  "boot_id": "828eed60-1200-411f-9d5e-b9b7b986f313",
+  "frames_per_camera_per_run": 120,
+  "total_encoded_frames": 720,
+  "dual_encoded_frames": 480,
+  "effective_kernel_config_difference_from_A": {},
+  "raw_report": "artifacts/ar0234-fastreadout-20261015/dual-exposure-pair/result.json",
+  "screen_to_screen_measured": false,
+  "mono": {
+    "0": {
+      "observed_samples": 19,
+      "mean_ms": 4.888368421052632,
+      "min_ms": 4.854,
+      "max_ms": 4.895,
+      "p50_ms": 4.892,
+      "p95_ms": 4.895,
+      "p99_ms": 4.895
+    },
+    "1": {
+      "observed_samples": 21,
+      "mean_ms": 4.888285714285714,
+      "min_ms": 4.851,
+      "max_ms": 4.936,
+      "p50_ms": 4.891,
+      "p95_ms": 4.9,
+      "p99_ms": 4.936
+    }
+  },
+  "dual_runs": [
+    {
+      "requested_exposure_us": 1006,
+      "exposure_lines": 148,
+      "actual_exposure_us": {
+        "0": 1006.4,
+        "1": 1006.4
+      },
+      "readout": {
+        "0": {
+          "observed_samples": 20,
+          "mean_ms": 4.87915,
+          "min_ms": 4.85,
+          "max_ms": 4.902,
+          "p50_ms": 4.892,
+          "p95_ms": 4.898,
+          "p99_ms": 4.902
+        },
+        "1": {
+          "observed_samples": 20,
+          "mean_ms": 4.8736999999999995,
+          "min_ms": 4.846,
+          "max_ms": 4.936,
+          "p50_ms": 4.888,
+          "p95_ms": 4.898,
+          "p99_ms": 4.936
+        }
+      },
+      "critical_kernel_issue": false,
+      "ready_board_uptime_seconds": 155.48,
+      "A_readout": {
+        "0": {
+          "observed_samples": 20,
+          "mean_ms": 9.7798,
+          "min_ms": 9.746,
+          "max_ms": 9.84,
+          "p50_ms": 9.796,
+          "p95_ms": 9.799,
+          "p99_ms": 9.84
+        },
+        "1": {
+          "observed_samples": 21,
+          "mean_ms": 9.782809523809524,
+          "min_ms": 9.752,
+          "max_ms": 9.835,
+          "p50_ms": 9.792,
+          "p95_ms": 9.794,
+          "p99_ms": 9.835
+        }
+      },
+      "saved_mean_ms": {
+        "0": 4.90065,
+        "1": 4.909109523809525
+      },
+      "polled_frame_period_ms": {
+        "min": 10.035,
+        "max": 10.119,
+        "mean": 10.075725
+      }
+    },
+    {
+      "requested_exposure_us": 3006,
+      "exposure_lines": 442,
+      "actual_exposure_us": {
+        "0": 3005.6,
+        "1": 3005.6
+      },
+      "readout": {
+        "0": {
+          "observed_samples": 23,
+          "mean_ms": 4.878304347826087,
+          "min_ms": 4.841,
+          "max_ms": 4.942,
+          "p50_ms": 4.893,
+          "p95_ms": 4.938,
+          "p99_ms": 4.942
+        },
+        "1": {
+          "observed_samples": 23,
+          "mean_ms": 4.889434782608696,
+          "min_ms": 4.8469999999999995,
+          "max_ms": 4.9350000000000005,
+          "p50_ms": 4.894,
+          "p95_ms": 4.934,
+          "p99_ms": 4.9350000000000005
+        }
+      },
+      "critical_kernel_issue": false,
+      "ready_board_uptime_seconds": 162.39999999999998,
+      "A_readout": {
+        "0": {
+          "observed_samples": 20,
+          "mean_ms": 9.78855,
+          "min_ms": 9.788,
+          "max_ms": 9.791,
+          "p50_ms": 9.788,
+          "p95_ms": 9.79,
+          "p99_ms": 9.791
+        },
+        "1": {
+          "observed_samples": 20,
+          "mean_ms": 9.79515,
+          "min_ms": 9.793,
+          "max_ms": 9.802,
+          "p50_ms": 9.795,
+          "p95_ms": 9.796,
+          "p99_ms": 9.802
+        }
+      },
+      "saved_mean_ms": {
+        "0": 4.910245652173914,
+        "1": 4.905715217391304
+      },
+      "polled_frame_period_ms": {
+        "min": 10.035,
+        "max": 10.122,
+        "mean": 10.074326086956521
+      }
+    }
+  ]
+}

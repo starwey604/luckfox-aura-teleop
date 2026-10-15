@@ -47,5 +47,12 @@ make -C "$kernel" O="$build_dir/kernel" ARCH=arm64 CROSS_COMPILE="$cross" \
     rockchip/rv1126b-luckfox-aura-ar0234.dtb
 python3 "$root/tests/ar0234/test_bringup_dtb.py" \
     "$build_dir/kernel/arch/arm64/boot/dts/rockchip/rv1126b-luckfox-aura-ar0234.dtb"
+make -C "$kernel" O="$build_dir/kernel" ARCH=arm64 CROSS_COMPILE="$cross" \
+    rockchip/rv1126b-luckfox-aura-ar0234-stereo.dtb \
+    rockchip/rv1126b-luckfox-aura-ar0234-fastreadout.dtb
+python3 "$root/tests/ar0234/test_bringup_dtb.py" --stereo \
+    "$build_dir/kernel/arch/arm64/boot/dts/rockchip/rv1126b-luckfox-aura-ar0234-stereo.dtb"
+python3 "$root/tests/ar0234/test_bringup_dtb.py" --fastreadout \
+    "$build_dir/kernel/arch/arm64/boot/dts/rockchip/rv1126b-luckfox-aura-ar0234-fastreadout.dtb"
 printf '\ncompile/link checks passed: %s\n' "$build_dir/module/ar0234.ko"
 printf '%s\n' 'Hardware capture is not tested by this script.'

@@ -1,0 +1,189 @@
+From e5eb224062df1fdf9de95d563933893fc9d153d3 Mon Sep 17 00:00:00 2001
+From: Starwey <moonbite233@gmail.com>
+Date: Thu, 15 Oct 2026 12:34:33 +0800
+Subject: [PATCH] media: ar0234 add opt-in four-lane fast readout at unchanged
+ frame rate
+
+---
+ ...v1126b-luckfox-aura-ar0234-fastreadout.dts | 20 +++++
+ drivers/media/i2c/ar0234.c                    | 87 ++++++++++++++++++-
+ 2 files changed, 103 insertions(+), 4 deletions(-)
+ create mode 100644 arch/arm64/boot/dts/rockchip/rv1126b-luckfox-aura-ar0234-fastreadout.dts
+
+diff --git a/arch/arm64/boot/dts/rockchip/rv1126b-luckfox-aura-ar0234-fastreadout.dts b/arch/arm64/boot/dts/rockchip/rv1126b-luckfox-aura-ar0234-fastreadout.dts
+new file mode 100644
+index 000000000..be325c072
+--- /dev/null
++++ b/arch/arm64/boot/dts/rockchip/rv1126b-luckfox-aura-ar0234-fastreadout.dts
+@@ -0,0 +1,20 @@
++// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
++/* Experimental dual four-lane readout; retain the ~99.23fps frame period. */
++#include "rv1126b-luckfox-aura-ar0234-stereo.dts"
++
++/ {
++	model = "Luckfox Aura (experimental AR0234 fast readout)";
++};
++
++&ar0234_0 {
++	compatible = "decxin,3478v1-fastreadout", "decxin,3478v1", "onnn,ar0234cs";
++};
++
++&ar0234_1 {
++	compatible = "decxin,3478v1-fastreadout", "decxin,3478v1", "onnn,ar0234cs";
++};
++
++&ar0234_0_out { data-lanes = <1 2 3 4>; };
++&ar0234_dphy_input { data-lanes = <1 2 3 4>; };
++&ar0234_1_out { data-lanes = <1 2 3 4>; };
++&ar0234_dphy1_input { data-lanes = <1 2 3 4>; };
+diff --git a/drivers/media/i2c/ar0234.c b/drivers/media/i2c/ar0234.c
+index 01172b855..773e3acae 100644
+--- a/drivers/media/i2c/ar0234.c
++++ b/drivers/media/i2c/ar0234.c
+@@ -428,6 +428,27 @@ static const struct ar0234_mode ar0234_decxin_modes[] = {
+ 	},
+ };
+ 
++/* Experimental 90MHz readout; retain the two-lane profile's frame period. */
++static const struct ar0234_mode ar0234_decxin_fast_modes[] = {
++	{
++		.width = 1280,
++		.height = 720,
++		.line_length = 612,
++		.vts_def = 1477,
++		.exposure_def = 1028,
++		.crop = {
++			.left = 0x0148,
++			.top = 0x00f8,
++			.width = 1280,
++			.height = 720,
++		},
++		.reg_sequence = {
++			.regs = ar0234_decxin_720p_regs,
++			.num_regs = ARRAY_SIZE(ar0234_decxin_720p_regs),
++		},
++	},
++};
++
+ struct ar0234_pll_config {
+ 	s64 freq_link;
+ 	u32 freq_extclk;
+@@ -477,6 +498,7 @@ struct ar0234 {
+ 	const struct ar0234_mode *modes;
+ 	unsigned int num_modes;
+ 	bool decxin_profile;
++	bool fast_readout;
+ 	struct mutex mutex;
+ 	struct v4l2_subdev sd;
+ 	struct media_pad pad;
+@@ -955,18 +977,68 @@ static int ar0234_set_stream_state(struct ar0234 *ar, bool on)
+ 	return ar0234_write_reg(ar, AR0234_REG_MODE_SELECT, on);
+ }
+ 
++static int ar0234_write_decxin_fast_sequence(struct ar0234 *ar)
++{
++	const struct ar0234_reg_sequence *seq = &ar->cur_mode->reg_sequence;
++	unsigned int i;
++	u32 addr;
++	u16 val;
++	int ret;
++
++	for (i = 0; i < seq->num_regs; i++) {
++		addr = seq->regs[i].reg;
++		val = seq->regs[i].val;
++		if (addr == AR0234_DELAY_MS) {
++			msleep(val);
++			continue;
++		}
++		/* The 45MHz-only sequencer patch must not survive in 90MHz mode. */
++		if (addr == AR0234_REG_SEQ_CTRL_PORT && val == 0x81ba) {
++			if (i + 1 >= seq->num_regs ||
++			    seq->regs[i + 1].reg != AR0234_REG_SEQ_DATA_PORT ||
++			    seq->regs[i + 1].val != 0x3d02)
++				return -EINVAL;
++			i++;
++			continue;
++		}
++		if (addr == AR0234_REG_SERIAL_FORMAT)
++			val = 0x0204;
++		else if (addr == AR0234_REG_FRAME_LENGTH_LINES)
++			val = ar->cur_mode->vts_def;
++		else if (addr == AR0234_REG_EXPOSURE_COARSE)
++			val = ar->cur_mode->exposure_def;
++		else if (addr == AR0234_REG_MFR_30BA)
++			val = AR0234_MFR_30BA_DEFAULT;
++		ret = ar0234_write_reg(ar, addr, val);
++		if (ret)
++			return ret;
++	}
++	return 0;
++}
++
+ static int ar0234_start_decxin_stream(struct ar0234 *ar)
+ {
+ 	int ret;
+ 
++	if (ar->fast_readout) {
++		/* Restore the ROM sequencer even after a previous 45MHz session. */
++		ret = ar0234_write_reg(ar, AR0234_REG_RESET, 0x0001);
++		if (ret)
++			return ret;
++		msleep(200);
++	}
+ 	/* One RAW pad: suppress embedded data before the INI's first stream-on. */
+ 	ret = ar0234_write_reg(ar, AR0234_REG_SMIA_TEST, 0x1802);
+ 	if (ret)
+ 		return ret;
+-	ret = ar0234_write_sequence(ar, &ar->cur_mode->reg_sequence);
++	if (ar->fast_readout)
++		ret = ar0234_write_decxin_fast_sequence(ar);
++	else
++		ret = ar0234_write_sequence(ar, &ar->cur_mode->reg_sequence);
+ 	if (ret)
+ 		return ret;
+-	ar->mfr_30ba = AR0234_MFR_30BA_GAIN_BITS(6);
++	ar->mfr_30ba = ar->fast_readout ? AR0234_MFR_30BA_DEFAULT :
++					 AR0234_MFR_30BA_GAIN_BITS(6);
+ 	/* Retain the vendor defaults unless users have changed V4L2 controls. */
+ 	return __v4l2_ctrl_handler_setup(&ar->ctrl_handler);
+ }
+@@ -1331,10 +1403,10 @@ static int ar0234_parse_hw_config(struct ar0234 *ar)
+ 		}
+ 	}
+ 	if (ar->decxin_profile) {
+-		if (ep.bus.mipi_csi2.num_data_lanes != 2 ||
++		if (ep.bus.mipi_csi2.num_data_lanes != (ar->fast_readout ? 4 : 2) ||
+ 		    ep.bus.mipi_csi2.flags & V4L2_MBUS_CSI2_NONCONTINUOUS_CLOCK) {
+ 			ret = dev_err_probe(dev, -EINVAL,
+-					    "DECXIN profile requires 2 lanes and continuous clock\n");
++					    "DECXIN profile lane count or continuous clock mismatch\n");
+ 			goto out;
+ 		}
+ 	} else if (!(ep.bus.mipi_csi2.flags & V4L2_MBUS_CSI2_NONCONTINUOUS_CLOCK)) {
+@@ -1390,9 +1462,15 @@ static int ar0234_probe(struct i2c_client *client)
+ 		return -ENOMEM;
+ 	ar->dev = dev;
+ 	ar->client = client;
++	ar->fast_readout = of_device_is_compatible(dev->of_node, "decxin,3478v1-fastreadout");
+ 	ar->decxin_profile = of_device_is_compatible(dev->of_node, "decxin,3478v1");
++	ar->decxin_profile |= ar->fast_readout;
+ 	ar->modes = ar->decxin_profile ? ar0234_decxin_modes : ar0234_modes;
+ 	ar->num_modes = ar->decxin_profile ? ARRAY_SIZE(ar0234_decxin_modes) : ARRAY_SIZE(ar0234_modes);
++	if (ar->fast_readout) {
++		ar->modes = ar0234_decxin_fast_modes;
++		ar->num_modes = ARRAY_SIZE(ar0234_decxin_fast_modes);
++	}
+ 	ar->cur_mode = &ar->modes[0];
+ 	mutex_init(&ar->mutex);
+ 	v4l2_i2c_subdev_init(&ar->sd, client, &ar0234_subdev_ops);
+@@ -1508,6 +1586,7 @@ static struct attribute *ar0234_attrs[] = {
+ ATTRIBUTE_GROUPS(ar0234);
+ 
+ static const struct of_device_id ar0234_of_match[] = {
++	{ .compatible = "decxin,3478v1-fastreadout" },
+ 	{ .compatible = "decxin,3478v1" },
+ 	{ .compatible = "onnn,ar0234cs" },
+ 	{ }
+-- 
+2.56.0
+

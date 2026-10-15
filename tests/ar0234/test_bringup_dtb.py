@@ -6,9 +6,14 @@ import sys
 import unittest
 
 ROOT = Path(__file__).resolve().parents[2]
+FAST = '--fastreadout' in sys.argv
+if FAST:
+    sys.argv.remove('--fastreadout')
 STEREO = '--stereo' in sys.argv
 if STEREO:
     sys.argv.remove('--stereo')
+STEREO = STEREO or FAST
+LANES = (1, 2, 3, 4) if FAST else (1, 2)
 DTB = Path(sys.argv.pop(1)) if len(sys.argv) > 1 else ROOT / 'build/ar0234-driver-check/kernel/arch/arm64/boot/dts/rockchip/rv1126b-luckfox-aura-ar0234.dtb'
 
 
@@ -62,7 +67,10 @@ class BringupDeviceTreeTests(unittest.TestCase):
 
     def test_sensor_address_clock_and_module_supply(self):
         sensor = self.nodes[self.sensor]
-        self.assertEqual(sensor['compatible'], b'decxin,3478v1\0onnn,ar0234cs\0')
+        compatible = b'decxin,3478v1\0onnn,ar0234cs\0'
+        if FAST:
+            compatible = b'decxin,3478v1-fastreadout\0' + compatible
+        self.assertEqual(sensor['compatible'], compatible)
         self.assertEqual(string(sensor['status']), 'okay')
         self.assertEqual(words(sensor['reg']), (0x10,))
         self.assertEqual(words(self.nodes[self.bus]['clock-frequency']), (100000,))
@@ -74,12 +82,12 @@ class BringupDeviceTreeTests(unittest.TestCase):
         for key in ('reset-gpios', 'pwdn-gpios', 'avdd-supply', 'dovdd-supply', 'dvdd-supply'):
             self.assertNotIn(key, sensor)
 
-    def test_sensor_and_receiver_links_are_reciprocal_and_two_lane(self):
+    def test_sensor_and_receiver_links_are_reciprocal_and_match_profile(self):
         endpoint = self.nodes[self.sensor + '/port/endpoint']
         receiver = self.nodes[self.handles[words(endpoint['remote-endpoint'])[0]]]
         self.assertEqual(words(receiver['remote-endpoint']), words(endpoint['phandle']))
         for node in (endpoint, receiver):
-            self.assertEqual(words(node['data-lanes']), (1, 2))
+            self.assertEqual(words(node['data-lanes']), LANES)
             self.assertEqual(words(node['clock-lanes']), (0,))
             self.assertNotIn('clock-noncontinuous', node)
         self.assertEqual(struct.unpack('>Q', endpoint['link-frequencies']), (450000000,))
@@ -112,7 +120,7 @@ class BringupDeviceTreeTests(unittest.TestCase):
         self.assertTrue(receiver_path.startswith('/csi2-dphy3/'))
         receiver = self.nodes[receiver_path]
         for node in (endpoint, receiver):
-            self.assertEqual(words(node['data-lanes']), (1, 2))
+            self.assertEqual(words(node['data-lanes']), LANES)
             self.assertEqual(words(node['clock-lanes']), (0,))
             self.assertNotIn('clock-noncontinuous', node)
         self.assertEqual(words(receiver['remote-endpoint']), words(endpoint['phandle']))

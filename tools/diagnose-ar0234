@@ -211,7 +211,7 @@ capture_sensor() {
 main() {
     echo "AR0234 diagnostic: camera=$camera, DT alias=$alias_name, candidate=$address, mode=$mode"
     uname -a
-    echo 'Assumptions: 24MHz module oscillator, internal rails/reset, 2 lanes, continuous clock.'
+    echo 'Module profile: 24MHz oscillator, internal rails/reset, continuous clock; lanes follow sensor/receiver DT.'
     echo 'Candidate address 0x10 is not confirmed by the vendor files.'
     echo '--- I2C adapters (listing only) ---'
     command -v i2cdetect >/dev/null && i2cdetect -l
