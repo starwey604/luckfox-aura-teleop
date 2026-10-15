@@ -1,0 +1,103 @@
+{
+  "kernel": "6.1.141 #18 SMP PREEMPT Thu Oct 15 12:35:13 CST 2026",
+  "success": true,
+  "boot_id": "828eed60-1200-411f-9d5e-b9b7b986f313",
+  "controls": {
+    "exposure": 735,
+    "analogue_gain": 48,
+    "digital_gain": 512,
+    "vertical_blanking": 762
+  },
+  "encoder_fps": 100,
+  "actual_exposure_us": {
+    "0": 4998.0,
+    "1": 4998.0
+  },
+  "readout": {
+    "0": {
+      "observed_samples": 23,
+      "mean_ms": 4.882130434782609,
+      "min_ms": 4.851,
+      "max_ms": 4.909,
+      "p50_ms": 4.895,
+      "p95_ms": 4.897,
+      "p99_ms": 4.909
+    },
+    "1": {
+      "observed_samples": 23,
+      "mean_ms": 4.887434782608696,
+      "min_ms": 4.846,
+      "max_ms": 4.934,
+      "p50_ms": 4.894,
+      "p95_ms": 4.934,
+      "p99_ms": 4.934
+    }
+  },
+  "frame_period": {
+    "0": {
+      "observed_samples": 23,
+      "mean_ms": 10.077,
+      "min_ms": 10.07,
+      "max_ms": 10.09,
+      "p50_ms": 10.077,
+      "p95_ms": 10.08,
+      "p99_ms": 10.09
+    },
+    "1": {
+      "observed_samples": 23,
+      "mean_ms": 10.07513043478261,
+      "min_ms": 10.033,
+      "max_ms": 10.079,
+      "p50_ms": 10.077,
+      "p95_ms": 10.078,
+      "p99_ms": 10.079
+    }
+  },
+  "stage_metrics": {
+    "stream0.sender.au_interval": {
+      "samples": 119.0,
+      "min": 9.232417,
+      "mean": 10.072527,
+      "p50": 10.092543,
+      "p95": 10.485759,
+      "p99": 10.684916,
+      "max": 10.684916,
+      "approx_fps_from_mean": 99.27995229002613
+    },
+    "stream1.sender.au_interval": {
+      "samples": 119.0,
+      "min": 8.519,
+      "mean": 10.07074,
+      "p50": 10.092543,
+      "p95": 10.747903,
+      "p99": 10.878975,
+      "max": 11.480875,
+      "approx_fps_from_mean": 99.29756899691581
+    },
+    "host.stream0.au_interval": {
+      "samples": 119.0,
+      "min": 7.869777,
+      "mean": 10.06528,
+      "p50": 10.092543,
+      "p95": 10.354687,
+      "p99": 10.485759,
+      "max": 11.955301,
+      "approx_fps_from_mean": 99.35143383989318
+    },
+    "host.stream1.au_interval": {
+      "samples": 119.0,
+      "min": 8.3441,
+      "mean": 10.069899,
+      "p50": 10.092543,
+      "p95": 10.485759,
+      "p99": 11.141119,
+      "max": 11.924463,
+      "approx_fps_from_mean": 99.30586195551713
+    }
+  },
+  "total_encoded_frames": 240,
+  "same_boot": true,
+  "controls_restored": true,
+  "critical_kernel_issue": false,
+  "raw_report": "artifacts/ar0234-120fps-20261015/A99/result.json"
+}

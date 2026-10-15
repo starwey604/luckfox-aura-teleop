@@ -1,0 +1,119 @@
+From c3fde23bfaf5857c38cbd830e03a779eac5cf855 Mon Sep 17 00:00:00 2001
+From: Starwey <moonbite233@gmail.com>
+Date: Thu, 15 Oct 2026 13:06:14 +0800
+Subject: [PATCH] media: ar0234 allow opt-in 120fps without resetting frame
+ timing
+
+---
+ drivers/media/i2c/ar0234.c | 52 +++++++++++++++++++++++++-------------
+ 1 file changed, 34 insertions(+), 18 deletions(-)
+
+diff --git a/drivers/media/i2c/ar0234.c b/drivers/media/i2c/ar0234.c
+index 773e3acae..335fc81b2 100644
+--- a/drivers/media/i2c/ar0234.c
++++ b/drivers/media/i2c/ar0234.c
+@@ -592,6 +592,12 @@ static u32 ar0234_default_vblank(const struct ar0234_mode *mode)
+ 	return mode->vts_def + AR0234_FLL_OVERHEAD - mode->height;
+ }
+ 
++static u32 ar0234_min_vblank(struct ar0234 *ar, const struct ar0234_mode *mode)
++{
++	/* ceil(1s / (120 * 6.8us)) = 1226 total lines; blanking is 3.44ms. */
++	return ar->fast_readout ? 506 : ar0234_default_vblank(mode);
++}
++
+ static u32 ar0234_pixel_rate(struct ar0234 *ar)
+ {
+ 	return ar0234_freq_pixclk[ar->lane_count_id] * AR0234_TIMING_SCALE;
+@@ -740,7 +746,8 @@ static int ar0234_init_controls(struct ar0234 *ar)
+ 	if (ar->hblank)
+ 		ar->hblank->flags |= V4L2_CTRL_FLAG_READ_ONLY;
+ 	ar->vblank = v4l2_ctrl_new_std(hdl, &ar0234_ctrl_ops, V4L2_CID_VBLANK,
+-				      vblank, AR0234_FLL_MAX - mode->height, 1, vblank);
++				      ar0234_min_vblank(ar, mode),
++				      AR0234_FLL_MAX - mode->height, 1, vblank);
+ 	ar->exposure = v4l2_ctrl_new_std(hdl, &ar0234_ctrl_ops, V4L2_CID_EXPOSURE,
+ 					AR0234_EXPOSURE_MIN, max_exp, 1, mode->exposure_def);
+ 	v4l2_ctrl_new_std(hdl, &ar0234_ctrl_ops, V4L2_CID_ANALOGUE_GAIN,
+@@ -816,7 +823,7 @@ static int ar0234_enum_frame_interval(struct v4l2_subdev *sd,
+ 		if (fie->width == ar->modes[i].width &&
+ 		    fie->height == ar->modes[i].height) {
+ 			ar0234_frame_interval(ar, &ar->modes[i],
+-					     ar0234_default_vblank(&ar->modes[i]),
++					     ar0234_min_vblank(ar, &ar->modes[i]),
+ 					     &fie->interval);
+ 			fie->reserved[0] = NO_HDR;
+ 			ret = 0;
+@@ -845,13 +852,32 @@ static int ar0234_get_fmt(struct v4l2_subdev *sd,
+ 	return 0;
+ }
+ 
++static int ar0234_set_mode(struct ar0234 *ar, const struct ar0234_mode *mode)
++{
++	int hblank;
++
++	/* Repeating S_FMT must not undo a user-selected frame interval. */
++	if (ar->cur_mode == mode)
++		return 0;
++	ar->cur_mode = mode;
++	hblank = ar0234_hts(mode) - mode->width;
++	__v4l2_ctrl_modify_range(ar->hblank, hblank, hblank, 1, hblank);
++	__v4l2_ctrl_modify_range(ar->vblank, ar0234_min_vblank(ar, mode),
++				AR0234_FLL_MAX - mode->height, 1,
++				ar0234_default_vblank(mode));
++	/* Equal VBLANK values do not invoke s_ctrl after a mode change. */
++	__v4l2_ctrl_modify_range(ar->exposure, AR0234_EXPOSURE_MIN,
++				mode->vts_def - 1, 1, mode->exposure_def);
++	return __v4l2_ctrl_s_ctrl(ar->vblank, ar0234_default_vblank(mode));
++}
++
+ static int ar0234_set_fmt(struct v4l2_subdev *sd,
+ 			 struct v4l2_subdev_state *state,
+ 			 struct v4l2_subdev_format *fmt)
+ {
+ 	struct ar0234 *ar = to_ar0234(sd);
+ 	const struct ar0234_mode *mode;
+-	int hblank, ret = 0;
++	int ret = 0;
+ 
+ 	if (fmt->pad)
+ 		return -EINVAL;
+@@ -859,22 +885,12 @@ static int ar0234_set_fmt(struct v4l2_subdev *sd,
+ 	mode = v4l2_find_nearest_size(ar->modes, ar->num_modes,
+ 				     width, height, fmt->format.width, fmt->format.height);
+ 	ar0234_fill_format(ar, mode, &fmt->format);
+-	if (fmt->which == V4L2_SUBDEV_FORMAT_TRY) {
++	if (fmt->which == V4L2_SUBDEV_FORMAT_TRY)
+ 		*v4l2_subdev_get_try_format(sd, state, 0) = fmt->format;
+-	} else if (ar->streaming) {
++	else if (ar->streaming)
+ 		ret = -EBUSY;
+-	} else {
+-		ar->cur_mode = mode;
+-		hblank = ar0234_hts(mode) - mode->width;
+-		__v4l2_ctrl_modify_range(ar->hblank, hblank, hblank, 1, hblank);
+-		__v4l2_ctrl_modify_range(ar->vblank, ar0234_default_vblank(mode),
+-					AR0234_FLL_MAX - mode->height, 1,
+-					ar0234_default_vblank(mode));
+-		/* Equal VBLANK values do not invoke s_ctrl after a mode change. */
+-		__v4l2_ctrl_modify_range(ar->exposure, AR0234_EXPOSURE_MIN,
+-					mode->vts_def - 1, 1, mode->exposure_def);
+-		ret = __v4l2_ctrl_s_ctrl(ar->vblank, ar0234_default_vblank(mode));
+-	}
++	else
++		ret = ar0234_set_mode(ar, mode);
+ 	mutex_unlock(&ar->mutex);
+ 	return ret;
+ }
+@@ -962,7 +978,7 @@ static int ar0234_s_frame_interval(struct v4l2_subdev *sd,
+ 	divisor = (u64)ar0234_hts(ar->cur_mode) * fi->interval.denominator;
+ 	fll = div64_u64((u64)ar0234_pixel_rate(ar) * fi->interval.numerator +
+ 			divisor - 1, divisor);
+-	fll = clamp_t(u64, fll, ar->cur_mode->height + ar0234_default_vblank(ar->cur_mode), AR0234_FLL_MAX);
++	fll = clamp_t(u64, fll, ar->cur_mode->height + ar0234_min_vblank(ar, ar->cur_mode), AR0234_FLL_MAX);
+ 	ret = __v4l2_ctrl_s_ctrl(ar->vblank, fll - ar->cur_mode->height);
+ 	ar0234_frame_interval(ar, ar->cur_mode, ar->vblank->val, &fi->interval);
+ 	mutex_unlock(&ar->mutex);
+-- 
+2.56.0
+

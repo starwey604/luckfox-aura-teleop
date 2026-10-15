@@ -76,15 +76,20 @@ def build_harness():
 #include <string.h>
 typedef uint32_t u32;
 typedef uint16_t u16;
+typedef uint64_t u64;
 #define BIT(n) (1U << (n))
 #define ARRAY_SIZE(a) (sizeof(a) / sizeof((a)[0]))
+#define clamp_t(type, x, lo, hi) ((type)(x) < (type)(lo) ? (type)(lo) : (type)(x) > (type)(hi) ? (type)(hi) : (type)(x))
+static u64 div64_u64(u64 a, u64 b) { return a / b; }
 enum { AR0234_LANE_COUNT_ID_2LANE, AR0234_LANE_COUNT_ID_4LANE };
 struct v4l2_rect { int left, top; unsigned int width, height; };
 struct v4l2_fract { u32 numerator, denominator; };
+struct v4l2_subdev_frame_interval { u32 pad; struct v4l2_fract interval; };
 '''
     mocks = r'''
 struct ar0234;
 struct handler { struct ar0234 *ar; };
+struct control { int minimum, maximum, def, val; };
 struct ar0234 {
     bool decxin_profile, streaming, fast_readout;
     const struct ar0234_mode *cur_mode;
@@ -92,6 +97,7 @@ struct ar0234 {
     unsigned int num_modes;
     int lane_count_id, mutex, pm_refs;
     void *dev, *hflip, *vflip;
+    struct control *vblank, *hblank, *exposure;
     struct handler ctrl_handler;
     u16 mfr_30ba;
 };
@@ -119,6 +125,14 @@ static bool id_failure, pm_failure;
 static struct ar0234 *to_ar0234(struct v4l2_subdev *sd) { return sd->ar; }
 static void mutex_lock(int *m) { (void)m; }
 static void mutex_unlock(int *m) { (void)m; }
+static int __v4l2_ctrl_modify_range(struct control *c, int low, int high, int step, int def) {
+    (void)step; c->minimum = low; c->maximum = high; c->def = def;
+    c->val = (int)clamp_t(int, c->val, low, high); return 0;
+}
+static int __v4l2_ctrl_s_ctrl(struct control *c, int value) {
+    if (value < c->minimum || value > c->maximum) return -ERANGE;
+    c->val = value; return 0;
+}
 static void msleep(unsigned int ms) { printf("D %u\n", ms); }
 static int ar0234_write_reg(struct ar0234 *ar, u32 reg, u16 value) {
     (void)ar;
@@ -152,7 +166,8 @@ static void pm_runtime_put(void *dev) {
 '''
     functions = "\n".join(function(source, name) for name in [
         "ar0234_write_array", "ar0234_write_sequence", "ar0234_hts",
-        "ar0234_default_vblank", "ar0234_pixel_rate", "ar0234_frame_interval",
+        "ar0234_default_vblank", "ar0234_min_vblank", "ar0234_pixel_rate", "ar0234_frame_interval",
+        "ar0234_set_mode", "ar0234_s_frame_interval",
         "ar0234_set_stream_state", "ar0234_write_decxin_fast_sequence",
         "ar0234_start_decxin_stream", "ar0234_get_selection",
     ])
@@ -165,7 +180,7 @@ int main(int argc, char **argv) {
                         .lane_count_id = AR0234_LANE_COUNT_ID_2LANE };
     struct v4l2_subdev sd = { .ar = &ar };
     struct v4l2_fract interval;
-    if (argc > 3 && !strcmp(argv[3], "fast")) {
+    if (argc > 3 && !strncmp(argv[3], "fast", 4)) {
         ar.fast_readout = true;
         ar.lane_count_id = AR0234_LANE_COUNT_ID_4LANE;
         ar.cur_mode = &ar0234_decxin_fast_modes[0];
@@ -177,6 +192,35 @@ int main(int argc, char **argv) {
     }
     ar.dev = &ar;
     ar.ctrl_handler.ar = &ar;
+    struct control vb = { .minimum = (int)ar0234_min_vblank(&ar, ar.cur_mode),
+        .maximum = (int)(AR0234_FLL_MAX - ar.cur_mode->height),
+        .val = (int)ar0234_default_vblank(ar.cur_mode) };
+    struct control hb = { 0 }, exp = { 0 };
+    ar.vblank = &vb; ar.hblank = &hb; ar.exposure = &exp;
+    if (argc > 3 && !strcmp(argv[3], "fast-timing")) {
+        struct v4l2_subdev_frame_interval fi = { .interval = { 1, 120 } };
+        printf("DEFAULT %u %u\n", ar0234_min_vblank(&ar, ar.cur_mode), ar0234_default_vblank(ar.cur_mode));
+        int ret = ar0234_s_frame_interval(&sd, &fi);
+        printf("FPS120 %d %d %u %u\n", ret, vb.val, fi.interval.numerator, fi.interval.denominator);
+        ret = ar0234_set_mode(&ar, ar.cur_mode);
+        printf("SAME_MODE %d %d\n", ret, vb.val);
+        fi.interval = (struct v4l2_fract) { 1, 240 };
+        ret = ar0234_s_frame_interval(&sd, &fi);
+        printf("FPS240 %d %d\n", ret, vb.val);
+        fi.interval = (struct v4l2_fract) { 1813968, 180000000 };
+        ret = ar0234_s_frame_interval(&sd, &fi);
+        printf("RETURN_DEFAULT %d %d\n", ret, vb.val);
+        fi.interval.denominator = 0;
+        printf("INVALID %d\n", ar0234_s_frame_interval(&sd, &fi));
+        ar.fast_readout = false;
+        ar.lane_count_id = AR0234_LANE_COUNT_ID_2LANE;
+        ret = ar0234_set_mode(&ar, &ar0234_modes[1]);
+        printf("NEW_MODE %d %d %d\n", ret, vb.val, exp.maximum);
+        fi.interval = (struct v4l2_fract) { 1, 120 };
+        ret = ar0234_s_frame_interval(&sd, &fi);
+        printf("REFERENCE_CLAMP %d %d\n", ret, vb.val);
+        return 0;
+    }
     fail_at = argc > 1 ? (unsigned int)strtoul(argv[1], NULL, 10) : 0;
     control_failure = argc > 2 ? atoi(argv[2]) : false;
     if (argc > 3 && !strcmp(argv[3], "selection")) {
@@ -354,6 +398,14 @@ class VendorProfileTests(unittest.TestCase):
                 self.assertEqual(events[-3:], [("W", 0x301a, 0x2058), ("PM-",), ("RESULT", -5, 0, 0)])
         self.assertEqual(self.run_fast(controls_fail=1)[-4:],
                          [("C",), ("W", 0x301a, 0x2058), ("PM-",), ("RESULT", -5, 0, 0)])
+
+    def test_120fps_limit_same_mode_preservation_and_default_return(self):
+        output = subprocess.check_output([str(BUILD / "profile_harness"), "0", "0", "fast-timing"], text=True)
+        self.assertEqual(output.splitlines(), [
+            "DEFAULT 506 762", "FPS120 0 506 3001248 360000000", "SAME_MODE 0 506",
+            "FPS240 0 506", "RETURN_DEFAULT 0 762", "INVALID -22",
+            "NEW_MODE 0 21 1095", "REFERENCE_CLAMP 0 21",
+        ])
 
 
 if __name__ == "__main__":

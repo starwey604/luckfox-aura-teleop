@@ -74,10 +74,17 @@ def parse_audit(text):
     return sensors
 
 
-def exposure_lines(sensor, microseconds):
+def exposure_lines(sensor, microseconds, vertical_blanking=None):
     lines = round(microseconds / sensor["row_us"])
     control = sensor["controls"]["exposure"]
-    if not control["min"] <= lines <= control["max"]:
+    maximum = control["max"]
+    if vertical_blanking is not None:
+        blank = sensor["controls"]["vertical_blanking"]
+        if not blank["min"] <= vertical_blanking <= blank["max"]:
+            raise RuntimeError(f"Requested VBLANK {vertical_blanking} outside driver range {blank['min']}..{blank['max']}; matching kernel required")
+        # AR0234 uses five overhead lines and reserves one line for shutter.
+        maximum = min(maximum, sensor["height"] + vertical_blanking - 6)
+    if not control["min"] <= lines <= maximum:
         raise RuntimeError(f"Requested exposure {microseconds}us exceeds current sensor range")
     return lines
 
@@ -150,6 +157,9 @@ def main():
     parser.add_argument("--exposure-us", type=int, nargs="+", default=[1000, 3000])
     parser.add_argument("--analogue-gain", type=int, default=32, help="Sensor register code (default: 32)")
     parser.add_argument("--digital-gain", type=int, default=512, help="Sensor register code (default: 512)")
+    parser.add_argument("--vertical-blanking", type=int, help="Optional supported sensor VBLANK; restored after tests")
+    parser.add_argument("--fps", type=int, default=100, help="Encoder rate-control fps; verify actual cadence from CIF stats")
+    parser.add_argument("--stage-metrics", action="store_true", help="Observe sender/receiver AU cadence in addition to CIF stats")
     parser.add_argument("--frames", type=int, default=120)
     parser.add_argument("--port", type=int, default=5500)
     args = parser.parse_args()
@@ -159,6 +169,8 @@ def main():
         parser.error("Invalid port")
     if not 13 <= args.analogue_gain <= 64 or not 128 <= args.digital_gain <= 2047:
         parser.error("AR0234 gain codes require analogue=13..64, digital=128..2047")
+    if not 1 <= args.fps <= 240 or (args.vertical_blanking is not None and args.vertical_blanking < 21):
+        parser.error("Encoder fps must be 1..240; VBLANK must be >=21 and supported by the driver")
     if not args.audit_only and (Path("/run/.containerenv").exists() or Path("/.dockerenv").exists()):
         parser.error("Camera/VAAPI tests must run on native CachyOS")
     args.output.mkdir(parents=True, exist_ok=False)
@@ -183,6 +195,7 @@ def main():
     if any(camera not in initial for camera in selected):
         raise RuntimeError("Requested camera not present")
     report = {"success": False, "audit": initial, "runs": [], "controls_restored": False,
+              "encoder_fps": args.fps, "requested_vertical_blanking": args.vertical_blanking, "stage_metrics": args.stage_metrics,
               "sampling": "50ms procfs snapshots gated after sender-ready; >=frame10, one per observed frame; not every-frame data"}
     (args.output / "result.json").write_text(json.dumps(report, indent=2) + "\n")
     if args.expect_lanes and any(len(initial[c]["lanes"]) != args.expect_lanes for c in selected):
@@ -202,7 +215,7 @@ def main():
             if not control["min"] <= value <= control["max"]:
                 raise RuntimeError("Requested gain exceeds bound sensor range: " + name)
     for us in args.exposure_us:
-        lines = {exposure_lines(initial[c], us) for c in selected}
+        lines = {exposure_lines(initial[c], us, args.vertical_blanking) for c in selected}
         if len(lines) != 1:
             raise RuntimeError("Different sensor row times require separate camera tests")
         planned.append((us, lines.pop()))
@@ -261,6 +274,11 @@ def main():
                                    "--camera", args.camera, "--frames", str(args.frames), "--port", str(args.port),
                                    "--exposure-lines", str(lines), "--minimal", "--output", str(case)]
                         command += ["--analogue-gain", str(args.analogue_gain), "--digital-gain", str(args.digital_gain)]
+                        command += ["--fps", str(args.fps)]
+                        if args.vertical_blanking is not None:
+                            command += ["--vertical-blanking", str(args.vertical_blanking)]
+                        if args.stage_metrics:
+                            command += ["--stage-metrics"]
                         mutated = True
                         with (args.output / f"{index}-test.txt").open("w") as output:
                             controller = subprocess.Popen(command, stdout=output, stderr=subprocess.STDOUT)
@@ -306,6 +324,8 @@ def main():
                 (args.output / f"{index}-audit-after-run.txt").write_text(actual)
                 readback = parse_audit(actual)
                 expected = {"exposure": lines, "analogue_gain": args.analogue_gain, "digital_gain": args.digital_gain}
+                if args.vertical_blanking is not None:
+                    expected["vertical_blanking"] = args.vertical_blanking
                 if f"BOOT={boot}\n" not in actual or any(readback[c]["controls"][name]["value"] != value
                                                        for c in selected for name, value in expected.items()):
                     raise RuntimeError("Exposure/gain readback or boot ID changed")
@@ -315,6 +335,7 @@ def main():
                                        "ready_board_uptime_seconds": ready_uptime,
                                        "actual_exposure_us": {c: lines * initial[c]["row_us"] for c in selected},
                                        "analogue_gain": args.analogue_gain, "digital_gain": args.digital_gain,
+                                       "vertical_blanking": {c: readback[c]["controls"]["vertical_blanking"]["value"] for c in selected},
                                        "frame_period": periods,
                                        "readout": distributions, "samples": {c: observed[c] for c in selected},
                                        "bsp_advisories_since_marker": advisory, "critical_kernel_issue": critical,

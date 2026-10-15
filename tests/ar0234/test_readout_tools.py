@@ -65,6 +65,23 @@ class ReadoutToolsTest(unittest.TestCase):
                 self.assertEqual(result.returncode, 2)
                 self.assertIn("gain codes require", result.stderr)
 
+    def test_faster_vblank_is_rejected_on_old_kernel_and_checks_shutter_limit(self):
+        sensor = {"row_us": 6.8, "height": 720, "controls": {
+            "exposure": {"min": 2, "max": 1476}, "vertical_blanking": {"min": 762, "max": 64820}}}
+        with self.assertRaisesRegex(RuntimeError, "matching kernel required"):
+            tool["exposure_lines"](sensor, 4998, 506)
+        sensor["controls"]["vertical_blanking"]["min"] = 506
+        self.assertEqual(tool["exposure_lines"](sensor, 4998, 506), 735)
+        with self.assertRaisesRegex(RuntimeError, "exceeds current sensor range"):
+            tool["exposure_lines"](sensor, 9000, 506)
+
+    def test_invalid_encoder_fps_is_rejected_before_remote_access(self):
+        for executable in ("test-ar0234-readout", "test-aura-software-baseline"):
+            result = subprocess.run([str(ROOT / "tools" / executable), "--camera", "dual", "--output", "/unused", "--fps", "241"],
+                                    text=True, capture_output=True, timeout=5)
+            self.assertEqual(result.returncode, 2)
+            self.assertIn("fps must be", result.stderr)
+
     def test_no_readout_must_fail_instead_of_claiming_zero_latency(self):
         with self.assertRaises(RuntimeError): tool["distribution"]([])
 

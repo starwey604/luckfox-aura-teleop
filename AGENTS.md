@@ -119,6 +119,11 @@ Order matters: apply the SDK patch stack and `select-teleop-board` before SDK bu
   Exposure values are sensor lines: 148/294/442 now mean ~1.0064/1.9992/3.0056ms.
   Do not reuse the old two-lane 13.6us conversion or compare only reported pixel_rate.
   The original two-lane profile is unchanged. No automatic flashing/reboot.
+  Kernel patch 22 separates the fast-readout minimum VBLANK506 (~119.95fps)
+  from its default762 (~99.23fps), and preserves user timing on repeated S_FMT.
+  #19 is compiled in `artifacts/ar0234-120fps-20261015/image/` but needs user
+  flashing and hardware validation; do not describe 120fps as already tested.
+  For the candidate, use VERTICAL_BLANKING=506 and FPS=120, retaining exposure735/gain48/512.
 - The sensor registers three 1280×1080 modes (RAW12 30 fps, RAW10 60 fps, RAW10 ~117 fps); there
   is no native 720p mode. A `mia1321_linear_10_1280x720_regs` table actually registers 1280×1080@30.
 - For high-fps bring-up verify `dmesg` shows `dphy0, data_rate_mbps 1728`, then run a 120-frame
@@ -134,7 +139,7 @@ Order matters: apply the SDK patch stack and `select-teleop-board` before SDK bu
   runs bounded real-board restart, fault-injection, process-lock and signal tests.
   Stereo uses one `aura-sender --dual` process/SYS session; do not launch two MPI sender processes.
 - For observer-effect controls, `test-aura-software-baseline --minimal` disables live
-  kernel/thread sampling and stage metrics and starts the sender directly. Netconsole
+  kernel/thread sampling and stage metrics (unless `--stage-metrics` is explicit), and starts the sender directly. Netconsole
   capture defaults to console level 1 (emergency only); do not automatically re-enable
   verbose level 8 after its SYS_Exit lockup reproduction. `AURA_FAIL_AFTER=system.initialized`
   probes SYS_Init/WaitFreeMB/Exit without cameras; exit 1 is expected for that injection.

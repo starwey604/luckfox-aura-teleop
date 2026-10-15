@@ -1,0 +1,80 @@
+{
+  "status": "compiled; hardware 120fps validation requires user flashing",
+  "kernel_version": "#define UTS_VERSION \"#19 SMP PREEMPT Thu Oct 15 13:06:22 CST 2026\"",
+  "kernel_commit": "c3fde23bf",
+  "effective_config_diff_from_18": {},
+  "kernel_config_sha256": "f8743b202a6a8aed9051b842555e832824d0cc42c87f5d45482ec6b235f19b4e",
+  "fit_payload_sha256": {
+    "kernel": "3f2d29d03cdc4687609134a0105ae340955a158e350b7b0fe233efd6b1ff7869",
+    "fdt": "98bbe0febcca7faa8b2868edf204dbbfaf9849720f9b23ef78106e37d114443e",
+    "resource": "e30b8fc973f8c7a281cc56779d21655a73ad7eed61faa003e3976bdc56f22913"
+  },
+  "images": {
+    ".env.txt": {
+      "bytes": 227,
+      "sha256": "210cb86c4c37f037a37a8932ca4c368bf56133281ad30e8041dc3a215f97e542"
+    },
+    "boot.img": {
+      "bytes": 11391488,
+      "sha256": "37d598e66419ec7e02df59ffeb3b23a08a7ca51c1361ffe53b859f4ebbf1a503"
+    },
+    "download.bin": {
+      "bytes": 448960,
+      "sha256": "f8c0118ed361448e83d7bef12f6d4983d8891f1d9e130219a7ce325fa4251642"
+    },
+    "env.img": {
+      "bytes": 32768,
+      "sha256": "b328c39b437d60a7d21f005efebc0624c5d9fb8b4ad65da45bbdeeb143922b04"
+    },
+    "idblock.img": {
+      "bytes": 311296,
+      "sha256": "f91ad48bb4d6925a71c30b2fdaa9d3bc1b24bfdf5a1d3da927882575007e22a3"
+    },
+    "oem.img": {
+      "bytes": 263888896,
+      "sha256": "3fc45be864c6e044b98dcab276bfa216fa52b89de182843c4f0c1d3f427728bf"
+    },
+    "rootfs.img": {
+      "bytes": 397290496,
+      "sha256": "e75283308beffaede33f4b91f3b4f5640b16a9b0ba21a3d5eeb7098fcba8ae04"
+    },
+    "sd_update.txt": {
+      "bytes": 1116,
+      "sha256": "228fcb3b67ee08d092faf24ae72e7df8e4839672c817374dca874d23ad3dc927"
+    },
+    "tftp_update.txt": {
+      "bytes": 1068,
+      "sha256": "e3a63d4ea2a59fa9815c82f045db100a0d8c843a47d7e9505672505515cc2a02"
+    },
+    "uboot.img": {
+      "bytes": 524288,
+      "sha256": "c766c45355c7b33477167b2be21bd5bfdcd734f15a25004fb65eaa35c251b323"
+    },
+    "update.img": {
+      "bytes": 313246282,
+      "sha256": "e38c0338886ca497bc0b1fa5b74e18f4ee73015ce9afa4b90ad9c76db211ee0a"
+    },
+    "userdata.img": {
+      "bytes": 36192256,
+      "sha256": "c63f1a7c6412142f8c1e22bd6020012c8c8a414cc07ac23177bdfec7f3b8df17"
+    }
+  },
+  "runtime_backup": {
+    "diagnose-ar0234": "3e15d5e1d3a5e02017b989f54bebe67a156f4b603bdafba7d1fab710e172b121",
+    "run-ar0234-stereo": "214ba50faf169f86acdd99e1161c1a57455fe671f2865573ed251227daee87b8",
+    "teleop-sender": "06583eb5ab52c824f2d8fab1cbea24839fb81aef547060e9d84eb900456a33bd"
+  },
+  "planned": {
+    "default_vblank": 762,
+    "default_fps": 99.2299753909661,
+    "minimum_vblank": 506,
+    "fll_register_at_120fps": 1221,
+    "total_lines": 1226,
+    "period_ms": 8.336799999999998,
+    "fps": 119.95010075808463,
+    "blank_time_ms": 3.4408,
+    "exposure_ms": 4.998,
+    "active_rows_budget_ms": 4.896
+  },
+  "saved_directory": "artifacts/ar0234-120fps-20261015"
+}
