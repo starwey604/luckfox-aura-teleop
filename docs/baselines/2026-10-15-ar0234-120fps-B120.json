@@ -1,0 +1,466 @@
+{
+  "kernel": "6.1.141 #19 SMP PREEMPT Thu Oct 15 13:06:22 CST 2026",
+  "boot_id": "9183cb9c-73b7-47ff-a8c6-f22ada820f7a",
+  "success": true,
+  "scope": "bounded mono0, mono1, then single-process stereo; native CachyOS headless VAAPI decode; no optical or long-run validation",
+  "theoretical": {
+    "row_us": 6.8,
+    "total_lines": 1226,
+    "period_ms": 8.3368,
+    "fps": 119.95010075808463,
+    "active_readout_budget_ms": 4.896
+  },
+  "total_encoded_and_hardware_decoded_frames": 480,
+  "initial_and_restored_controls": {
+    "exposure": 1028,
+    "analogue_gain": 13,
+    "digital_gain": 128,
+    "vertical_blanking": 762
+  },
+  "final_temperature_c": 45.25,
+  "sender_sha256": "06583eb5ab52c824f2d8fab1cbea24839fb81aef547060e9d84eb900456a33bd",
+  "baseline": "docs/baselines/2026-10-15-ar0234-120fps-A99.json",
+  "comparison_mean_ms": {
+    "0": {
+      "A99_cif_period": 10.077,
+      "B120_cif_period": 8.3364375,
+      "A99_cif_readout": 4.882130434782609,
+      "B120_cif_readout": 4.8936874999999995,
+      "A99_sender_au_interval": 10.072527,
+      "B120_sender_au_interval": 8.322679,
+      "A99_host_au_interval": 10.06528,
+      "B120_host_au_interval": 8.315413
+    },
+    "1": {
+      "A99_cif_period": 10.07513043478261,
+      "B120_cif_period": 8.3375625,
+      "A99_cif_readout": 4.887434782608696,
+      "B120_cif_readout": 4.89725,
+      "A99_sender_au_interval": 10.07074,
+      "B120_sender_au_interval": 8.345792,
+      "A99_host_au_interval": 10.069899,
+      "B120_host_au_interval": 8.347262
+    }
+  },
+  "runs": [
+    {
+      "camera": "0",
+      "success": true,
+      "frames_per_camera": 120,
+      "controls": {
+        "exposure": 735,
+        "analogue_gain": 48,
+        "digital_gain": 512,
+        "vertical_blanking": 506
+      },
+      "encoder_fps": 120,
+      "actual_exposure_us": {
+        "0": 4998.0
+      },
+      "frame_period": {
+        "0": {
+          "observed_samples": 16,
+          "mean_ms": 8.3270625,
+          "min_ms": 8.296,
+          "max_ms": 8.347,
+          "p50_ms": 8.335,
+          "p95_ms": 8.347,
+          "p99_ms": 8.347
+        }
+      },
+      "readout": {
+        "0": {
+          "observed_samples": 16,
+          "mean_ms": 4.88925,
+          "min_ms": 4.851,
+          "max_ms": 4.937,
+          "p50_ms": 4.892,
+          "p95_ms": 4.937,
+          "p99_ms": 4.937
+        }
+      },
+      "stage_metrics": {
+        "sender.au_interval": {
+          "samples": 119.0,
+          "min": 7.735,
+          "mean": 8.346946,
+          "p50": 8.388607,
+          "p95": 8.781823,
+          "p99": 8.912895,
+          "max": 10.2095,
+          "approx_fps_from_mean": 119.80429728430013
+        },
+        "host.stream0.au_interval": {
+          "samples": 119.0,
+          "min": 6.68638,
+          "mean": 8.339719,
+          "p50": 8.388607,
+          "p95": 8.650751,
+          "p99": 8.650751,
+          "max": 10.282599,
+          "approx_fps_from_mean": 119.90811680825216
+        },
+        "host.stream0.au_queue_wait": {
+          "samples": 120.0,
+          "min": 0.0054,
+          "mean": 0.014418,
+          "p50": 0.010111,
+          "p95": 0.032255,
+          "p99": 0.041471,
+          "max": 0.050068
+        },
+        "host.stream0.au_ready_to_frame": {
+          "samples": 120.0,
+          "min": 0.080598,
+          "mean": 0.16132,
+          "p50": 0.120831,
+          "p95": 0.212991,
+          "p99": 0.679935,
+          "max": 3.038859
+        }
+      },
+      "transport": {
+        "access_units": 120,
+        "datagrams": 3250,
+        "bytes": 3823670,
+        "malformed": 0,
+        "duplicates": 0,
+        "dropped": 0
+      },
+      "decoders": {
+        "0": {
+          "frames": 120,
+          "hardware_frames": 120
+        }
+      },
+      "queues": {
+        "0": {
+          "enqueued": 120,
+          "peak_depth": 1,
+          "peak_bytes": 77765,
+          "overflows": 0,
+          "mailbox_replaced": 0,
+          "displayed": 0,
+          "last_decoded": 120,
+          "last_presented": 0,
+          "remaining_depth": 0,
+          "remaining_bytes": 0
+        }
+      },
+      "same_boot": true,
+      "controls_restored": true,
+      "critical_kernel_issue": false,
+      "bsp_advisories": [],
+      "raw_report": "artifacts/ar0234-120fps-20261015/B120-camera0/result.json"
+    },
+    {
+      "camera": "1",
+      "success": true,
+      "frames_per_camera": 120,
+      "controls": {
+        "exposure": 735,
+        "analogue_gain": 48,
+        "digital_gain": 512,
+        "vertical_blanking": 506
+      },
+      "encoder_fps": 120,
+      "actual_exposure_us": {
+        "1": 4998.0
+      },
+      "frame_period": {
+        "1": {
+          "observed_samples": 17,
+          "mean_ms": 8.332176470588236,
+          "min_ms": 8.298,
+          "max_ms": 8.34,
+          "p50_ms": 8.336,
+          "p95_ms": 8.34,
+          "p99_ms": 8.34
+        }
+      },
+      "readout": {
+        "1": {
+          "observed_samples": 17,
+          "mean_ms": 4.888117647058824,
+          "min_ms": 4.848,
+          "max_ms": 4.896,
+          "p50_ms": 4.893,
+          "p95_ms": 4.896,
+          "p99_ms": 4.896
+        }
+      },
+      "stage_metrics": {
+        "sender.au_interval": {
+          "samples": 119.0,
+          "min": 7.644583,
+          "mean": 8.344853,
+          "p50": 8.388607,
+          "p95": 8.781823,
+          "p99": 9.043967,
+          "max": 9.998042,
+          "approx_fps_from_mean": 119.83434579374854
+        },
+        "host.stream1.au_interval": {
+          "samples": 119.0,
+          "min": 7.367115,
+          "mean": 8.345728,
+          "p50": 8.388607,
+          "p95": 8.650751,
+          "p99": 8.650751,
+          "max": 10.224623,
+          "approx_fps_from_mean": 119.82178187451113
+        },
+        "host.stream1.au_queue_wait": {
+          "samples": 120.0,
+          "min": 0.005691,
+          "mean": 0.010367,
+          "p50": 0.008959,
+          "p95": 0.024575,
+          "p99": 0.028927,
+          "max": 0.032303
+        },
+        "host.stream1.au_ready_to_frame": {
+          "samples": 120.0,
+          "min": 0.074416,
+          "mean": 0.164772,
+          "p50": 0.114687,
+          "p95": 0.270335,
+          "p99": 0.688127,
+          "max": 3.005066
+        }
+      },
+      "transport": {
+        "access_units": 120,
+        "datagrams": 3212,
+        "bytes": 3784404,
+        "malformed": 0,
+        "duplicates": 0,
+        "dropped": 0
+      },
+      "decoders": {
+        "0": {
+          "frames": 0,
+          "hardware_frames": 0
+        },
+        "1": {
+          "frames": 120,
+          "hardware_frames": 120
+        }
+      },
+      "queues": {
+        "0": {
+          "enqueued": 0,
+          "peak_depth": 0,
+          "peak_bytes": 0,
+          "overflows": 0,
+          "mailbox_replaced": 0,
+          "displayed": 0,
+          "last_decoded": 0,
+          "last_presented": 0,
+          "remaining_depth": 0,
+          "remaining_bytes": 0
+        },
+        "1": {
+          "enqueued": 120,
+          "peak_depth": 1,
+          "peak_bytes": 94652,
+          "overflows": 0,
+          "mailbox_replaced": 0,
+          "displayed": 0,
+          "last_decoded": 120,
+          "last_presented": 0,
+          "remaining_depth": 0,
+          "remaining_bytes": 0
+        }
+      },
+      "same_boot": true,
+      "controls_restored": true,
+      "critical_kernel_issue": false,
+      "bsp_advisories": [],
+      "raw_report": "artifacts/ar0234-120fps-20261015/B120-camera1/result.json"
+    },
+    {
+      "camera": "dual",
+      "success": true,
+      "frames_per_camera": 120,
+      "controls": {
+        "exposure": 735,
+        "analogue_gain": 48,
+        "digital_gain": 512,
+        "vertical_blanking": 506
+      },
+      "encoder_fps": 120,
+      "actual_exposure_us": {
+        "0": 4998.0,
+        "1": 4998.0
+      },
+      "frame_period": {
+        "0": {
+          "observed_samples": 16,
+          "mean_ms": 8.3364375,
+          "min_ms": 8.333,
+          "max_ms": 8.341,
+          "p50_ms": 8.336,
+          "p95_ms": 8.341,
+          "p99_ms": 8.341
+        },
+        "1": {
+          "observed_samples": 16,
+          "mean_ms": 8.3375625,
+          "min_ms": 8.335,
+          "max_ms": 8.342,
+          "p50_ms": 8.337,
+          "p95_ms": 8.342,
+          "p99_ms": 8.342
+        }
+      },
+      "readout": {
+        "0": {
+          "observed_samples": 16,
+          "mean_ms": 4.8936874999999995,
+          "min_ms": 4.89,
+          "max_ms": 4.897,
+          "p50_ms": 4.893,
+          "p95_ms": 4.897,
+          "p99_ms": 4.897
+        },
+        "1": {
+          "observed_samples": 16,
+          "mean_ms": 4.89725,
+          "min_ms": 4.894,
+          "max_ms": 4.902,
+          "p50_ms": 4.896,
+          "p95_ms": 4.902,
+          "p99_ms": 4.902
+        }
+      },
+      "stage_metrics": {
+        "stream1.sender.au_interval": {
+          "samples": 119.0,
+          "min": 7.920792,
+          "mean": 8.345792,
+          "p50": 8.388607,
+          "p95": 8.650751,
+          "p99": 8.912895,
+          "max": 10.152042,
+          "approx_fps_from_mean": 119.82086301695514
+        },
+        "stream0.sender.au_interval": {
+          "samples": 119.0,
+          "min": 7.265708,
+          "mean": 8.322679,
+          "p50": 8.388607,
+          "p95": 8.781823,
+          "p99": 9.035834,
+          "max": 9.035834,
+          "approx_fps_from_mean": 120.15361880471418
+        },
+        "host.stream0.au_interval": {
+          "samples": 119.0,
+          "min": 6.473051,
+          "mean": 8.315413,
+          "p50": 8.388607,
+          "p95": 8.650751,
+          "p99": 8.781823,
+          "max": 8.972883,
+          "approx_fps_from_mean": 120.25860892297233
+        },
+        "host.stream1.au_interval": {
+          "samples": 119.0,
+          "min": 6.05774,
+          "mean": 8.347262,
+          "p50": 8.388607,
+          "p95": 8.650751,
+          "p99": 9.830399,
+          "max": 10.485166,
+          "approx_fps_from_mean": 119.79976188599326
+        },
+        "host.stream1.au_queue_wait": {
+          "samples": 120.0,
+          "min": 0.004469,
+          "mean": 0.012614,
+          "p50": 0.008447,
+          "p95": 0.023295,
+          "p99": 0.030975,
+          "max": 0.040089
+        },
+        "host.stream1.au_ready_to_frame": {
+          "samples": 120.0,
+          "min": 0.082511,
+          "mean": 0.153384,
+          "p50": 0.116735,
+          "p95": 0.202751,
+          "p99": 0.712703,
+          "max": 2.604006
+        },
+        "host.stream0.au_queue_wait": {
+          "samples": 120.0,
+          "min": 0.004769,
+          "mean": 0.008708,
+          "p50": 0.007231,
+          "p95": 0.012159,
+          "p99": 0.036863,
+          "max": 0.040068
+        },
+        "host.stream0.au_ready_to_frame": {
+          "samples": 120.0,
+          "min": 0.080206,
+          "mean": 0.147052,
+          "p50": 0.108543,
+          "p95": 0.200703,
+          "p99": 0.491519,
+          "max": 3.109803
+        }
+      },
+      "transport": {
+        "access_units": 240,
+        "datagrams": 6444,
+        "bytes": 7583154,
+        "malformed": 0,
+        "duplicates": 0,
+        "dropped": 0
+      },
+      "decoders": {
+        "0": {
+          "frames": 120,
+          "hardware_frames": 120
+        },
+        "1": {
+          "frames": 120,
+          "hardware_frames": 120
+        }
+      },
+      "queues": {
+        "0": {
+          "enqueued": 120,
+          "peak_depth": 1,
+          "peak_bytes": 107416,
+          "overflows": 0,
+          "mailbox_replaced": 0,
+          "displayed": 0,
+          "last_decoded": 120,
+          "last_presented": 0,
+          "remaining_depth": 0,
+          "remaining_bytes": 0
+        },
+        "1": {
+          "enqueued": 120,
+          "peak_depth": 1,
+          "peak_bytes": 94342,
+          "overflows": 0,
+          "mailbox_replaced": 0,
+          "displayed": 0,
+          "last_decoded": 120,
+          "last_presented": 0,
+          "remaining_depth": 0,
+          "remaining_bytes": 0
+        }
+      },
+      "same_boot": true,
+      "controls_restored": true,
+      "critical_kernel_issue": false,
+      "bsp_advisories": [],
+      "raw_report": "artifacts/ar0234-120fps-20261015/B120-dual/result.json"
+    }
+  ]
+}

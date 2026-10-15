@@ -1,5 +1,5 @@
 {
-  "status": "compiled; hardware 120fps validation requires user flashing",
+  "status": "user flashed #19; bounded mono0/mono1/stereo ~119.95fps hardware validation passed",
   "kernel_version": "#define UTS_VERSION \"#19 SMP PREEMPT Thu Oct 15 13:06:22 CST 2026\"",
   "kernel_commit": "c3fde23bf",
   "effective_config_diff_from_18": {},
@@ -76,5 +76,6 @@
     "exposure_ms": 4.998,
     "active_rows_budget_ms": 4.896
   },
-  "saved_directory": "artifacts/ar0234-120fps-20261015"
+  "saved_directory": "artifacts/ar0234-120fps-20261015",
+  "hardware_validation": "docs/baselines/2026-10-15-ar0234-120fps-B120.json"
 }
