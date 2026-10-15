@@ -61,7 +61,7 @@ def host_policy_snapshot():
         "host_temperatures": {str(p): read(p) for p in Path("/sys/class/hwmon").glob("hwmon*/temp*_input")}}
 
 
-def controls_script(camera, vertical_blanking, sysfs_root="/sys/class/video4linux"):
+def controls_script(camera, vertical_blanking, sysfs_root="/sys/class/video4linux", exposure=735):
     # Keep wildcard prefixes active; quote the spaces in the sensor names.
     patterns = {"0": '*"ar0234 4-0010"', "1": '*"ar0234 3-0010"',
                 "dual": '*"ar0234 4-0010"|*"ar0234 3-0010"'}
@@ -72,7 +72,7 @@ def controls_script(camera, vertical_blanking, sysfs_root="/sys/class/video4linu
 for p in {shlex.quote(str(sysfs_root))}/v4l-subdev*; do
 case "$(cat "$p/name")" in {patterns[camera]})
 node=$(basename "$p")
-{vblank}v4l2-ctl -d "/dev/$node" --set-ctrl=exposure=735,analogue_gain=32,digital_gain=512,test_pattern=0 || exit
+{vblank}v4l2-ctl -d "/dev/$node" --set-ctrl=exposure={exposure},analogue_gain=32,digital_gain=512,test_pattern=0 || exit
 matched=$((matched + 1))
 ;; esac
 done
@@ -86,6 +86,7 @@ def main():
     parser.add_argument("--allow-long", action="store_true", help="Explicitly allow more than 300 frames after cooling is arranged")
     parser.add_argument("--start-temp-c", type=int, default=70, help="Refuse camera start at or above this temperature")
     parser.add_argument("--vertical-blanking", type=int, help="Optional diagnostic sensor VBLANK; changes capture fps")
+    parser.add_argument("--exposure-lines", type=int, default=735, help="Sensor integration lines (default: 735)")
     parser.add_argument("--port", type=int, default=5000)
     parser.add_argument("--mode", choices=("decode", "transport"), default="decode")
     parser.add_argument("--output-mode", choices=("frame", "slice"), default="frame")
@@ -123,6 +124,8 @@ def main():
         parser.error("H.264 recording requires non-minimal dual launcher")
     if args.vertical_blanking is not None and args.vertical_blanking < 21:
         parser.error("AR0234 VBLANK must be >=21")
+    if not 2 <= args.exposure_lines <= 65534:
+        parser.error("AR0234 exposure must be 2..65534 lines")
     if args.frames <= 0 or not 0 < args.port < 65536:
         parser.error("Invalid frame count/port")
     if args.frames > 300 and not args.allow_long:
@@ -161,6 +164,7 @@ def main():
               "cpu_latency_us": args.cpu_latency_us,
               "worker_scheduling": {"rx_cpu": args.rx_cpu, "decode0_cpu": args.decode0_cpu, "decode1_cpu": args.decode1_cpu, "rx_rr_priority": args.rx_rr_priority},
               "mode": args.mode, "port": args.port, "vertical_blanking": args.vertical_blanking,
+              "exposure_lines": args.exposure_lines,
               "output_mode": args.output_mode, "force_stream_parser": args.force_stream_parser,
               "minimal": args.minimal, "success": False}
     limit = max(20, args.frames // 90 + 20)
@@ -214,6 +218,7 @@ def main():
         if args.camera == "dual" and not args.minimal:
             command = ["env", "TELEOP_METRICS=1", "AURA_LIFECYCLE_TRACE=1", "SENDER=" + args.sender,
                        "PORT=" + str(args.port), "WRAP_LINES=0",
+                       "EXPOSURE=" + str(args.exposure_lines),
                        "OUTPUT_MODE=" + args.output_mode,
                        "REPORT_DIR=" + directory,
                        args.launcher, "--frames", str(args.frames)]
@@ -222,7 +227,7 @@ def main():
             if args.vertical_blanking is not None: command.insert(2, "VERTICAL_BLANKING=" + str(args.vertical_blanking))
             controls = ""
         else:
-            controls = controls_script(args.camera, args.vertical_blanking)
+            controls = controls_script(args.camera, args.vertical_blanking, exposure=args.exposure_lines)
             camera_flags = ["--dual"] if args.camera == "dual" else ["--camera", args.camera]
             command = ["env", "TELEOP_METRICS=" + metrics, "AURA_LIFECYCLE_TRACE=" + metrics, args.sender] + camera_flags + [
                        "--width", "1280", "--height", "720", "--fps", "100",

@@ -1,0 +1,309 @@
+#!/usr/bin/env python3
+"""Audit sensor timing over SSH; bounded MPI tests sample existing CIF IRQ statistics.
+
+No raw I2C writes, lane/PLL changes, flashing or rebooting. Hardware tests require
+a verified live USB log, and restore the original sensor controls on exit.
+"""
+import argparse
+import json
+import math
+import os
+from pathlib import Path
+import re
+import shlex
+import subprocess
+import sys
+import time
+
+ROOT = Path(__file__).resolve().parents[1]
+CONTROLS = ("vertical_blanking", "exposure", "analogue_gain", "digital_gain", "test_pattern")
+AUDIT = r'''set -eu
+echo BOOT=$(cat /proc/sys/kernel/random/boot_id)
+uname -a
+zcat /proc/config.gz | grep -E 'CONFIG_(VIDEO_AR0234|FTRACE|KPROBES)='
+for p in /sys/class/video4linux/v4l-subdev*/name; do
+    name=$(cat "$p")
+    case "$name" in *ar0234*)
+        node=${p%/name}; node=${node##*/}
+        bus=${name##* }
+        echo "@@SENSOR $node $name"
+        v4l2-ctl -d "/dev/$node" --list-ctrls-menus
+        v4l2-ctl -d "/dev/$node" --get-subdev-fmt
+        echo @@LANES
+        od -An -tu1 "/sys/bus/i2c/devices/$bus/of_node/port/endpoint/data-lanes"
+        echo @@END
+    ;; esac
+done
+'''
+
+
+def parse_audit(text):
+    sensors = {}
+    for match in re.finditer(r"@@SENSOR (v4l-subdev\d+) (.*?)\n(.*?)@@END", text, re.S):
+        node, name, body = match.groups()
+        index = re.match(r"m0([01])_.*ar0234 ", name)
+        if not index:
+            raise RuntimeError("Unknown AR0234 module index: " + name)
+        controls = {}
+        for row in body.splitlines():
+            ctrl = re.match(r"\s*(\w+) 0x[\da-f]+ .*?\bmin=(-?\d+).*?\bmax=(-?\d+).*?\bvalue=(-?\d+)(.*)", row)
+            if ctrl:
+                key, low, high, value, flags = ctrl.groups()
+                controls[key] = {"min": int(low), "max": int(high), "value": int(value),
+                                 "read_only": "read-only" in flags}
+        lane_bytes = bytes(int(x) for x in body.split("@@LANES\n", 1)[1].split())
+        if len(lane_bytes) % 4:
+            raise RuntimeError("Invalid DT data-lanes")
+        lanes = [int.from_bytes(lane_bytes[i:i + 4], "big") for i in range(0, len(lane_bytes), 4)]
+        size = re.search(r"Width/Height\s*:\s*(\d+)/(\d+)", body)
+        if not size or any(key not in controls for key in (*CONTROLS, "pixel_rate", "horizontal_blanking")):
+            raise RuntimeError("Incomplete sensor controls/format: " + name)
+        width, height = map(int, size.groups())
+        row_us = (width + controls["horizontal_blanking"]["value"]) / controls["pixel_rate"]["value"] * 1e6
+        if width != 1280 or height != 720 or lanes not in ([1, 2], [1, 2, 3, 4]):
+            raise RuntimeError("Expected straight-lane 1280x720 sensor mode")
+        key = index[1]
+        if key in sensors:
+            raise RuntimeError("Duplicate sensor index " + key)
+        sensors[key] = {"node": "/dev/" + node, "name": name, "lanes": lanes, "controls": controls,
+                        "width": width, "height": height, "row_us": row_us,
+                        "active_rows_budget_ms": height * row_us / 1000,
+                        "frame_period_budget_ms": (height + controls["vertical_blanking"]["value"]) * row_us / 1000}
+    if not sensors:
+        raise RuntimeError("No AR0234 sensors found")
+    return sensors
+
+
+def exposure_lines(sensor, microseconds):
+    lines = round(microseconds / sensor["row_us"])
+    control = sensor["controls"]["exposure"]
+    if not control["min"] <= lines <= control["max"]:
+        raise RuntimeError(f"Requested exposure {microseconds}us exceeds current sensor range")
+    return lines
+
+
+def proc_samples(text):
+    """Keep one observed value per frame; these are polled snapshots, not every IRQ."""
+    samples = {"0": [], "1": []}
+    seen = set()
+    for sample in text.split("@@SAMPLE\n")[1:]:
+        for match in re.finditer(r"@@CAMERA ([01])\n(.*?)(?=@@CAMERA|\Z)", sample, re.S):
+            camera, body = match.groups()
+            frame = re.search(r"frame amount:\s*(\d+)", body)
+            readout = re.search(r"single readout:(\d+)\.(\d+) ms", body)
+            lanes = re.search(r"lanes:(\d+)", body)
+            if not frame or not readout or not lanes:
+                continue
+            number = int(frame[1])
+            # procfs prints '%u.%u': the remainder is microseconds WITHOUT padding.
+            # '9.8 ms' means 9ms + 8us, not 9.8ms. Do not parse it as a float.
+            ms = int(readout[1]) + int(readout[2]) / 1000
+            if number < 10 or ms <= 0 or (camera, number) in seen:
+                continue
+            seen.add((camera, number))
+            samples[camera].append({"observed_frame": number, "readout_ms": ms, "lanes": int(lanes[1])})
+    return samples
+
+
+def distribution(values):
+    if not values:
+        raise RuntimeError("No nonzero steady-state CIF readout samples")
+    ordered = sorted(values)
+    return {"observed_samples": len(values), "mean_ms": sum(values) / len(values),
+            "min_ms": ordered[0], "max_ms": ordered[-1],
+            **{f"p{p}_ms": ordered[max(0, math.ceil(len(values) * p / 100) - 1)] for p in (50, 95, 99)}}
+
+
+def kernel_issues(text):
+    # This exact BSP advisory is also present in the established codec baseline.
+    # It is a v4l2_warn(), not a WARN_ON/backtrace; retain it in the report.
+    advisory = re.compile(r"^.*;rkcif-mipi-lvds2?: Warning: vblank need >= 1000us if isp work in online, cur \d+ us$", re.M)
+    known = advisory.findall(text)
+    remaining = advisory.sub("", text)
+    critical = bool(re.search(r"WARNING:|BUG:|soft lockup|Kernel panic|Oops:|RCU.*stall|ERR[12]:|ecc.*error|crc.*error",
+                              remaining, re.I))
+    return known, critical
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--host", default="root@192.168.1.10")
+    parser.add_argument("--adb-serial", default="4a988b5514157df5")
+    parser.add_argument("--output", type=Path, required=True)
+    parser.add_argument("--audit-only", action="store_true", help="Read-only controls and DT; no USB or cameras required")
+    parser.add_argument("--expect-lanes", type=int, choices=(2, 4))
+    parser.add_argument("--camera", choices=("0", "1", "dual"), default="dual")
+    parser.add_argument("--exposure-us", type=int, nargs="+", default=[1000, 3000])
+    parser.add_argument("--frames", type=int, default=120)
+    parser.add_argument("--port", type=int, default=5500)
+    args = parser.parse_args()
+    if not 1 <= args.frames <= 120 or not 1 <= len(args.exposure_us) <= 3 or any(x <= 0 for x in args.exposure_us):
+        parser.error("Use 1..120 frames and 1..3 positive exposure durations")
+    if not 1 <= args.port <= 65535:
+        parser.error("Invalid port")
+    if not args.audit_only and (Path("/run/.containerenv").exists() or Path("/.dockerenv").exists()):
+        parser.error("Camera/VAAPI tests must run on native CachyOS")
+    args.output.mkdir(parents=True, exist_ok=False)
+    ssh = ["ssh", "-o", "ConnectTimeout=5", "-o", "ServerAliveInterval=2", "-o", "ServerAliveCountMax=2", args.host]
+    if "SSHPASS" in os.environ:
+        ssh = ["sshpass", "-e", *ssh]
+    adb = ["adb", "-s", args.adb_serial, "shell"]
+
+    def remote(command, timeout=15):
+        return subprocess.check_output([*ssh, command], text=True, stderr=subprocess.STDOUT, timeout=timeout)
+
+    def stop_owned(pid, marker, usb=False):
+        if pid is None:
+            return
+        command = f"tr '\\000' ' ' </proc/{pid}/cmdline | grep -Fq {shlex.quote(marker)} && kill -TERM {pid}"
+        subprocess.run([*(adb if usb else ssh), command], capture_output=True, timeout=10)
+
+    audit = remote(AUDIT)
+    (args.output / "audit-before.txt").write_text(audit)
+    initial = parse_audit(audit)
+    selected = ("0", "1") if args.camera == "dual" else (args.camera,)
+    if any(camera not in initial for camera in selected):
+        raise RuntimeError("Requested camera not present")
+    report = {"success": False, "audit": initial, "runs": [], "controls_restored": False,
+              "sampling": "50ms procfs snapshots; >=frame10, one sample per observed frame; not an every-frame distribution"}
+    (args.output / "result.json").write_text(json.dumps(report, indent=2) + "\n")
+    if args.expect_lanes and any(len(initial[c]["lanes"]) != args.expect_lanes for c in selected):
+        reason = "Lane mismatch: builtin sensor driver + DT need a matching image; no test or register write performed"
+        report.update(error=reason, needs_matching_image=True)
+        (args.output / "result.json").write_text(json.dumps(report, indent=2) + "\n")
+        raise RuntimeError(reason)
+    if args.audit_only:
+        report.update(success=True, audit_only=True)
+        (args.output / "result.json").write_text(json.dumps(report, indent=2) + "\n")
+        print(json.dumps(report, indent=2))
+        return 0
+    planned = []
+    for us in args.exposure_us:
+        lines = {exposure_lines(initial[c], us) for c in selected}
+        if len(lines) != 1:
+            raise RuntimeError("Different sensor row times require separate camera tests")
+        planned.append((us, lines.pop()))
+    capture = None
+    reader_pid = None
+    mutated = False
+    marker = f"teleop-readout-{time.monotonic_ns()}"
+    log_path = args.output / "usb-kmsg.txt"
+    boot = re.search(r"^BOOT=(.*)$", audit, re.M)[1]
+    try:
+        with log_path.open("w") as log:
+            script = ('echo usb_reader_pid=$$\ncat /dev/kmsg &\nchild=$!\n'
+                      'trap \'kill "$child" 2>/dev/null; wait "$child" 2>/dev/null; exit 0\' TERM INT HUP\nwait "$child"')
+            capture = subprocess.Popen([*adb, "timeout 180 sh -c " + shlex.quote(script) + " " + marker],
+                                       stdout=log, stderr=subprocess.STDOUT)
+            time.sleep(.2)
+            subprocess.run([*adb, f"echo {marker} >/dev/kmsg"], check=True, timeout=10, stdout=subprocess.DEVNULL)
+            deadline = time.monotonic() + 5
+            while marker not in log_path.read_text(errors="replace"):
+                if capture.poll() is not None or time.monotonic() >= deadline:
+                    raise RuntimeError("USB live marker missing; no camera started")
+                time.sleep(.05)
+            reader_pid = re.search(r"usb_reader_pid=(\d+)", log_path.read_text())[1]
+            for index, (us, lines) in enumerate(planned):
+                if capture.poll() is not None:
+                    raise RuntimeError("USB log exited; no next camera test")
+                temps = remote("cat /sys/class/thermal/thermal_zone*/temp").split()
+                if not temps or max(map(int, temps)) >= 70000:
+                    raise RuntimeError("Board temperature >=70C or missing; no next camera test")
+                case = args.output / f"{index}-{us}us"
+                sampler_path = args.output / f"{index}-cif-proc.txt"
+                case_marker = f"{marker}-case{index}"
+                # No per-frame printk, ftrace changes or video-node MMAP ownership.
+                sample_script = 'echo sampler_pid=$$; trap "exit 0" TERM INT HUP\nwhile :; do\necho @@SAMPLE\n'
+                for camera in selected:
+                    proc = "/proc/rkcif-mipi-lvds" + ("2" if camera == "1" else "")
+                    sample_script += f"echo @@CAMERA {camera}; cat {proc}\n"
+                sample_script += "sleep .05\ndone"
+                sampler = None
+                sampler_pid = None
+                try:
+                    with sampler_path.open("w") as samples:
+                        sampler = subprocess.Popen([*ssh, "timeout -s TERM -k 1 45 sh -c " + shlex.quote(sample_script) + " " + case_marker],
+                                                   stdout=samples, stderr=subprocess.STDOUT)
+                        deadline = time.monotonic() + 5
+                        while True:
+                            match = re.search(r"sampler_pid=(\d+)", sampler_path.read_text())
+                            if match:
+                                sampler_pid = match[1]
+                                break
+                            if sampler.poll() is not None or time.monotonic() >= deadline:
+                                raise RuntimeError("CIF sampler did not start")
+                            time.sleep(.05)
+                        command = [str(ROOT / "tools/test-aura-software-baseline"), "--host", args.host,
+                                   "--camera", args.camera, "--frames", str(args.frames), "--port", str(args.port),
+                                   "--exposure-lines", str(lines), "--minimal", "--output", str(case)]
+                        mutated = True
+                        with (args.output / f"{index}-test.txt").open("w") as output:
+                            subprocess.run(command, check=True, stdout=output, stderr=subprocess.STDOUT, timeout=60)
+                finally:
+                    if sampler is not None:
+                        try:
+                            stop_owned(sampler_pid, case_marker)
+                        finally:
+                            if sampler.poll() is None:
+                                sampler.terminate()
+                                try: sampler.wait(timeout=3)
+                                except subprocess.TimeoutExpired: sampler.kill(); sampler.wait()
+                observed = proc_samples(sampler_path.read_text())
+                distributions = {c: distribution([s["readout_ms"] for s in observed[c]]) for c in selected}
+                if any(s["lanes"] != len(initial[c]["lanes"]) for c in selected for s in observed[c]):
+                    raise RuntimeError("Runtime CIF lanes differ from sensor DT")
+                actual = remote(AUDIT)
+                (args.output / f"{index}-audit-after-run.txt").write_text(actual)
+                readback = parse_audit(actual)
+                if f"BOOT={boot}\n" not in actual or any(readback[c]["controls"]["exposure"]["value"] != lines for c in selected):
+                    raise RuntimeError("Exposure readback or boot ID changed")
+                tail = log_path.read_text(errors="replace").split(marker, 1)[1]
+                advisory, critical = kernel_issues(tail)
+                report["runs"].append({"requested_exposure_us": us, "exposure_lines": lines,
+                                       "actual_exposure_us": {c: lines * initial[c]["row_us"] for c in selected},
+                                       "readout": distributions, "samples": {c: observed[c] for c in selected},
+                                       "bsp_advisories_since_marker": advisory, "critical_kernel_issue": critical,
+                                       "software_test": str(case / "result.json")})
+                if critical:
+                    raise RuntimeError("New kernel/camera warning; stop remaining tests, inspect USB log")
+                print(f"exposure {us}us / {lines} lines: " + json.dumps(distributions), flush=True)
+            report["success"] = True
+    except (RuntimeError, OSError, subprocess.SubprocessError) as error:
+        report["error"] = str(error)
+        print("FAIL:", error, file=sys.stderr)
+    finally:
+        try:
+            if mutated:
+                for camera in selected:
+                    sensor = initial[camera]
+                    for names in (("vertical_blanking",), CONTROLS[1:]):
+                        values = ",".join(f"{name}={sensor['controls'][name]['value']}" for name in names)
+                        remote("v4l2-ctl -d " + shlex.quote(sensor["node"]) + " --set-ctrl=" + shlex.quote(values))
+            after = remote(AUDIT)
+            (args.output / "audit-after.txt").write_text(after)
+            restored = parse_audit(after)
+            report["same_boot"] = f"BOOT={boot}\n" in after
+            report["controls_restored"] = report["same_boot"] and all(
+                restored[c]["controls"][key]["value"] == initial[c]["controls"][key]["value"]
+                for c in selected for key in CONTROLS)
+        except (RuntimeError, OSError, subprocess.SubprocessError) as error:
+            report["restore_error"] = str(error)
+        if capture is not None:
+            try: stop_owned(reader_pid, marker, usb=True)
+            except subprocess.SubprocessError as error: report["usb_cleanup_error"] = str(error)
+            if capture.poll() is None:
+                capture.terminate()
+                try: capture.wait(timeout=3)
+                except subprocess.TimeoutExpired: capture.kill(); capture.wait()
+        report["success"] = report["success"] and report["controls_restored"]
+        (args.output / "result.json").write_text(json.dumps(report, indent=2) + "\n")
+    print("report:", args.output / "result.json")
+    return 0 if report["success"] else 1
+
+
+if __name__ == "__main__":
+    try:
+        sys.exit(main())
+    except (RuntimeError, OSError, subprocess.SubprocessError) as error:
+        print("test-ar0234-readout:", error, file=sys.stderr)
+        sys.exit(1)
