@@ -125,7 +125,10 @@ Order matters: apply the SDK patch stack and `select-teleop-board` before SDK bu
   bounded mono0/mono1/stereo tests (120 frames/camera; 480 total), all VAAPI decoded,
   zero new USB-logged kernel/CSI errors; actual dual CIF periods ~8.336/8.338ms.
   For ~119.95fps, use VERTICAL_BLANKING=506 and FPS=120, retaining exposure735/gain48/512.
-  Default762 (~99.23fps) remains; tests restore controls. This is not long-run or optical validation.
+  Kernel default762 (~99.23fps) remains. As of 2026-10-15, `run-ar0234-stereo`
+  explicitly defaults to VBLANK506/FPS120/exposure735/gain48/512 (environment overrides retained),
+  deployed and verified without camera overrides, 120 frames/stream. Standalone sender defaults
+  remain generic/MIA1321; use the launcher for AR0234. This is not long-run or optical validation.
 - The sensor registers three 1280×1080 modes (RAW12 30 fps, RAW10 60 fps, RAW10 ~117 fps); there
   is no native 720p mode. A `mia1321_linear_10_1280x720_regs` table actually registers 1280×1080@30.
 - For high-fps bring-up verify `dmesg` shows `dphy0, data_rate_mbps 1728`, then run a 120-frame

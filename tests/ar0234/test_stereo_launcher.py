@@ -57,6 +57,9 @@ time.sleep(0.3)
                         PROC_ROOT=str(self.base / 'proc'), CALLS=str(self.calls),
                         REPORT_DIR=str(self.base / 'report'), DIAGNOSTIC=str(self.bin / 'diagnostic'),
                         SENDER=str(self.bin / 'sender'))
+        for name in ('FPS', 'VERTICAL_BLANKING', 'EXPOSURE', 'ANALOGUE_GAIN', 'DIGITAL_GAIN',
+                     'BITRATE_KBPS', 'WRAP_LINES', 'OUTPUT_MODE', 'H264_DIR'):
+            self.env.pop(name, None)
 
     def write(self, name, content):
         path = self.bin / name
@@ -75,6 +78,8 @@ time.sleep(0.3)
         self.assertIn('diagnostic 1 --probe', calls)
         self.assertNotIn('control', calls)
         self.assertNotIn('sender', calls)
+        self.assertIn('fps=120 bitrate_kbps=30000', result.stdout)
+        self.assertIn('vertical_blanking=506 exposure=735 analogue_gain=48 digital_gain=512', result.stdout)
 
     def test_missing_second_camera_changes_neither_camera(self):
         result = self.run_launcher('--frames', '3', MISSING_CAMERA='1')
@@ -91,7 +96,10 @@ time.sleep(0.3)
         self.assertIn('sender --dual --width 1280 --height 720', calls)
         self.assertEqual(calls.count('--wrap-lines 0'), 1)
         self.assertIn('--output-mode frame', calls)
-        self.assertEqual(calls.count('exposure=735,analogue_gain=32,digital_gain=512,test_pattern=0'), 2)
+        self.assertIn('--fps 120', calls)
+        self.assertIn('--bitrate-kbps 30000', calls)
+        self.assertEqual(calls.count('exposure=735,analogue_gain=48,digital_gain=512,test_pattern=0'), 2)
+        self.assertEqual(calls.count('vertical_blanking=506'), 2)
 
     def test_slice_output_control(self):
         result = self.run_launcher('--frames', '3', OUTPUT_MODE='slice')
@@ -113,15 +121,18 @@ time.sleep(0.3)
         with self.assertRaises(ProcessLookupError):
             os.kill(pid, 0)
 
-    def test_optional_sensor_timing_is_applied_before_exposure(self):
-        result = self.run_launcher('--frames', '3', VERTICAL_BLANKING='80')
+    def test_overrides_restore_previous_timing_before_exposure(self):
+        result = self.run_launcher('--frames', '3', VERTICAL_BLANKING='762', FPS='100',
+                                   EXPOSURE='442', ANALOGUE_GAIN='32', DIGITAL_GAIN='256', BITRATE_KBPS='20000')
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
         lines = self.calls.read_text().splitlines()
         for index in (0, 1):
             prefix = f'control -d {self.base}/dev/v4l-subdev{index}'
-            blank = next(n for n, line in enumerate(lines) if prefix in line and 'vertical_blanking=80' in line)
-            expose = next(n for n, line in enumerate(lines) if prefix in line and 'exposure=735' in line)
+            blank = next(n for n, line in enumerate(lines) if prefix in line and 'vertical_blanking=762' in line)
+            expose = next(n for n, line in enumerate(lines) if prefix in line and 'exposure=442,analogue_gain=32,digital_gain=256' in line)
             self.assertLess(blank, expose)
+        self.assertIn('--fps 100', self.calls.read_text())
+        self.assertIn('--bitrate-kbps 20000', self.calls.read_text())
 
     def test_capture_only_runs_both_diagnostics(self):
         result = self.run_launcher('--capture-only', '--frames', '3')

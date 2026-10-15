@@ -4,11 +4,12 @@ set -eu
 
 usage() {
     echo 'usage: run-ar0234-stereo [--capture-only] [--frames N] [--dry-run]'
-    echo 'Environment: DESTINATION=192.168.1.2 PORT=5000 FPS=100 BITRATE_KBPS=30000'
-    echo '             EXPOSURE=735 ANALOGUE_GAIN=32 DIGITAL_GAIN=512 REPORT_DIR=/path'
+    echo 'Environment: DESTINATION=192.168.1.2 PORT=5000 FPS=120 BITRATE_KBPS=30000'
+    echo '             EXPOSURE=735 ANALOGUE_GAIN=48 DIGITAL_GAIN=512 REPORT_DIR=/path'
     echo '             WRAP_LINES=0 (full-frame path for stereo; mono sender defaults to 256)'
     echo '             OUTPUT_MODE=frame (SDK mode1 immediate AU); slice retains mode3 PTS grouping'
-    echo '             VERTICAL_BLANKING=N (optional sensor timing diagnostic; changes capture fps)'
+    echo '             VERTICAL_BLANKING=506 (requires #19 fastreadout; ~119.95 capture fps)'
+    echo '             For the previous ~99.23fps timing: VERTICAL_BLANKING=762 FPS=100'
     echo '             H264_DIR=/path (optional per-camera Annex-B recordings)'
     echo '             STARTUP_TIMEOUT=15 (wait for the shared sender to finish initialization)'
 }
@@ -34,16 +35,17 @@ sys=${SYS_ROOT:-/sys}
 dev=${DEV_ROOT:-/dev}
 destination=${DESTINATION:-192.168.1.2}
 port=${PORT:-5000}
-fps=${FPS:-100}
+fps=${FPS:-120}
+vertical_blanking=${VERTICAL_BLANKING:-506}
 bitrate=${BITRATE_KBPS:-30000}
 exposure=${EXPOSURE:-735}
-analogue=${ANALOGUE_GAIN:-32}
+analogue=${ANALOGUE_GAIN:-48}
 digital=${DIGITAL_GAIN:-512}
 wrap_lines=${WRAP_LINES:-0}
 output_mode=${OUTPUT_MODE:-frame}
 case "$output_mode" in frame|slice) ;; *) echo 'invalid OUTPUT_MODE' >&2; exit 2 ;; esac
 startup_timeout=${STARTUP_TIMEOUT:-15}
-for number in "$port" "$fps" "$bitrate" "$exposure" "$analogue" "$digital" "$wrap_lines" "$startup_timeout"; do
+for number in "$port" "$fps" "$vertical_blanking" "$bitrate" "$exposure" "$analogue" "$digital" "$wrap_lines" "$startup_timeout"; do
     case "$number" in ''|*[!0-9]*) echo 'expected decimal parameter' >&2; exit 2 ;; esac
 done
 [ -x "$diagnostic" ] || { echo "missing diagnostic: $diagnostic" >&2; exit 3; }
@@ -88,8 +90,8 @@ for camera in 0 1; do
 done
 
 if [ "$dry_run" = true ]; then
-    echo "dry run: $mode, 1280x720, frames=$frames, destination=$destination:$port"
-    echo "sensor controls: exposure=$exposure analogue_gain=$analogue digital_gain=$digital"
+    echo "dry run: $mode, 1280x720, frames=$frames, destination=$destination:$port, fps=$fps bitrate_kbps=$bitrate"
+    echo "sensor controls: vertical_blanking=$vertical_blanking exposure=$exposure analogue_gain=$analogue digital_gain=$digital"
     echo 'No control changes or capture/sender processes started.'
     exit 0
 fi
@@ -111,14 +113,9 @@ trap 'exit 130' INT
 trap 'exit 143' TERM
 trap 'exit 129' HUP
 
-if [ -n "${VERTICAL_BLANKING:-}" ]; then
-    case "$VERTICAL_BLANKING" in *[!0-9]*) echo 'invalid VERTICAL_BLANKING' >&2; exit 2;; esac
-fi
 for camera in 0 1; do
     sensor=$(cat "$report/camera$camera-sensor")
-    if [ -n "${VERTICAL_BLANKING:-}" ]; then
-        v4l2-ctl -d "$sensor" --set-ctrl="vertical_blanking=$VERTICAL_BLANKING"
-    fi
+    v4l2-ctl -d "$sensor" --set-ctrl="vertical_blanking=$vertical_blanking"
     v4l2-ctl -d "$sensor" \
         --set-ctrl="exposure=$exposure,analogue_gain=$analogue,digital_gain=$digital,test_pattern=0"
 done

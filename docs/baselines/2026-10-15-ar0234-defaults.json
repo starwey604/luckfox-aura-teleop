@@ -1,0 +1,67 @@
+{
+  "success": true,
+  "boot_id": "9183cb9c-73b7-47ff-a8c6-f22ada820f7a",
+  "camera_defaults_overridden": false,
+  "frames_per_camera": 120,
+  "port": 5500,
+  "kernel": "Linux luckfox 6.1.141 #19 SMP PREEMPT Thu Oct 15 13:06:22 CST 2026 aarch64 aarch64 aarch64 GNU/Linux",
+  "same_boot": true,
+  "controls": {
+    "exposure": 735,
+    "analogue_gain": 48,
+    "digital_gain": 512,
+    "vertical_blanking": 506
+  },
+  "critical_kernel_issue": false,
+  "bsp_advisories": [],
+  "launcher_sha256": "81ccfee494b4ff5c1d3c7646439ea548cf821efd223b478b26e457722b1e3b69",
+  "final_temperature_mC": 47980,
+  "actual_exposure_us": 4998,
+  "test_command": "PORT=5500 /userdata/run-ar0234-stereo --frames 120 (no camera parameter overrides; TELEOP_METRICS=1)",
+  "raw_report": "artifacts/codec-tuning-defaults-20261015/result.json",
+  "distrobox_launcher_tests": 8,
+  "transport": {
+    "access_units": 240,
+    "datagrams": 6504,
+    "bytes": 7664041,
+    "malformed": 0,
+    "duplicates": 0,
+    "dropped": 0
+  },
+  "decoders": {
+    "0": {
+      "frames": 120,
+      "hardware_frames": 120
+    },
+    "1": {
+      "frames": 120,
+      "hardware_frames": 120
+    }
+  },
+  "queues": {
+    "0": {
+      "enqueued": 120,
+      "peak_depth": 1,
+      "peak_bytes": 106765,
+      "overflows": 0,
+      "mailbox_replaced": 0,
+      "displayed": 0,
+      "last_decoded": 120,
+      "last_presented": 0,
+      "remaining_depth": 0,
+      "remaining_bytes": 0
+    },
+    "1": {
+      "enqueued": 120,
+      "peak_depth": 1,
+      "peak_bytes": 85109,
+      "overflows": 0,
+      "mailbox_replaced": 0,
+      "displayed": 0,
+      "last_decoded": 120,
+      "last_presented": 0,
+      "remaining_depth": 0,
+      "remaining_bytes": 0
+    }
+  }
+}
