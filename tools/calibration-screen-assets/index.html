@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="zh-CN">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>AR0234 色彩测试屏</title>
+<style>
+  * { box-sizing: border-box; }
+  html, body { margin: 0; width: 100%; height: 100%; overflow: hidden; background: #808080; }
+  #target { position: fixed; inset: 0; display: grid; }
+  #panel { position: fixed; top: max(10px, env(safe-area-inset-top)); left: 10px; right: 10px;
+    padding: 12px; background: #111e; color: white; border-radius: 10px;
+    font: 15px system-ui, sans-serif; }
+  #panel[hidden] { display: none; }
+  .buttons { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0; }
+  button, input { font: inherit; padding: 7px 10px; }
+  p { margin: 5px 0; }
+  #status { color: #eee; }
+</style>
+<div id="target" aria-label="色彩测试区域"></div>
+<div id="panel">
+  <b>AR0234 色彩测试屏</b> <span id="status">正在连接…</span>
+  <div class="buttons" id="presets"></div>
+  <div class="buttons">
+    <input id="colour" type="color" value="#808080" aria-label="自定义颜色">
+    <button id="custom">应用自定义颜色</button>
+    <button id="fullscreen">全屏</button>
+    <button id="hide">隐藏面板</button>
+  </div>
+  <p>关闭护眼 / 夜间模式 / 自动亮度。画面固定后等待 2 秒再采样。</p>
+  <p>双击画面可显示 / 隐藏面板。其他浏览器与本机控制会同步到此屏。</p>
+  <p>“白”是 75% RGB，避免过曝；黑屏不能代替遮住镜头测黑电平。</p>
+</div>
+<script>
+  const colours = {
+    black: '#000000', darkgray: '#202020', gray: '#808080', white: '#c0c0c0',
+    fullwhite: '#ffffff', red: '#c00000', green: '#00c000', blue: '#0000c0',
+    yellow: '#c0c000', cyan: '#00c0c0', magenta: '#c000c0'
+  };
+  const labels = { black: '黑', darkgray: '暗灰', gray: '中灰', white: '白 75%',
+    fullwhite: '白 100%', red: '红', green: '绿', blue: '蓝', yellow: '黄',
+    cyan: '青', magenta: '品红', chart: '色块', grayramp: '灰阶' };
+  const surface = document.querySelector('#target');
+  const panel = document.querySelector('#panel');
+  const status = document.querySelector('#status');
+  let revision = -1;
+  let current = '';
+  function render(state) {
+    if (state.revision < revision) return;
+    status.textContent = `已连接 · ${labels[state.target] || state.target}`;
+    if (state.revision === revision && state.target === current) return;
+    revision = state.revision;
+    current = state.target;
+    surface.replaceChildren();
+    surface.style.background = colours[current] || current;
+    surface.style.gridTemplateColumns = '1fr';
+    surface.style.gridTemplateRows = '1fr';
+    let patches = [];
+    if (current === 'chart') {
+      // Top: R/G/B, middle: C/M/Y, bottom: black/gray/white. No labels in the target.
+      patches = ['red', 'green', 'blue', 'cyan', 'magenta', 'yellow', 'black', 'gray', 'white']
+        .map(name => colours[name]);
+      surface.style.gridTemplateColumns = 'repeat(3, 1fr)';
+      surface.style.gridTemplateRows = 'repeat(3, 1fr)';
+    } else if (current === 'grayramp') {
+      patches = [0, 16, 32, 64, 96, 128, 192, 255].map(v => `rgb(${v},${v},${v})`);
+      surface.style.gridTemplateColumns = 'repeat(8, 1fr)';
+    }
+    for (const colour of patches) {
+      const patch = document.createElement('div');
+      patch.style.background = colour;
+      surface.append(patch);
+    }
+  }
+  async function update(target) {
+    try {
+      const response = await fetch('/api/state', { method: 'POST',
+        headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({target}) });
+      if (!response.ok) throw new Error(await response.text());
+      render(await response.json());
+    } catch (error) { status.textContent = `切换失败：${error.message}`; }
+  }
+  for (const [name, label] of Object.entries(labels)) {
+    const button = document.createElement('button');
+    button.textContent = label;
+    button.onclick = () => update(name);
+    document.querySelector('#presets').append(button);
+  }
+  document.querySelector('#custom').onclick = () => update(document.querySelector('#colour').value);
+  document.querySelector('#hide').onclick = () => { panel.hidden = true; };
+  surface.ondblclick = () => { panel.hidden = !panel.hidden; };
+  document.querySelector('#fullscreen').onclick = async () => {
+    try {
+      if (!document.fullscreenElement) await document.documentElement.requestFullscreen();
+      else await document.exitFullscreen();
+    } catch (error) { status.textContent = '此浏览器不支持全屏，请隐藏面板后直接拍摄'; }
+  };
+  async function poll() {
+    const controller = new AbortController();
+    const deadline = setTimeout(() => controller.abort(), 3000);
+    try {
+      const response = await fetch('/api/state', { cache: 'no-store', signal: controller.signal });
+      if (!response.ok) throw new Error(response.status);
+      render(await response.json());
+    } catch (error) { status.textContent = '连接中断，正在重试…'; }
+    finally { clearTimeout(deadline); }
+    setTimeout(poll, 350);
+  }
+  poll();
+</script>
+</html>
