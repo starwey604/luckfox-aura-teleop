@@ -126,6 +126,12 @@ Order matters: apply the SDK patch stack and `select-teleop-board` before SDK bu
 
 ## Camera notes
 
+- 2026-10-16 camera1 RAW RGB targets confirmed GRBG; runtime ISP AWBGAIN/BLS/CCM/gamma
+  are off. At exposure735/gain48/512, covered RAW10 mean is ~42DN with <1.2DN channel
+  imbalance. See `docs/ar0234-bayer-black-level-2026-10-16.md`; don't write RAW10 DN
+  directly to ISP BLS without checking internal scaling. `capture-cif-raw.c` is an
+  isolated, bounded CIF diagnostic (not concurrent with MPI), restores capture mode,
+  and still requires an external live USB log and temperature preflight.
 - Product name ISG1321 == kernel driver/`MIA1321`; I²C addr `0x60`, 26 MHz xvclk.
 - `ar0234-fastreadout` is an opt-in BoardConfig on the A diagnostic kernel config,
   separate from K1. DECXIN four-lane 90MHz readout has passed bounded mono/stereo tests:

@@ -1,0 +1,78 @@
+#!/usr/bin/env python3
+"""Analyse capture-cif-raw output (little-endian, low-aligned RAW10); no camera I/O."""
+import argparse
+import json
+from pathlib import Path
+
+import numpy as np
+
+
+def load_frames(path, metadata):
+    width, height, stride = (metadata[k] for k in ('width', 'height', 'stride'))
+    if metadata.get('format') != 'GRBG10_LE16' or metadata.get('memory_mode') != 1:
+        raise ValueError('Only confirmed low-aligned GRBG RAW10 is supported')
+    if min(width, height) <= 0 or width % 2 or height % 2 or stride % 2 or stride < width * 2:
+        raise ValueError('Invalid RAW geometry/stride')
+    frame_bytes = stride * height
+    if path.stat().st_size == 0 or path.stat().st_size % frame_bytes:
+        raise ValueError('Truncated/empty RAW capture')
+    frames = np.memmap(path, mode='r', dtype='<u2').reshape(-1, height, stride // 2)[:, :, :width]
+    if np.any(frames > 1023):
+        raise ValueError('Pixels exceed RAW10 range; check packing and alignment')
+    return frames
+
+
+def statistics(frames):
+    result = {}
+    for channel, (row, col) in {'Gr': (0, 0), 'R': (0, 1), 'B': (1, 0), 'Gb': (1, 1)}.items():
+        values = frames[:, row::2, col::2]
+        result[channel] = {
+            'mean_dn': float(values.mean()), 'median_dn': float(np.median(values)),
+            'std_dn': float(values.std()), 'p01_p99_dn': np.percentile(values, [1, 99]).tolist(),
+            'zero_fraction': float((values == 0).mean()),
+            'saturated_fraction': float((values == 1023).mean()),
+            'temporal_rms_dn': float(np.sqrt(values.astype(float).var(axis=0, ddof=1).mean()))
+                if len(frames) > 1 else None,
+        }
+    return result
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('raw', type=Path)
+    parser.add_argument('--metadata', type=Path, required=True, help='capture-cif-raw stdout JSONL')
+    parser.add_argument('--skip', type=int, default=8, help='Discard startup frames (default: 8)')
+    parser.add_argument('--roi', type=int, nargs=4, metavar=('X', 'Y', 'WIDTH', 'HEIGHT'))
+    parser.add_argument('--preview', type=Path, help='Optional half-resolution, uncalibrated RGB preview')
+    args = parser.parse_args()
+    try:
+        metadata = json.loads(args.metadata.read_text().splitlines()[0])
+        frames = load_frames(args.raw, metadata)
+        if not 0 <= args.skip < len(frames):
+            raise ValueError('Skip must leave at least one complete frame')
+        selected = frames[args.skip:]
+        if args.roi:
+            x, y, w, h = args.roi
+            if min(x, y) < 0 or min(w, h) <= 0 or any(v % 2 for v in args.roi):
+                raise ValueError('ROI must have nonnegative even origin and positive even size')
+            if x + w > metadata['width'] or y + h > metadata['height']:
+                raise ValueError('ROI exceeds capture')
+            selected = selected[:, y:y+h, x:x+w]
+        result = {'raw_file': str(args.raw), 'geometry': metadata,
+                  'frames_total': len(frames), 'frames_analysed': len(selected),
+                  'roi_xywh': args.roi, 'assumed_bayer': 'GRBG', 'channels': statistics(selected)}
+        if args.preview:
+            from PIL import Image
+            mean = frames[args.skip:].mean(axis=0)
+            rgb = np.stack([mean[::2, 1::2], (mean[::2, ::2] + mean[1::2, 1::2]) / 2,
+                            mean[1::2, ::2]], axis=-1)
+            # Block sampling, not a full demosaic; no black subtraction, WB or CCM.
+            Image.fromarray((np.clip(rgb / 1023, 0, 1) ** (1 / 2.2) * 255).astype('uint8')).save(args.preview)
+            result['preview_note'] = '2x2 block RGB, display gamma 1/2.2 only; not ISP output or calibrated colour'
+        print(json.dumps(result, indent=2))
+    except (ValueError, KeyError, IndexError, OSError) as exc:
+        parser.exit(1, str(exc) + '\n')
+
+
+if __name__ == '__main__':
+    main()

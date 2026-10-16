@@ -1,0 +1,189 @@
+{
+  "camera": 1,
+  "date": "2026-10-16",
+  "kernel": "6.1.141 #19",
+  "sensor_controls": {
+    "exposure": 735,
+    "analogue_gain": 48,
+    "digital_gain": 512,
+    "vertical_blanking": 506
+  },
+  "raw10_roi_xywh": [
+    530,
+    450,
+    40,
+    40
+  ],
+  "colour_response": {
+    "red64": {
+      "Gr": 65.2394,
+      "R": 112.8619,
+      "B": 52.5375,
+      "Gb": 63.8356
+    },
+    "green64": {
+      "Gr": 128.4694,
+      "R": 72.3244,
+      "B": 63.9925,
+      "Gb": 127.4525
+    },
+    "blue64": {
+      "Gr": 58.2219,
+      "R": 53.2069,
+      "B": 101.2375,
+      "Gb": 58.3925
+    },
+    "gray64": {
+      "Gr": 154.9294,
+      "R": 141.4569,
+      "B": 123.9725,
+      "Gb": 154.1625
+    }
+  },
+  "dark_frame": {
+    "Gr": {
+      "mean_dn": 41.657184244791665,
+      "median_dn": 43.0,
+      "std_dn": 11.573714912704148,
+      "p01_p99_dn": [
+        15.0,
+        69.0
+      ],
+      "zero_fraction": 0.0016438802083333333,
+      "saturated_fraction": 0.0,
+      "temporal_rms_dn": 10.19671740267085
+    },
+    "R": {
+      "mean_dn": 42.81864691840278,
+      "median_dn": 44.0,
+      "std_dn": 11.547708939998452,
+      "p01_p99_dn": [
+        17.0,
+        70.0
+      ],
+      "zero_fraction": 0.0015831163194444445,
+      "saturated_fraction": 0.0,
+      "temporal_rms_dn": 10.174451691904718
+    },
+    "B": {
+      "mean_dn": 42.54040364583334,
+      "median_dn": 44.0,
+      "std_dn": 11.330196579255368,
+      "p01_p99_dn": [
+        16.0,
+        68.0
+      ],
+      "zero_fraction": 0.0016362847222222221,
+      "saturated_fraction": 0.0,
+      "temporal_rms_dn": 10.045678767129731
+    },
+    "Gb": {
+      "mean_dn": 41.660297309027776,
+      "median_dn": 43.0,
+      "std_dn": 11.390877925410638,
+      "p01_p99_dn": [
+        15.0,
+        67.0
+      ],
+      "zero_fraction": 0.00189453125,
+      "saturated_fraction": 0.0,
+      "temporal_rms_dn": 10.055783213736595
+    }
+  },
+  "phase_mapping": {
+    "even_row_even_col": "Gr",
+    "even_row_odd_col": "R",
+    "odd_row_even_col": "B",
+    "odd_row_odd_col": "Gb"
+  },
+  "isp_runtime": {
+    "bayer_ctrl1": "0x00000008",
+    "awb_gain_enabled": false,
+    "awb_gain0_G_RB": [
+      "0x01000100",
+      "0x01000100"
+    ],
+    "bls_enabled": false,
+    "bls_ctrl": "0x00000000",
+    "bls_fixed_ABCD": [
+      0,
+      0,
+      0,
+      0
+    ],
+    "debayer_enabled": true,
+    "ccm_enabled": false,
+    "gamma_enabled": false,
+    "ob_enabled": false,
+    "direct_params_ioctl": "unavailable: CONFIG_VIDEO_ROCKCHIP_ISP_VERSION_V35_DBG is disabled; used procfs snapshot"
+  },
+  "tests": [
+    {
+      "case": "isp",
+      "marker": "colour-796facc9c7a84711a32fefe49eadec81",
+      "boot_id": "98c5eb51-6403-48ac-8f89-d96c4c544f2f",
+      "same_boot": true,
+      "critical_kernel_issue": false,
+      "advisories": []
+    },
+    {
+      "case": "chart",
+      "marker": "colour-c357cce952ae47a098eefe14ec3d9d0a",
+      "boot_id": "98c5eb51-6403-48ac-8f89-d96c4c544f2f",
+      "same_boot": true,
+      "critical_kernel_issue": false,
+      "advisories": []
+    },
+    {
+      "case": "red64",
+      "marker": "colour-048ec59a4561486782f30951bc0ae2c9",
+      "boot_id": "98c5eb51-6403-48ac-8f89-d96c4c544f2f",
+      "same_boot": true,
+      "critical_kernel_issue": false,
+      "advisories": []
+    },
+    {
+      "case": "green64",
+      "marker": "colour-b892b547add94ca38d840b4a8d69e5f6",
+      "boot_id": "98c5eb51-6403-48ac-8f89-d96c4c544f2f",
+      "same_boot": true,
+      "critical_kernel_issue": false,
+      "advisories": []
+    },
+    {
+      "case": "blue64",
+      "marker": "colour-16e50bd8c89b4c2cb4b7607ecd64957e",
+      "boot_id": "98c5eb51-6403-48ac-8f89-d96c4c544f2f",
+      "same_boot": true,
+      "critical_kernel_issue": false,
+      "advisories": []
+    },
+    {
+      "case": "gray64",
+      "marker": "colour-ab87c3db0f834b4a953a3ae7185e37a9",
+      "boot_id": "98c5eb51-6403-48ac-8f89-d96c4c544f2f",
+      "same_boot": true,
+      "critical_kernel_issue": false,
+      "advisories": []
+    },
+    {
+      "case": "screen-black",
+      "marker": "colour-58b6e517b70a4f3582ccea61d8ea758e",
+      "boot_id": "98c5eb51-6403-48ac-8f89-d96c4c544f2f",
+      "same_boot": true,
+      "critical_kernel_issue": false,
+      "advisories": []
+    },
+    {
+      "case": "dark",
+      "marker": "colour-1317629c33014106b2f24fc47781b383",
+      "boot_id": "98c5eb51-6403-48ac-8f89-d96c4c544f2f",
+      "same_boot": true,
+      "critical_kernel_issue": false,
+      "advisories": []
+    }
+  ],
+  "captured_raw_frames": 84,
+  "captured_encoded_frames": 120,
+  "note": "Only camera1 tested; first eight RAW frames excluded, last four analysed. Screen-black showed browser UI and is excluded from calibration. No ISP colour settings changed."
+}
