@@ -1,0 +1,203 @@
+{
+  "date": "2026-10-16",
+  "wb_gains_R_Gr_Gb_B": [
+    1.4375,
+    1,
+    1,
+    1.5625
+  ],
+  "wb_gains_q8": [
+    368,
+    256,
+    256,
+    400
+  ],
+  "bls_isp_R_Gr_Gb_B": [
+    171,
+    167,
+    167,
+    170
+  ],
+  "sensor_exposure_lines_default": 735,
+  "analogue_gain": 48,
+  "digital_gain": 512,
+  "kernel_flash_required": false,
+  "cases": [
+    {
+      "case": "paper-baseline",
+      "marker": "colour-466d37c23eba4591ae59e54e3f57df4b",
+      "boot_id": "98c5eb51-6403-48ac-8f89-d96c4c544f2f",
+      "same_boot": true,
+      "critical_kernel_issue": false,
+      "advisories": [],
+      "encoded_frames": 120,
+      "hardware_decoded_frames": 120,
+      "diagnostic_decode_queue_capacity": 32
+    },
+    {
+      "case": "paper-wb",
+      "marker": "colour-804bcea6551045328019940fe30ea670",
+      "boot_id": "98c5eb51-6403-48ac-8f89-d96c4c544f2f",
+      "same_boot": true,
+      "critical_kernel_issue": false,
+      "advisories": [],
+      "encoded_frames": 120,
+      "hardware_decoded_frames": 120,
+      "diagnostic_decode_queue_capacity": 32
+    },
+    {
+      "case": "paper-wb-bls168",
+      "marker": "colour-34b077fe757d4be4a1864fe81796a351",
+      "boot_id": "98c5eb51-6403-48ac-8f89-d96c4c544f2f",
+      "same_boot": true,
+      "critical_kernel_issue": false,
+      "advisories": [],
+      "encoded_frames": 120,
+      "hardware_decoded_frames": 120,
+      "diagnostic_decode_queue_capacity": 32
+    },
+    {
+      "case": "dark-baseline",
+      "marker": "colour-f586286723f6472d976b1b1409c31467",
+      "boot_id": "98c5eb51-6403-48ac-8f89-d96c4c544f2f",
+      "same_boot": true,
+      "critical_kernel_issue": false,
+      "advisories": [],
+      "encoded_frames": 120,
+      "hardware_decoded_frames": 120,
+      "diagnostic_decode_queue_capacity": 32,
+      "luma": {
+        "decoded_frames": 120,
+        "analysed_frames": 110,
+        "mean_Y": 11.057745176373107,
+        "p01_p50_p99_Y": [
+          8.0,
+          11.0,
+          14.0
+        ],
+        "zero_fraction": 4.803898358585859e-06
+      }
+    },
+    {
+      "case": "dark-bls42",
+      "marker": "colour-25b97c171b2048e0b20dfe77b1698c2e",
+      "boot_id": "98c5eb51-6403-48ac-8f89-d96c4c544f2f",
+      "same_boot": true,
+      "critical_kernel_issue": false,
+      "advisories": [],
+      "encoded_frames": 120,
+      "hardware_decoded_frames": 120,
+      "diagnostic_decode_queue_capacity": 32,
+      "luma": {
+        "decoded_frames": 120,
+        "analysed_frames": 110,
+        "mean_Y": 8.46669641729798,
+        "p01_p50_p99_Y": [
+          6.0,
+          8.0,
+          12.0
+        ],
+        "zero_fraction": 2.907986111111111e-05
+      }
+    },
+    {
+      "case": "dark-bls168",
+      "marker": "colour-4c2e92907ff6408b8801c16120eefef3",
+      "boot_id": "98c5eb51-6403-48ac-8f89-d96c4c544f2f",
+      "same_boot": true,
+      "critical_kernel_issue": false,
+      "advisories": [],
+      "encoded_frames": 120,
+      "hardware_decoded_frames": 120,
+      "diagnostic_decode_queue_capacity": 32,
+      "luma": {
+        "decoded_frames": 120,
+        "analysed_frames": 110,
+        "mean_Y": 1.7060726306029041,
+        "p01_p50_p99_Y": [
+          0.0,
+          2.0,
+          4.0
+        ],
+        "zero_fraction": 0.014162711095328283
+      }
+    },
+    {
+      "case": "paper-exposure588",
+      "marker": "colour-7029cbe6b0fb4fecbccb8c7eb5c989e9",
+      "boot_id": "98c5eb51-6403-48ac-8f89-d96c4c544f2f",
+      "same_boot": true,
+      "critical_kernel_issue": false,
+      "advisories": [],
+      "encoded_frames": 120,
+      "hardware_decoded_frames": 120,
+      "diagnostic_decode_queue_capacity": 32
+    },
+    {
+      "case": "stereo-wb-bls",
+      "marker": "colour-9eb7559b33ab4a1ca32e9abb6666f7aa",
+      "boot_id": "98c5eb51-6403-48ac-8f89-d96c4c544f2f",
+      "same_boot": true,
+      "critical_kernel_issue": false,
+      "advisories": [],
+      "encoded_frames": 240,
+      "hardware_decoded_frames": 240,
+      "diagnostic_decode_queue_capacity": 32
+    },
+    {
+      "case": "rollback-no-isp",
+      "marker": "colour-a32d507429614d21b4ddc3f526cf7ec8",
+      "boot_id": "98c5eb51-6403-48ac-8f89-d96c4c544f2f",
+      "same_boot": true,
+      "critical_kernel_issue": false,
+      "advisories": [],
+      "encoded_frames": 120,
+      "hardware_decoded_frames": 120,
+      "diagnostic_decode_queue_capacity": 32
+    }
+  ],
+  "unity_probe": {
+    "sender_encoded_frames": 120,
+    "hardware_decode_frames": 1,
+    "success": false,
+    "reason": "Native GPU decoder startup exceeded default four-AU queue; subsequent colour diagnostics used queue32. No default viewer change or latency claim."
+  },
+  "colour_roi_xywh": [
+    680,
+    360,
+    100,
+    100
+  ],
+  "representative_frame60_RGB_FFmpeg_default": {
+    "baseline": [
+      153.64,
+      220.08,
+      143.65
+    ],
+    "wb": [
+      227.49,
+      220.75,
+      229.52
+    ],
+    "wb_bls": [
+      210.63,
+      209.04,
+      210.39
+    ],
+    "wb_bls_exposure588": [
+      205.84,
+      204.46,
+      208.94
+    ]
+  },
+  "sender_sha256": "4978d98c9c5010925f2ee6f919bba60738ed2c669dac4a65e8ae3fc0e50fc129",
+  "colour_scope": "Camera1, current room light; not a chart-based CCM calibration, not a latency A/B. Same candidate on camera0 is a stereo functional test.",
+  "deployment": {
+    "normal_sender": "/userdata/teleop-sender",
+    "launcher": "/userdata/run-ar0234-stereo",
+    "launcher_sha256": "4d7d9b5da3e3e77ad70dc34bf7b3eb7695c12680923f5b82729ce92a183ad442",
+    "default_isp_settings": "opt-in only; no global WB/BLS default change",
+    "final_temperature_mC": 46710,
+    "sensor_exposure_restored_to_lines": 735
+  }
+}

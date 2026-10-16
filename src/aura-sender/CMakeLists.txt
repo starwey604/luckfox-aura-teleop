@@ -38,5 +38,6 @@ set_target_properties(aura-sender PROPERTIES
     INSTALL_RPATH "/oem/usr/lib")
 target_compile_features(aura-sender PRIVATE cxx_std_20)
 target_compile_options(aura-sender PRIVATE -Wall -Wextra -Wpedantic -Wconversion)
+target_compile_options(aura-sender PRIVATE -idirafter "${AURA_SDK_ROOT}/sysdrv/source/kernel/include/uapi")
 
 install(TARGETS aura-sender RUNTIME DESTINATION bin)

@@ -59,7 +59,8 @@ time.sleep(0.3)
                         SENDER=str(self.bin / 'sender'))
         for name in ('FPS', 'VERTICAL_BLANKING', 'EXPOSURE', 'ANALOGUE_GAIN', 'DIGITAL_GAIN',
                      'BITRATE_KBPS', 'WRAP_LINES', 'OUTPUT_MODE', 'H264_DIR', 'GOP', 'SLICE_CTUS',
-                     'RC_MODE', 'QP_I', 'QP_P', 'PROFILE', 'ENTROPY', 'TRANSFORM', 'DEBLOCK', 'MAX_REENCODE', 'CODEC_REPORT'):
+                     'RC_MODE', 'QP_I', 'QP_P', 'PROFILE', 'ENTROPY', 'TRANSFORM', 'DEBLOCK', 'MAX_REENCODE', 'CODEC_REPORT',
+                     'ISP_WB', 'ISP_BLACK_LEVEL'):
             self.env.pop(name, None)
 
     def write(self, name, content):
@@ -119,11 +120,13 @@ time.sleep(0.3)
     def test_codec_overrides_are_individual_arguments(self):
         result = self.run_launcher('--frames', '3', GOP='1', SLICE_CTUS='480', RC_MODE='fixqp',
                                    QP_I='26', QP_P='30', ENTROPY='cavlc', TRANSFORM='4x4',
-                                   DEBLOCK='off', MAX_REENCODE='0', CODEC_REPORT='1')
+                                   DEBLOCK='off', MAX_REENCODE='0', CODEC_REPORT='1',
+                                   ISP_WB='1.4375,1,1,1.5625', ISP_BLACK_LEVEL='171,167,167,170')
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
         calls = self.calls.read_text()
         for flag in ('--gop 1', '--slice-ctus 480', '--rc-mode fixqp', '--qp-i 26', '--qp-p 30',
-                     '--entropy cavlc', '--transform 4x4', '--deblock off', '--max-reencode 0', '--codec-report'):
+                     '--entropy cavlc', '--transform 4x4', '--deblock off', '--max-reencode 0', '--codec-report',
+                     '--isp-wb 1.4375,1,1,1.5625', '--isp-black-level 171,167,167,170'):
             self.assertIn(flag, calls)
 
     def test_recordings_use_independent_paths(self):

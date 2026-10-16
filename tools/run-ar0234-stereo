@@ -17,6 +17,7 @@ usage() {
     echo '             Optional: RC_MODE=cbr|fixqp QP_I=26 QP_P=26 PROFILE=high|main|baseline'
     echo '             ENTROPY=cabac|cavlc TRANSFORM=auto|4x4 override the defaults'
     echo '             DEBLOCK=on|off MAX_REENCODE=0..3 CODEC_REPORT=1'
+    echo '             ISP_WB=R,Gr,Gb,B (0.25..8); ISP_BLACK_LEVEL=R,Gr,Gb,B (ISP units)'
 }
 
 mode=sender
@@ -106,6 +107,7 @@ if [ "$dry_run" = true ]; then
     echo "dry run: $mode, 1280x720, frames=$frames, destination=$destination:$port, fps=$fps bitrate_kbps=$bitrate"
     echo "sensor controls: vertical_blanking=$vertical_blanking exposure=$exposure analogue_gain=$analogue digital_gain=$digital"
     echo "codec: gop=$gop slice_ctus=$slice_ctus output_mode=$output_mode entropy=$entropy transform=$transform"
+    echo "isp opt-in: wb=${ISP_WB:-unchanged} black_level=${ISP_BLACK_LEVEL:-unchanged}"
     echo 'No control changes or capture/sender processes started.'
     exit 0
 fi
@@ -155,6 +157,8 @@ if [ "$mode" = sender ]; then
     [ -z "${DEBLOCK:-}" ] || set -- "$@" --deblock "$DEBLOCK"
     [ -z "${MAX_REENCODE:-}" ] || set -- "$@" --max-reencode "$MAX_REENCODE"
     [ "${CODEC_REPORT:-0}" != 1 ] || set -- "$@" --codec-report
+    [ -z "${ISP_WB:-}" ] || set -- "$@" --isp-wb "$ISP_WB"
+    [ -z "${ISP_BLACK_LEVEL:-}" ] || set -- "$@" --isp-black-level "$ISP_BLACK_LEVEL"
     "$sender" --dual --width 1280 --height 720 --fps "$fps" \
         --destination "$destination" --port "$port" --bitrate-kbps "$bitrate" \
         --wrap-lines "$wrap_lines" --gop "$gop" --slice-ctus "$slice_ctus" --output-mode "$output_mode" --frames "$frames" "$@" \

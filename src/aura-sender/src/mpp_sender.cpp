@@ -34,6 +34,7 @@ extern "C" {
 #include <string>
 #include <string_view>
 #include <vector>
+#include "manual_isp.hpp"
 
 namespace {
 
@@ -128,6 +129,7 @@ private:
 };
 
 struct Options {
+    teleop::manual_isp::Settings isp{};
     std::string_view destination{"192.168.1.2"};
     std::uint16_t port{5000U};
     std::uint16_t stream_id{0U};
@@ -199,6 +201,8 @@ void print_usage(const char* program)
         "  --transform MODE      Optional auto or 4x4\n"
         "  --deblock MODE        Optional on or off, signalled in the bitstream\n"
         "  --codec-report        Read back encoder settings before receiving frames\n"
+        "  --isp-wb R,Gr,Gb,B    Static ISP white-balance gains, 0.25..8 (opt-in)\n"
+        "  --isp-black-level R,Gr,Gb,B  Static BLS register values, 0..4095 (not RAW10 DN)\n"
         "  --output-mode MODE     frame: mode 1 immediate AU (default); slice: mode 3 PTS grouping\n"
         "  --output-h264 FILE     Save Annex-B; --dual requires {camera} in FILE\n"
         "  --vi-device ID         VI device (default: 0)\n"
@@ -256,7 +260,11 @@ bool parse_options(int argc, char* argv[], Options& options)
             return false;
         }
         const std::string_view value{argv[++index]};
-        if (option == "--destination") {
+        if (option == "--isp-wb") {
+            if (!teleop::manual_isp::set_wb(options.isp, value)) return false;
+        } else if (option == "--isp-black-level") {
+            if (!teleop::manual_isp::set_black(options.isp, value)) return false;
+        } else if (option == "--destination") {
             options.destination = value;
         } else if (option == "--camera") {
             std::uint32_t camera = 0U;
@@ -376,6 +384,8 @@ public:
     void initialize()
     {
         g_camera = options_.vi_device;
+        isp_.prepare(options_.vi_pipe, options_.isp);
+        checkpoint("isp.prepared");
         setup_vi_device();
         setup_vi_channel();
         setup_venc();
@@ -421,7 +431,10 @@ public:
             vi_device_enabled_by_us_ = false;
             cleanup_result(MPI_CALL(RK_MPI_VI_DisableDev(options_.vi_device)), "VI_DisableDev");
         }
+        if (!isp_.close()) g_cleanup_failed.store(true);
     }
+
+    void verify_isp() { isp_.verify(); }
 
     // The caller owns each returned stream until ReleaseStream. With slice
     // output, a stream may contain only part of a frame; frame mode uses the
@@ -699,6 +712,7 @@ private:
     }
 
     const Options& options_;
+    teleop::manual_isp::Session isp_;
     MPP_CHN_S source_channel_{};
     MPP_CHN_S destination_channel_{};
     bool vi_device_enabled_by_us_{false};
@@ -820,6 +834,7 @@ void capture_stream(const Options& options, MppPipeline& pipeline,
                 pipeline.release_stream(*owned);
             }
         } lease{pipeline, &stream};
+        pipeline.verify_isp();
         checkpoint("stream.acquired");
         // Keep draining a completed stream until its sibling finishes,
         // avoiding backpressure on the shared ISP/encoder during teardown.

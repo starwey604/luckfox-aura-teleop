@@ -132,6 +132,12 @@ Order matters: apply the SDK patch stack and `select-teleop-board` before SDK bu
   directly to ISP BLS without checking internal scaling. `capture-cif-raw.c` is an
   isolated, bounded CIF diagnostic (not concurrent with MPI), restores capture mode,
   and still requires an external live USB log and temperature preflight.
+- Manual ISP options `--isp-wb R,Gr,Gb,B` and `--isp-black-level R,Gr,Gb,B` are opt-in;
+  launcher forwards `ISP_WB`/`ISP_BLACK_LEVEL`. Camera1 room-light candidate is
+  WB1.4375/1/1/1.5625, BLS171/167/167/170 in ISP units (~4x RAW10 DN).
+  Metadata queues must close after VI; no live AWB-disable toggling on this BSP.
+  Procfs verifies WB gains/enable, BLS enable only; fixed BLS registers were separately
+  audited. See `docs/ar0234-manual-isp-2026-10-16.md`. No global preset or firmware change.
 - Product name ISG1321 == kernel driver/`MIA1321`; I²C addr `0x60`, 26 MHz xvclk.
 - `ar0234-fastreadout` is an opt-in BoardConfig on the A diagnostic kernel config,
   separate from K1. DECXIN four-lane 90MHz readout has passed bounded mono/stereo tests:

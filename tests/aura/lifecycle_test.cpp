@@ -129,11 +129,29 @@ int run(bool dual=false, const char* output_mode="frame", const std::vector<std:
 int main()
 {
     try {
+        teleop::manual_isp::Settings isp;
+        mock::require(!isp.enabled(), "ISP changed by default");
+        for (const auto* bad : {"1,1,1", "1,1,1,1,1", "nan,1,1,1", "9,1,1,1", "0,1,1,1"})
+            mock::require(!teleop::manual_isp::set_wb(isp, bad), "bad WB accepted");
+        mock::require(teleop::manual_isp::set_wb(isp, "1.4375,1,1,1.5625"), "valid WB rejected");
+        for (const auto* bad : {"-1,0,0,0", "4096,0,0,0", "1.5,0,0,0"})
+            mock::require(!teleop::manual_isp::set_black(isp, bad), "bad BLS accepted");
+        mock::require(teleop::manual_isp::set_black(isp, "172,168,168,172"), "valid BLS rejected");
+        const auto params = teleop::manual_isp::make_params(isp);
+        mock::require(params.module_ens == (ISP35_MODULE_AWB_GAIN | ISP35_MODULE_BLS) &&
+                      params.module_cfg_update == params.module_ens && params.module_en_update == params.module_ens,
+                      "ISP overwrites unrelated module masks");
+        mock::require(params.others.awb_gain_cfg.gain0_red == 368 && params.others.awb_gain_cfg.gain2_blue == 400 &&
+                      params.others.awb_gain_cfg.awb1_gain_r == 256 && params.others.awb_gain_cfg.awb1_gain_b == 256,
+                      "WB quantization or secondary unity stage wrong");
+        mock::require(params.others.bls_cfg.fixed_val.r == 172 && params.others.bls_cfg.fixed_val.gr == 168 &&
+                      !params.others.bls_cfg.bls1_en && params.others.bls_cfg.isp_ob_predgain == 0,
+                      "BLS affects extra stages");
         mock::reset(); setenv("AURA_FAIL_AFTER", "system.initialized", 1);
         mock::require(run()!=0, "system initialization injection not detected"); mock::all_released();
         mock::require(mock::events == std::vector<std::string>{"SYS_Init", "SYS_WaitFreeMB", "SYS_Exit"},
                       "system-only probe opened a camera or repeated cleanup");
-        for (const auto* phase : {"vi.device", "vi.enabled", "venc.created", "venc.started", "bound", "stream.acquired"}) {
+        for (const auto* phase : {"isp.prepared", "vi.device", "vi.enabled", "venc.created", "venc.started", "bound", "stream.acquired"}) {
             mock::reset(); setenv("AURA_FAIL_AFTER", phase, 1);
             mock::require(run()!=0, "injection not detected"); mock::all_released();
         }
@@ -174,7 +192,8 @@ int main()
         mock::require(run(false, "frame", {"--codec-report"})==0, "unsupported optional getter must be reported, not change baseline"); mock::all_released();
         for (const std::vector<std::string>& args : {std::vector<std::string>{"--profile", "baseline", "--entropy", "cabac"},
                 {"--profile", "main", "--transform", "auto"}, {"--qp-i", "20"}, {"--max-reencode", "4"},
-                {"--rc-mode", "fixqp", "--qp-p", "52"}}) {
+                {"--rc-mode", "fixqp", "--qp-p", "52"}, {"--isp-wb", "nan,1,1,1"},
+                {"--isp-wb", "1,1,1"}, {"--isp-black-level", "1.5,0,0,0"}}) {
             mock::reset(); mock::require(run(false, "frame", args)!=0 && mock::init_count==0, "invalid codec args reached MPI");
         }
         mock::reset(); mock::incomplete_frame_pack=true;
